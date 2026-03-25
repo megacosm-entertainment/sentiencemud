@@ -247,6 +247,97 @@
     },
     {
       "test_type": "gmcp_sentience_",
+      "name": "gmcp_build_identity_extended",
+      "description": "Extended identity builder with classes, traits, and race info",
+      "input": {
+        "function": "build_identity_extended",
+        "test_cases": [
+          {
+            "scenario": "extended_identity",
+            "params": {
+              "name": "Tieryo",
+              "race_wnum": "0:50",
+              "race_name": "Human",
+              "body_type": "male",
+              "level": 40,
+              "tot_level": 120,
+              "title": "the Archmage",
+              "classes": [
+                {
+                  "id": "mage", "name": "Mage", "level": 40, "is_primary": true,
+                  "max_level": 60, "type": "mage", "flags": "combative caster",
+                  "primary_stat": "intelligence", "hp_min": 6, "hp_max": 8,
+                  "gains_mana": true, "description": "Masters of the arcane arts.",
+                  "xp": 185200, "active_title": "default",
+                  "titles": [
+                    {"keyword": "default", "display": "Wizard", "is_default": true},
+                    {"keyword": "archmage", "display": "Archmage", "is_default": false}
+                  ],
+                  "action_label": null, "action_cmd": null
+                },
+                {
+                  "id": "warrior", "name": "Warrior", "level": 35, "is_primary": false,
+                  "max_level": 60, "type": "warrior", "flags": "combative",
+                  "primary_stat": "strength", "hp_min": 10, "hp_max": 14,
+                  "gains_mana": false, "description": "Skilled fighters.",
+                  "xp": 120500, "active_title": null,
+                  "titles": [
+                    {"keyword": "default", "display": "Warrior", "is_default": true}
+                  ],
+                  "action_label": "Switch to Warrior", "action_cmd": "setclass warrior"
+                }
+              ],
+              "traits": [
+                {
+                  "id": "cosmic_projection", "name": "Cosmic Projection",
+                  "description": "Can project consciousness.", "category": "ability",
+                  "type": "bool", "source": "race", "value_bool": true
+                },
+                {
+                  "id": "breath_damage_bonus", "name": "Breath Damage Bonus",
+                  "description": "Bonus to breath damage.", "category": "combat",
+                  "type": "int", "source": "personal", "value_int": 25
+                }
+              ],
+              "race_info": {
+                "id": "human", "name": "Human",
+                "description": "Versatile and adaptive.", "playable": true,
+                "starting": true, "size": "medium",
+                "stats": [13, 13, 13, 13, 13],
+                "max_stats": [20, 20, 20, 20, 20],
+                "max_vitals": [2500, 2500, 2500],
+                "skills": ["sword", "fast healing"],
+                "resistances": "", "vulnerabilities": "", "immunities": "",
+                "affects": "", "remort_into": null, "traits": []
+              }
+            },
+            "expected": {
+              "_v": 1,
+              "name": "Tieryo",
+              "classes_count": 2,
+              "first_class_max_level": 60,
+              "first_class_type": "mage",
+              "first_class_gains_mana": true,
+              "first_class_xp": 185200,
+              "first_class_titles_count": 2,
+              "first_class_action_null": true,
+              "second_class_action_label": "Switch to Warrior",
+              "traits_count": 2,
+              "first_trait_id": "cosmic_projection",
+              "first_trait_source": "race",
+              "second_trait_value_int": 25,
+              "race_info_id": "human",
+              "race_info_playable": true,
+              "race_info_skills_count": 2,
+              "race_info_stats_str": 13
+            }
+          }
+        ]
+      },
+      "expected_result": "pass"
+    },
+    {
+      "test_type": "gmcp_sentience_",
       "name": "gmcp_build_room_standard",
       "description": "Builds Sentience.Room JSON for a standard room with exits",
       "input": {

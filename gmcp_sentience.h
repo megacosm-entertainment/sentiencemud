@@ -43,7 +43,10 @@ typedef enum {
 #define SENTIENCE_PACKAGE_VERSION 1
 
 /* Maximum classes a character can have simultaneously */
-#define SENTIENCE_MAX_CLASSES 8
+#define SENTIENCE_MAX_CLASSES     32
+#define SENTIENCE_MAX_TRAITS      64
+#define SENTIENCE_MAX_TITLES      16
+#define SENTIENCE_MAX_RACE_SKILLS 16
 
 /*
  * Cache of previously-sent values. Stored in protocol_t.
@@ -136,6 +139,66 @@ json_t *sentience_build_combat_json(int ac_pierce, int ac_bash,
 json_t *sentience_build_worth_json(int alignment, long xp, long xp_tnl,
                                     int practices, long gold);
 
+typedef struct {
+    const char *keyword;
+    const char *display;
+    bool is_default;
+} sentience_class_title_t;
+
+typedef struct {
+    const char *id;
+    const char *name;
+    const char *description;
+    const char *category;
+    const char *type;           /* "bool", "int", "string" */
+    const char *source;         /* "personal", "class", "race" */
+    bool value_bool;
+    int value_int;
+    const char *value_string;
+} sentience_trait_t;
+
+typedef struct {
+    const char *id;
+    const char *name;
+    const char *description;
+    bool playable;
+    bool starting;
+    const char *size;
+    int stats[5];               /* STR/INT/WIS/DEX/CON */
+    int max_stats[5];
+    int max_vitals[3];          /* HP/Mana/Move */
+    int num_skills;
+    const char *skills[SENTIENCE_MAX_RACE_SKILLS];
+    const char *resistances;    /* space-separated names */
+    const char *vulnerabilities;
+    const char *immunities;
+    const char *affects;
+    const char *remort_into;    /* NULL if no remort */
+    int num_traits;
+    sentience_trait_t traits[SENTIENCE_MAX_TRAITS];
+} sentience_race_info_t;
+
+typedef struct {
+    const char *id;
+    const char *name;
+    int level;
+    bool is_primary;
+    /* New fields */
+    int max_level;
+    const char *type;           /* class type name */
+    const char *flags;          /* space-separated flag names */
+    const char *primary_stat;   /* stat name */
+    int hp_min, hp_max;
+    bool gains_mana;
+    const char *description;
+    long xp;
+    const char *active_title;   /* chosen title keyword or NULL */
+    int num_titles;
+    sentience_class_title_t titles[SENTIENCE_MAX_TITLES];
+    const char *action_label;   /* NULL for primary class */
+    const char *action_cmd;     /* NULL for primary class */
+} sentience_identity_class_t;
+
 /*
  * Identity builder input — avoids a massive parameter list.
  */
@@ -148,12 +211,10 @@ typedef struct {
     int tot_level;
     const char *title;
     int num_classes;
-    struct {
-        const char *id;
-        const char *name;
-        int level;
-        bool is_primary;
-    } classes[SENTIENCE_MAX_CLASSES];
+    sentience_identity_class_t classes[SENTIENCE_MAX_CLASSES];
+    int num_traits;
+    sentience_trait_t traits[SENTIENCE_MAX_TRAITS];
+    sentience_race_info_t race_info;
 } sentience_identity_input_t;
 
 json_t *sentience_build_identity_json(const sentience_identity_input_t *data);

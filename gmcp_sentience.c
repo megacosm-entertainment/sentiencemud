@@ -105,7 +105,7 @@ json_t *sentience_build_identity_json(const sentience_identity_input_t *data)
 {
     json_t *obj;
     json_t *classes;
-    int i;
+    int i, j;
 
     if (!data) return NULL;
 
@@ -122,14 +122,144 @@ json_t *sentience_build_identity_json(const sentience_identity_input_t *data)
 
     classes = json_array();
     for (i = 0; i < data->num_classes; i++) {
+        const sentience_identity_class_t *c = &data->classes[i];
         json_t *cls = json_object();
-        json_object_set_new(cls, "id",         json_string(data->classes[i].id ? data->classes[i].id : ""));
-        json_object_set_new(cls, "name",       json_string(data->classes[i].name ? data->classes[i].name : ""));
-        json_object_set_new(cls, "level",      json_integer(data->classes[i].level));
-        json_object_set_new(cls, "is_primary", data->classes[i].is_primary ? json_true() : json_false());
+        
+        /* Original fields (preserve backward compatibility) */
+        json_object_set_new(cls, "id",         json_string(c->id ? c->id : ""));
+        json_object_set_new(cls, "name",       json_string(c->name ? c->name : ""));
+        json_object_set_new(cls, "level",      json_integer(c->level));
+        json_object_set_new(cls, "is_primary", c->is_primary ? json_true() : json_false());
+        
+        /* Extended fields */
+        json_object_set_new(cls, "max_level",    json_integer(c->max_level));
+        json_object_set_new(cls, "type",         json_string(c->type ? c->type : ""));
+        json_object_set_new(cls, "flags",        json_string(c->flags ? c->flags : ""));
+        json_object_set_new(cls, "primary_stat", json_string(c->primary_stat ? c->primary_stat : ""));
+
+        json_t *hp_range = json_array();
+        json_array_append_new(hp_range, json_integer(c->hp_min));
+        json_array_append_new(hp_range, json_integer(c->hp_max));
+        json_object_set_new(cls, "hp_range", hp_range);
+
+        json_object_set_new(cls, "gains_mana",   c->gains_mana ? json_true() : json_false());
+        json_object_set_new(cls, "description",  json_string(c->description ? c->description : ""));
+        json_object_set_new(cls, "xp",           json_integer(c->xp));
+        json_object_set_new(cls, "active_title", c->active_title ? json_string(c->active_title) : json_null());
+
+        /* available_titles */
+        json_t *titles_arr = json_array();
+        for (j = 0; j < c->num_titles; j++) {
+            json_t *t = json_object();
+            json_object_set_new(t, "keyword", json_string(c->titles[j].keyword ? c->titles[j].keyword : ""));
+            json_object_set_new(t, "display", json_string(c->titles[j].display ? c->titles[j].display : ""));
+            json_object_set_new(t, "is_default", c->titles[j].is_default ? json_true() : json_false());
+            json_array_append_new(titles_arr, t);
+        }
+        json_object_set_new(cls, "available_titles", titles_arr);
+
+        /* action — null for primary, object for secondary */
+        if (c->action_label && c->action_cmd) {
+            json_t *action = json_object();
+            json_object_set_new(action, "label", json_string(c->action_label));
+            json_object_set_new(action, "cmd", json_string(c->action_cmd));
+            json_object_set_new(cls, "action", action);
+        } else {
+            json_object_set_new(cls, "action", json_null());
+        }
+        
         json_array_append_new(classes, cls);
     }
     json_object_set_new(obj, "classes", classes);
+
+    /* traits array */
+    json_t *traits_arr = json_array();
+    for (i = 0; i < data->num_traits; i++) {
+        const sentience_trait_t *tr = &data->traits[i];
+        json_t *jtrait = json_object();
+        json_object_set_new(jtrait, "id", json_string(tr->id ? tr->id : ""));
+        json_object_set_new(jtrait, "name", json_string(tr->name ? tr->name : ""));
+        json_object_set_new(jtrait, "description", json_string(tr->description ? tr->description : ""));
+        json_object_set_new(jtrait, "category", json_string(tr->category ? tr->category : ""));
+        json_object_set_new(jtrait, "type", json_string(tr->type ? tr->type : "bool"));
+        json_object_set_new(jtrait, "source", json_string(tr->source ? tr->source : ""));
+        /* value: typed based on tr->type */
+        if (tr->type && !strcmp(tr->type, "int"))
+            json_object_set_new(jtrait, "value", json_integer(tr->value_int));
+        else if (tr->type && !strcmp(tr->type, "string"))
+            json_object_set_new(jtrait, "value", json_string(tr->value_string ? tr->value_string : ""));
+        else
+            json_object_set_new(jtrait, "value", tr->value_bool ? json_true() : json_false());
+        json_array_append_new(traits_arr, jtrait);
+    }
+    json_object_set_new(obj, "traits", traits_arr);
+
+    /* race_info object */
+    json_t *race_info = json_object();
+    const sentience_race_info_t *ri = &data->race_info;
+    json_object_set_new(race_info, "id", json_string(ri->id ? ri->id : ""));
+    json_object_set_new(race_info, "name", json_string(ri->name ? ri->name : ""));
+    json_object_set_new(race_info, "description", json_string(ri->description ? ri->description : ""));
+    json_object_set_new(race_info, "playable", ri->playable ? json_true() : json_false());
+    json_object_set_new(race_info, "starting", ri->starting ? json_true() : json_false());
+    json_object_set_new(race_info, "size", json_string(ri->size ? ri->size : "medium"));
+
+    /* stats object */
+    json_t *stats = json_object();
+    json_object_set_new(stats, "str", json_integer(ri->stats[0]));
+    json_object_set_new(stats, "int", json_integer(ri->stats[1]));
+    json_object_set_new(stats, "wis", json_integer(ri->stats[2]));
+    json_object_set_new(stats, "dex", json_integer(ri->stats[3]));
+    json_object_set_new(stats, "con", json_integer(ri->stats[4]));
+    json_object_set_new(race_info, "stats", stats);
+
+    /* max_stats object */
+    json_t *max_stats = json_object();
+    json_object_set_new(max_stats, "str", json_integer(ri->max_stats[0]));
+    json_object_set_new(max_stats, "int", json_integer(ri->max_stats[1]));
+    json_object_set_new(max_stats, "wis", json_integer(ri->max_stats[2]));
+    json_object_set_new(max_stats, "dex", json_integer(ri->max_stats[3]));
+    json_object_set_new(max_stats, "con", json_integer(ri->max_stats[4]));
+    json_object_set_new(race_info, "max_stats", max_stats);
+
+    /* max_vitals object */
+    json_t *max_vitals = json_object();
+    json_object_set_new(max_vitals, "hp", json_integer(ri->max_vitals[0]));
+    json_object_set_new(max_vitals, "mana", json_integer(ri->max_vitals[1]));
+    json_object_set_new(max_vitals, "move", json_integer(ri->max_vitals[2]));
+    json_object_set_new(race_info, "max_vitals", max_vitals);
+
+    /* skills array */
+    json_t *skills_arr = json_array();
+    for (i = 0; i < ri->num_skills; i++)
+        json_array_append_new(skills_arr, json_string(ri->skills[i] ? ri->skills[i] : ""));
+    json_object_set_new(race_info, "skills", skills_arr);
+
+    json_object_set_new(race_info, "resistances", json_string(ri->resistances ? ri->resistances : ""));
+    json_object_set_new(race_info, "vulnerabilities", json_string(ri->vulnerabilities ? ri->vulnerabilities : ""));
+    json_object_set_new(race_info, "immunities", json_string(ri->immunities ? ri->immunities : ""));
+    json_object_set_new(race_info, "affects", json_string(ri->affects ? ri->affects : ""));
+    json_object_set_new(race_info, "remort_into", ri->remort_into ? json_string(ri->remort_into) : json_null());
+
+    /* race traits */
+    json_t *race_traits_arr = json_array();
+    for (i = 0; i < ri->num_traits; i++) {
+        const sentience_trait_t *rt = &ri->traits[i];
+        json_t *rtrait = json_object();
+        json_object_set_new(rtrait, "id", json_string(rt->id ? rt->id : ""));
+        json_object_set_new(rtrait, "name", json_string(rt->name ? rt->name : ""));
+        json_object_set_new(rtrait, "type", json_string(rt->type ? rt->type : "bool"));
+        if (rt->type && !strcmp(rt->type, "int"))
+            json_object_set_new(rtrait, "value", json_integer(rt->value_int));
+        else if (rt->type && !strcmp(rt->type, "string"))
+            json_object_set_new(rtrait, "value", json_string(rt->value_string ? rt->value_string : ""));
+        else
+            json_object_set_new(rtrait, "value", rt->value_bool ? json_true() : json_false());
+        json_array_append_new(race_traits_arr, rtrait);
+    }
+    json_object_set_new(race_info, "traits", race_traits_arr);
+
+    json_object_set_new(obj, "race_info", race_info);
     json_object_set_new(obj, "_v", json_integer(SENTIENCE_PACKAGE_VERSION));
 
     return obj;

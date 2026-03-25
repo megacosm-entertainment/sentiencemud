@@ -13,6 +13,7 @@ static test_result_t run_gmcp_stats_scenario(json_t *tc);
 static test_result_t run_gmcp_combat_scenario(json_t *tc);
 static test_result_t run_gmcp_worth_scenario(json_t *tc);
 static test_result_t run_gmcp_identity_scenario(json_t *tc);
+static test_result_t run_gmcp_identity_extended_scenario(json_t *tc);
 static test_result_t run_gmcp_room_scenario(json_t *tc);
 static test_result_t run_gmcp_client_ready_capabilities_scenario(json_t *tc);
 static test_result_t run_gmcp_client_ready_state_scenario(json_t *tc);
@@ -209,6 +210,217 @@ static test_result_t run_gmcp_identity_scenario(json_t *tc)
 
     TEST_ASSERT_INT_EQ(SENTIENCE_PACKAGE_VERSION,
                        json_integer_value(json_object_get(result, "_v")));
+
+    json_decref(result);
+    return TEST_SUCCESS;
+}
+
+/* --- Extended Identity scenario --- */
+
+static test_result_t run_gmcp_identity_extended_scenario(json_t *tc)
+{
+    json_t *p = json_object_get(tc, "params");
+    json_t *expected = json_object_get(tc, "expected");
+    if (!p || !expected) return TEST_ERROR;
+
+    sentience_identity_input_t data = {0};
+    data.name      = json_string_value(json_object_get(p, "name"));
+    data.race_wnum = json_string_value(json_object_get(p, "race_wnum"));
+    data.race_name = json_string_value(json_object_get(p, "race_name"));
+    data.body_type = json_string_value(json_object_get(p, "body_type"));
+    data.level     = (int)json_integer_value(json_object_get(p, "level"));
+    data.tot_level = (int)json_integer_value(json_object_get(p, "tot_level"));
+    data.title     = json_string_value(json_object_get(p, "title"));
+
+    /* Extended: Classes with full metadata */
+    json_t *classes = json_object_get(p, "classes");
+    if (classes && json_is_array(classes)) {
+        data.num_classes = (int)json_array_size(classes);
+        if (data.num_classes > SENTIENCE_MAX_CLASSES)
+            data.num_classes = SENTIENCE_MAX_CLASSES;
+        for (int i = 0; i < data.num_classes; i++) {
+            json_t *cls = json_array_get(classes, i);
+            data.classes[i].id         = json_string_value(json_object_get(cls, "id"));
+            data.classes[i].name       = json_string_value(json_object_get(cls, "name"));
+            data.classes[i].level      = (int)json_integer_value(json_object_get(cls, "level"));
+            data.classes[i].is_primary = json_is_true(json_object_get(cls, "is_primary"));
+            
+            /* Extended class fields */
+            data.classes[i].max_level     = (int)json_integer_value(json_object_get(cls, "max_level"));
+            data.classes[i].type          = json_string_value(json_object_get(cls, "type"));
+            data.classes[i].flags         = json_string_value(json_object_get(cls, "flags"));
+            data.classes[i].primary_stat  = json_string_value(json_object_get(cls, "primary_stat"));
+            data.classes[i].hp_min        = (int)json_integer_value(json_object_get(cls, "hp_min"));
+            data.classes[i].hp_max        = (int)json_integer_value(json_object_get(cls, "hp_max"));
+            data.classes[i].gains_mana    = json_is_true(json_object_get(cls, "gains_mana"));
+            data.classes[i].description   = json_string_value(json_object_get(cls, "description"));
+            data.classes[i].xp            = json_integer_value(json_object_get(cls, "xp"));
+            data.classes[i].active_title  = json_string_value(json_object_get(cls, "active_title"));
+            data.classes[i].action_label  = json_string_value(json_object_get(cls, "action_label"));
+            data.classes[i].action_cmd    = json_string_value(json_object_get(cls, "action_cmd"));
+
+            /* Class titles */
+            json_t *titles = json_object_get(cls, "titles");
+            if (titles && json_is_array(titles)) {
+                data.classes[i].num_titles = (int)json_array_size(titles);
+                if (data.classes[i].num_titles > SENTIENCE_MAX_TITLES)
+                    data.classes[i].num_titles = SENTIENCE_MAX_TITLES;
+                for (int j = 0; j < data.classes[i].num_titles; j++) {
+                    json_t *title = json_array_get(titles, j);
+                    data.classes[i].titles[j].keyword    = json_string_value(json_object_get(title, "keyword"));
+                    data.classes[i].titles[j].display    = json_string_value(json_object_get(title, "display"));
+                    data.classes[i].titles[j].is_default = json_is_true(json_object_get(title, "is_default"));
+                }
+            }
+        }
+    }
+
+    /* Extended: Traits */
+    json_t *traits = json_object_get(p, "traits");
+    if (traits && json_is_array(traits)) {
+        data.num_traits = (int)json_array_size(traits);
+        if (data.num_traits > SENTIENCE_MAX_TRAITS)
+            data.num_traits = SENTIENCE_MAX_TRAITS;
+        for (int i = 0; i < data.num_traits; i++) {
+            json_t *trait = json_array_get(traits, i);
+            data.traits[i].id          = json_string_value(json_object_get(trait, "id"));
+            data.traits[i].name        = json_string_value(json_object_get(trait, "name"));
+            data.traits[i].description = json_string_value(json_object_get(trait, "description"));
+            data.traits[i].category    = json_string_value(json_object_get(trait, "category"));
+            data.traits[i].type        = json_string_value(json_object_get(trait, "type"));
+            data.traits[i].source      = json_string_value(json_object_get(trait, "source"));
+            data.traits[i].value_bool  = json_is_true(json_object_get(trait, "value_bool"));
+            data.traits[i].value_int   = (int)json_integer_value(json_object_get(trait, "value_int"));
+            data.traits[i].value_string = json_string_value(json_object_get(trait, "value_string"));
+        }
+    }
+
+    /* Extended: Race info */
+    json_t *race_info = json_object_get(p, "race_info");
+    if (race_info) {
+        data.race_info.id           = json_string_value(json_object_get(race_info, "id"));
+        data.race_info.name         = json_string_value(json_object_get(race_info, "name"));
+        data.race_info.description  = json_string_value(json_object_get(race_info, "description"));
+        data.race_info.playable     = json_is_true(json_object_get(race_info, "playable"));
+        data.race_info.starting     = json_is_true(json_object_get(race_info, "starting"));
+        data.race_info.size         = json_string_value(json_object_get(race_info, "size"));
+        data.race_info.resistances  = json_string_value(json_object_get(race_info, "resistances"));
+        data.race_info.vulnerabilities = json_string_value(json_object_get(race_info, "vulnerabilities"));
+        data.race_info.immunities   = json_string_value(json_object_get(race_info, "immunities"));
+        data.race_info.affects      = json_string_value(json_object_get(race_info, "affects"));
+        data.race_info.remort_into  = json_string_value(json_object_get(race_info, "remort_into"));
+
+        /* Stats arrays */
+        json_t *stats = json_object_get(race_info, "stats");
+        if (stats && json_is_array(stats)) {
+            for (int i = 0; i < 5 && i < (int)json_array_size(stats); i++) {
+                data.race_info.stats[i] = (int)json_integer_value(json_array_get(stats, i));
+            }
+        }
+        json_t *max_stats = json_object_get(race_info, "max_stats");
+        if (max_stats && json_is_array(max_stats)) {
+            for (int i = 0; i < 5 && i < (int)json_array_size(max_stats); i++) {
+                data.race_info.max_stats[i] = (int)json_integer_value(json_array_get(max_stats, i));
+            }
+        }
+        json_t *max_vitals = json_object_get(race_info, "max_vitals");
+        if (max_vitals && json_is_array(max_vitals)) {
+            for (int i = 0; i < 3 && i < (int)json_array_size(max_vitals); i++) {
+                data.race_info.max_vitals[i] = (int)json_integer_value(json_array_get(max_vitals, i));
+            }
+        }
+
+        /* Skills */
+        json_t *skills = json_object_get(race_info, "skills");
+        if (skills && json_is_array(skills)) {
+            data.race_info.num_skills = (int)json_array_size(skills);
+            if (data.race_info.num_skills > SENTIENCE_MAX_RACE_SKILLS)
+                data.race_info.num_skills = SENTIENCE_MAX_RACE_SKILLS;
+            for (int i = 0; i < data.race_info.num_skills; i++) {
+                data.race_info.skills[i] = json_string_value(json_array_get(skills, i));
+            }
+        }
+
+        /* Race traits - Note: for simplicity, keeping empty as per test data */
+        data.race_info.num_traits = 0;
+    }
+
+    json_t *result = sentience_build_identity_json(&data);
+    TEST_ASSERT_NOT_NULL(result);
+
+    /* Test the extended fields */
+    TEST_ASSERT_INT_EQ(json_integer_value(json_object_get(expected, "_v")),
+                       json_integer_value(json_object_get(result, "_v")));
+    TEST_ASSERT_STR_EQ(json_string_value(json_object_get(expected, "name")),
+                       json_string_value(json_object_get(result, "name")));
+
+    json_t *result_classes = json_object_get(result, "classes");
+    TEST_ASSERT_NOT_NULL(result_classes);
+    TEST_ASSERT_INT_EQ(json_integer_value(json_object_get(expected, "classes_count")),
+                       (long)json_array_size(result_classes));
+
+    if (json_array_size(result_classes) > 0) {
+        json_t *first_class = json_array_get(result_classes, 0);
+        TEST_ASSERT_INT_EQ(json_integer_value(json_object_get(expected, "first_class_max_level")),
+                           json_integer_value(json_object_get(first_class, "max_level")));
+        TEST_ASSERT_STR_EQ(json_string_value(json_object_get(expected, "first_class_type")),
+                           json_string_value(json_object_get(first_class, "type")));
+        TEST_ASSERT_INT_EQ(json_boolean_value(json_object_get(expected, "first_class_gains_mana")) ? 1 : 0,
+                           json_boolean_value(json_object_get(first_class, "gains_mana")) ? 1 : 0);
+        TEST_ASSERT_INT_EQ(json_integer_value(json_object_get(expected, "first_class_xp")),
+                           json_integer_value(json_object_get(first_class, "xp")));
+
+        json_t *titles_arr = json_object_get(first_class, "available_titles");
+        TEST_ASSERT_INT_EQ(json_integer_value(json_object_get(expected, "first_class_titles_count")),
+                           (long)json_array_size(titles_arr));
+
+        json_t *action = json_object_get(first_class, "action");
+        TEST_ASSERT_INT_EQ(json_boolean_value(json_object_get(expected, "first_class_action_null")) ? 1 : 0,
+                           json_is_null(action) ? 1 : 0);
+    }
+
+    if (json_array_size(result_classes) > 1) {
+        json_t *second_class = json_array_get(result_classes, 1);
+        json_t *action = json_object_get(second_class, "action");
+        if (!json_is_null(action)) {
+            TEST_ASSERT_STR_EQ(json_string_value(json_object_get(expected, "second_class_action_label")),
+                               json_string_value(json_object_get(action, "label")));
+        }
+    }
+
+    json_t *result_traits = json_object_get(result, "traits");
+    TEST_ASSERT_NOT_NULL(result_traits);
+    TEST_ASSERT_INT_EQ(json_integer_value(json_object_get(expected, "traits_count")),
+                       (long)json_array_size(result_traits));
+
+    if (json_array_size(result_traits) > 0) {
+        json_t *first_trait = json_array_get(result_traits, 0);
+        TEST_ASSERT_STR_EQ(json_string_value(json_object_get(expected, "first_trait_id")),
+                           json_string_value(json_object_get(first_trait, "id")));
+        TEST_ASSERT_STR_EQ(json_string_value(json_object_get(expected, "first_trait_source")),
+                           json_string_value(json_object_get(first_trait, "source")));
+    }
+
+    if (json_array_size(result_traits) > 1) {
+        json_t *second_trait = json_array_get(result_traits, 1);
+        TEST_ASSERT_INT_EQ(json_integer_value(json_object_get(expected, "second_trait_value_int")),
+                           json_integer_value(json_object_get(second_trait, "value")));
+    }
+
+    json_t *result_race_info = json_object_get(result, "race_info");
+    TEST_ASSERT_NOT_NULL(result_race_info);
+    TEST_ASSERT_STR_EQ(json_string_value(json_object_get(expected, "race_info_id")),
+                       json_string_value(json_object_get(result_race_info, "id")));
+    TEST_ASSERT_INT_EQ(json_boolean_value(json_object_get(expected, "race_info_playable")) ? 1 : 0,
+                       json_boolean_value(json_object_get(result_race_info, "playable")) ? 1 : 0);
+
+    json_t *skills_arr = json_object_get(result_race_info, "skills");
+    TEST_ASSERT_INT_EQ(json_integer_value(json_object_get(expected, "race_info_skills_count")),
+                       (long)json_array_size(skills_arr));
+
+    json_t *stats_obj = json_object_get(result_race_info, "stats");
+    TEST_ASSERT_INT_EQ(json_integer_value(json_object_get(expected, "race_info_stats_str")),
+                       json_integer_value(json_object_get(stats_obj, "str")));
 
     json_decref(result);
     return TEST_SUCCESS;
@@ -1022,6 +1234,8 @@ test_result_t run_gmcp_sentience_test_case(test_case_t *test)
             result = run_gmcp_worth_scenario(tc);
         } else if (strcmp(func_name, "build_identity") == 0) {
             result = run_gmcp_identity_scenario(tc);
+        } else if (strcmp(func_name, "build_identity_extended") == 0) {
+            result = run_gmcp_identity_extended_scenario(tc);
         } else if (strcmp(func_name, "build_room") == 0) {
             result = run_gmcp_room_scenario(tc);
         } else if (strcmp(func_name, "build_client_ready_capabilities") == 0) {
