@@ -15,11 +15,40 @@
 #include "mxp_links.h"
 #include "sentience_link.h"
 
-/* ── Stub implementations — filled in by subsequent tasks ── */
+/* Terminals known to support OSC 8 hyperlinks (case-insensitive prefix match) */
+static const char *osc8_terminals[] = {
+    "mudlet",
+    "xterm-256color",
+    "xterm-kitty",
+    "tmux-256color",
+    NULL
+};
 
 link_mode_t link_mode(descriptor_t *d)
 {
-    (void)d;
+    CHAR_DATA *ch;
+
+    if (!d)
+        return LINK_NONE;
+
+    /* WebSocket always uses GMCP links — no player toggle needed */
+    if (is_websocket_connection(d))
+        return LINK_GMCP;
+
+    ch = d->character;
+
+    /* Check unified player preference */
+    if (!ch || !IS_SET(ch->comm, COMM_LINKS))
+        return LINK_NONE;
+
+    /* MXP negotiated takes priority (established clients) */
+    if (isMXP(d))
+        return LINK_MXP;
+
+    /* TTYPE indicates OSC 8 support */
+    if (has_osc8_support(d))
+        return LINK_OSC8;
+
     return LINK_NONE;
 }
 
@@ -30,7 +59,19 @@ bool is_websocket_connection(descriptor_t *d)
 
 bool has_osc8_support(descriptor_t *d)
 {
-    (void)d;
+    const char *ttype;
+    int i;
+
+    if (!d || !d->pProtocol || !d->pProtocol->pLastTTYPE)
+        return false;
+
+    ttype = d->pProtocol->pLastTTYPE;
+
+    for (i = 0; osc8_terminals[i]; i++) {
+        if (!str_prefix(osc8_terminals[i], ttype))
+            return true;
+    }
+
     return false;
 }
 
