@@ -15,6 +15,7 @@
 #include "protocol.h"
 #include "class_data.h"
 #include "log.h"
+#include "utils/buffer.h"
 
 /* ── Pure JSON builders ─────────────────────────────────────────────
  *
@@ -213,6 +214,7 @@ json_t *sentience_build_client_ready_capabilities_json(void)
     json_array_append_new(packages, json_string("Sentience.Char.Enemies"));
     json_array_append_new(packages, json_string("Sentience.Room.Info"));
     json_array_append_new(packages, json_string("Sentience.Room.Contents"));
+    json_array_append_new(packages, json_string("Sentience.Room.Map"));
     json_array_append_new(packages, json_string("Sentience.Link"));
 
     json_array_append_new(features, json_string("links"));
@@ -668,6 +670,36 @@ void sentience_gmcp_update(descriptor_t *d)
 
         sentience_send_package(d, "Sentience.Room.Info",
             sentience_build_room_json(&data));
+
+        /* Room.Map — send pre-rendered minimap */
+        {
+            BUFFER *map_buf = NULL;
+            int map_w = 0, map_h = 0;
+            bool has_map = false;
+
+            if (ch->in_room->wilds) {
+                int vp_x = get_squares_to_show_x(ch->wildview_bonus_x);
+                int vp_y = get_squares_to_show_y(ch->wildview_bonus_y);
+                has_map = render_wilds_map_to_buffer(ch->in_room->wilds,
+                    ch->in_room->x, ch->in_room->y, ch, vp_x, vp_y,
+                    &map_buf, &map_w, &map_h);
+            } else {
+                has_map = render_area_map_to_buffer(ch, ch->in_room,
+                    &map_buf, &map_w, &map_h);
+            }
+
+            if (has_map && map_buf) {
+                sentience_room_map_input_t map_input = {
+                    .type     = ch->in_room->wilds ? "wilds" : "area",
+                    .map_text = buf_string(map_buf),
+                    .width    = map_w,
+                    .height   = map_h,
+                };
+                sentience_send_package(d, "Sentience.Room.Map",
+                    sentience_build_room_map(&map_input));
+                free_buf(map_buf);
+            }
+        }
 
         cache->room_id0 = room->area ? room->area->uid : 0;
         cache->room_id1 = room->vnum;

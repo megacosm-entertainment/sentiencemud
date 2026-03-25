@@ -273,6 +273,7 @@
                                 "Sentience.Char.Enemies",
                                 "Sentience.Room.Info",
                                 "Sentience.Room.Contents",
+                                "Sentience.Room.Map",
                                 "Sentience.Link"
                             ],
                             "features": ["links", "osc8"]

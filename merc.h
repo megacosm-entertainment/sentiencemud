@@ -9810,6 +9810,8 @@ void show_list_to_char(OBJ_DATA * list, CHAR_DATA * ch, bool fShort, bool fShowN
  * void show_map_to_char( CHAR_DATA *ch, CHAR_DATA *to, int bonus_view_x, int bonus_view_y);
  */
 void show_room_description( CHAR_DATA *ch, ROOM_INDEX_DATA *room );
+bool render_area_map_to_buffer(CHAR_DATA *ch, ROOM_INDEX_DATA *room,
+                               BUFFER **out_buf, int *out_width, int *out_height);
 void show_help_to_ch( CHAR_DATA *ch, HELP_DATA *help );
 
 /* stats.c */
