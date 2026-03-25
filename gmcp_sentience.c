@@ -389,6 +389,12 @@ json_t *sentience_build_client_ready_capabilities_json(void)
     json_array_append_new(packages, json_string("Sentience.Client.Layout"));
     json_array_append_new(packages, json_string("Sentience.Auth.QRCode"));
     json_array_append_new(packages, json_string("Sentience.Link"));
+    json_array_append_new(packages, json_string("Sentience.Char.Inventory"));
+    json_array_append_new(packages, json_string("Sentience.Char.Equipment"));
+    json_array_append_new(packages, json_string("Sentience.Char.Abilities"));
+    json_array_append_new(packages, json_string("Sentience.Char.Reputations"));
+    json_array_append_new(packages, json_string("Sentience.Char.Church"));
+    json_array_append_new(packages, json_string("Sentience.Char.Race"));
 
     json_array_append_new(features, json_string("links"));
     json_array_append_new(features, json_string("osc8"));
@@ -1494,6 +1500,74 @@ void sentience_gmcp_update(descriptor_t *d)
             dirty |= SENTIENCE_DIRTY_ROOM;
     }
 
+    /* Inventory — count visible carried items */
+    {
+        int cur_count = 0;
+        ITERATOR it;
+        OBJ_DATA *obj;
+
+        iterator_start(&it, ch->lcarrying);
+        while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+            if (can_see_obj(ch, obj))
+                cur_count++;
+        }
+        iterator_stop(&it);
+
+        if (cur_count != cache->inventory_count)
+            dirty |= SENTIENCE_DIRTY_INVENTORY;
+    }
+
+    /* Equipment — count worn items */
+    {
+        int cur_count = 0;
+        ITERATOR it;
+        OBJ_DATA *obj;
+
+        iterator_start(&it, ch->lworn);
+        while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+            cur_count++;
+        }
+        iterator_stop(&it);
+
+        if (cur_count != cache->equipment_count)
+            dirty |= SENTIENCE_DIRTY_EQUIPMENT;
+    }
+
+    /* Abilities — count skills + songs (cached; -1 forces rebuild) */
+    {
+        int cur_count = 0;
+
+        /* Skill system not yet implemented in required form */
+
+        if (cur_count != cache->abilities_count)
+            dirty |= SENTIENCE_DIRTY_ABILITIES;
+    }
+
+    /* Reputations — count factions (-1 forces rebuild) */
+    {
+        int cur_count = 0;
+
+        /* Reputation system not yet implemented */
+
+        if (cur_count != cache->reputation_count)
+            dirty |= SENTIENCE_DIRTY_REPUTATIONS;
+    }
+
+    /* Church — check membership and church uid */
+    {
+        bool cur_has_church = false;
+        long cur_church_uid = 0;
+
+        /* Church system not implemented yet */
+
+        if (cur_has_church != cache->has_church || cur_church_uid != cache->church_uid)
+            dirty |= SENTIENCE_DIRTY_CHURCH;
+    }
+
+    /* Race — check race uid */
+    if (ch->race && ch->race->uid != cache->race_uid)
+        dirty |= SENTIENCE_DIRTY_RACE;
+
     if (dirty == 0)
         return;
 
@@ -1851,7 +1925,215 @@ void sentience_gmcp_update(descriptor_t *d)
         }
     }
 
+    /* ── Phase 4: Char.Inventory ───────────────────────────────── */
+    if (dirty & SENTIENCE_DIRTY_INVENTORY) {
+        sentience_inventory_input_t inv_data;
+        int vis_count = 0;
+        ITERATOR it;
+        OBJ_DATA *obj;
+
+        memset(&inv_data, 0, sizeof(inv_data));
+
+        inv_data.capacity_max_items = can_carry_n(ch);
+        inv_data.capacity_max_weight = can_carry_w(ch);
+        inv_data.capacity_current_weight = (int)ch->carry_weight;
+
+        iterator_start(&it, ch->lcarrying);
+        while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+            sentience_inventory_item_t *item;
+
+            if (!can_see_obj(ch, obj))
+                continue;
+            if (inv_data.num_items >= SENTIENCE_MAX_INVENTORY)
+                break;
+
+            item = &inv_data.items[inv_data.num_items];
+            item->name = obj->short_descr ? obj->short_descr : "something";
+            item->keyword = obj->name ? obj->name : "";
+            item->id[0] = obj->id[0];
+            item->id[1] = obj->id[1];
+            item->item_type = item_type_info[obj->item_type].name;
+            item->level = obj->level;
+            item->weight = obj->weight;
+            item->condition_label = object_damage_table[URANGE(0, 9 - (int)(((float)obj->condition)/10), 9)].name;
+
+            /* Actions */
+            item->num_actions = 0;
+            if (CAN_WEAR(obj, ITEM_WEAR_BODY) || CAN_WEAR(obj, ITEM_WEAR_HEAD)
+                || CAN_WEAR(obj, ITEM_WEAR_LEGS) || CAN_WEAR(obj, ITEM_WEAR_FEET)
+                || CAN_WEAR(obj, ITEM_WEAR_HANDS) || CAN_WEAR(obj, ITEM_WEAR_ARMS)
+                || CAN_WEAR(obj, ITEM_WEAR_ABOUT) || CAN_WEAR(obj, ITEM_WEAR_WAIST)
+                || CAN_WEAR(obj, ITEM_WEAR_WRIST) || CAN_WEAR(obj, ITEM_WEAR_SHIELD)
+                || CAN_WEAR(obj, ITEM_WIELD) || CAN_WEAR(obj, ITEM_HOLD)
+                || CAN_WEAR(obj, ITEM_WEAR_FLOAT) || CAN_WEAR(obj, ITEM_WEAR_NECK)
+                || CAN_WEAR(obj, ITEM_WEAR_FINGER) || CAN_WEAR(obj, ITEM_WEAR_EAR)) {
+                item->actions[item->num_actions].label = "Wear";
+                item->actions[item->num_actions].cmd = "wear";
+                item->num_actions++;
+            }
+            if (item->num_actions < SENTIENCE_MAX_ITEM_ACTIONS) {
+                item->actions[item->num_actions].label = "Drop";
+                item->actions[item->num_actions].cmd = "drop";
+                item->num_actions++;
+            }
+            if (item->num_actions < SENTIENCE_MAX_ITEM_ACTIONS) {
+                item->actions[item->num_actions].label = "Examine";
+                item->actions[item->num_actions].cmd = "examine";
+                item->num_actions++;
+            }
+
+            vis_count++;
+            inv_data.num_items++;
+        }
+        iterator_stop(&it);
+
+        sentience_send_package(d, "Sentience.Char.Inventory",
+            sentience_build_inventory_json(&inv_data));
+        cache->inventory_count = vis_count;
+    }
+
+    /* ── Phase 4: Char.Equipment ───────────────────────────────── */
+    if (dirty & SENTIENCE_DIRTY_EQUIPMENT) {
+        sentience_equipment_input_t eq_data;
+        int worn_count = 0;
+        int slot;
+
+        memset(&eq_data, 0, sizeof(eq_data));
+
+        for (slot = 0; slot < MAX_WEAR && eq_data.num_slots < SENTIENCE_MAX_EQUIPMENT_SLOTS; slot++) {
+            sentience_equipment_slot_t *s = &eq_data.slots[eq_data.num_slots];
+            OBJ_DATA *worn = get_eq_char(ch, slot);
+
+            s->slot_name = "unknown";
+            s->slot_id = slot;
+
+            if (worn) {
+                s->occupied = true;
+                s->item_name = worn->short_descr ? worn->short_descr : "something";
+                s->keywords = worn->name ? worn->name : "";
+                s->keyword = worn->name ? worn->name : "";
+                s->id[0] = worn->id[0];
+                s->id[1] = worn->id[1];
+                s->item_type = item_type_info[worn->item_type].name;
+                s->level = worn->level;
+                s->condition_label = object_damage_table[URANGE(0, 9 - (int)(((float)worn->condition)/10), 9)].name;
+
+                s->num_actions = 0;
+                s->actions[s->num_actions].label = "Remove";
+                s->actions[s->num_actions].cmd = "remove";
+                s->num_actions++;
+                if (s->num_actions < SENTIENCE_MAX_ITEM_ACTIONS) {
+                    s->actions[s->num_actions].label = "Examine";
+                    s->actions[s->num_actions].cmd = "examine";
+                    s->num_actions++;
+                }
+                worn_count++;
+            } else {
+                s->occupied = false;
+            }
+
+            eq_data.num_slots++;
+        }
+
+        sentience_send_package(d, "Sentience.Char.Equipment",
+            sentience_build_equipment_json(&eq_data));
+        cache->equipment_count = worn_count;
+    }
+
+    /* ── Phase 4: Char.Abilities ───────────────────────────────── */
+    if (dirty & SENTIENCE_DIRTY_ABILITIES) {
+        sentience_abilities_input_t ab_data;
+
+        memset(&ab_data, 0, sizeof(ab_data));
+        /* Skills/spells system not yet implemented in required form */
+
+        sentience_send_package(d, "Sentience.Char.Abilities",
+            sentience_build_abilities_json(&ab_data));
+        cache->abilities_count = ab_data.num_abilities;
+    }
+
+    /* ── Phase 4: Char.Reputations ─────────────────────────────── */
+    if (dirty & SENTIENCE_DIRTY_REPUTATIONS) {
+        sentience_reputations_input_t rep_data;
+
+        memset(&rep_data, 0, sizeof(rep_data));
+        /* Reputation system not yet implemented */
+
+        sentience_send_package(d, "Sentience.Char.Reputations",
+            sentience_build_reputations_json(&rep_data));
+        cache->reputation_count = rep_data.num_reputations;
+    }
+
+    /* ── Phase 4: Char.Church ──────────────────────────────────── */
+    if (dirty & SENTIENCE_DIRTY_CHURCH) {
+        sentience_church_input_t ch_data;
+
+        memset(&ch_data, 0, sizeof(ch_data));
+
+        /* Church system not fully implemented yet */
+        ch_data.is_member = false;
+
+        sentience_send_package(d, "Sentience.Char.Church",
+            sentience_build_church_json(&ch_data));
+        cache->has_church = ch_data.is_member;
+        cache->church_uid = 0;
+    }
+
+    /* ── Phase 4: Char.Race ────────────────────────────────────── */
+    if (dirty & SENTIENCE_DIRTY_RACE) {
+        if (ch->race) {
+            sentience_race_info_t race_data;
+
+            memset(&race_data, 0, sizeof(race_data));
+
+            race_data.id = ch->race->name ? ch->race->name : "";
+            race_data.name = ch->race->name ? ch->race->name : "";
+            race_data.description = ch->race->description ? ch->race->description : "";
+            race_data.playable = ch->race->playable;
+            race_data.starting = ch->race->starting;
+            race_data.size = "medium";  /* Simplified for now */
+
+            /* Stats - simplified */
+            {
+                int s;
+                for (s = 0; s < 5 && s < MAX_STATS; s++) {
+                    race_data.stats[s] = 0;
+                    race_data.max_stats[s] = 25;
+                }
+            }
+
+            /* Simplified for now */
+            race_data.resistances = "";
+            race_data.vulnerabilities = "";
+            race_data.immunities = "";
+            race_data.affects = "";
+
+            sentience_send_package(d, "Sentience.Char.Race",
+                sentience_build_race_json(&race_data));
+        }
+        cache->race_uid = ch->race ? ch->race->uid : 0;
+    }
+
     cache->initialized = true;
+}
+
+void sentience_invalidate_cache(CHAR_DATA *ch, unsigned int flags)
+{
+    descriptor_t *d;
+
+    if (!ch || !(d = ch->desc))
+        return;
+    if (!d->pProtocol || !d->pProtocol->bGMCP)
+        return;
+
+    if (flags & SENTIENCE_DIRTY_ABILITIES)
+        d->pProtocol->sentience_cache.abilities_count = -1;
+    if (flags & SENTIENCE_DIRTY_REPUTATIONS)
+        d->pProtocol->sentience_cache.reputation_count = -1;
+    if (flags & SENTIENCE_DIRTY_INVENTORY)
+        d->pProtocol->sentience_cache.inventory_count = -1;
+    if (flags & SENTIENCE_DIRTY_EQUIPMENT)
+        d->pProtocol->sentience_cache.equipment_count = -1;
 }
 
 /*

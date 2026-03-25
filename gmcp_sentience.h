@@ -16,6 +16,7 @@
 
 /* Forward declarations — full types live in merc.h / protocol.h */
 typedef struct descriptor_data descriptor_t;
+typedef struct char_data CHAR_DATA;
 
 /*
  * Dirty-flag bitmask — one bit per Sentience.* package.
@@ -508,6 +509,11 @@ void sentience_send_client_preferences(descriptor_t *d);
  * Compares current character state with cache, sends dirty packages.
  */
 void sentience_gmcp_update(descriptor_t *d);
+
+/*
+ * Invalidate specific cache flags to force update on next cycle.
+ */
+void sentience_invalidate_cache(CHAR_DATA *ch, unsigned int flags);
 
 /*
  * Reset cache to force full resend (e.g., on login or reconnect).

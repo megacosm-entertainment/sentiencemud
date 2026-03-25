@@ -28,6 +28,7 @@
 #include "skill_group.h"
 #include "recycle.h"
 #include "db.h"
+#include "gmcp_sentience.h"
 
 /* Forward declarations */
 static bool has_reward_been_applied(CLASS_LEVEL *cl, int level, int type, const char *name);
@@ -1061,6 +1062,7 @@ void do_setclass(CHAR_DATA *ch, char *argument)
     }
 
     save_char_obj(ch);
+    sentience_invalidate_cache(ch, SENTIENCE_DIRTY_ABILITIES | SENTIENCE_DIRTY_IDENTITY);
 }
 
 /**

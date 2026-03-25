@@ -439,7 +439,13 @@
                 "Sentience.Client.Preferences",
                 "Sentience.Client.Layout",
                 "Sentience.Auth.QRCode",
-                "Sentience.Link"
+                "Sentience.Link",
+                "Sentience.Char.Inventory",
+                "Sentience.Char.Equipment",
+                "Sentience.Char.Abilities",
+                "Sentience.Char.Reputations",
+                "Sentience.Char.Church",
+                "Sentience.Char.Race"
               ],
               "features": [
                 "links",
