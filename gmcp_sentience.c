@@ -2007,16 +2007,20 @@ void sentience_gmcp_update(descriptor_t *d)
     /* ── Phase 4: Char.Equipment ───────────────────────────────── */
     if (dirty & SENTIENCE_DIRTY_EQUIPMENT) {
         sentience_equipment_input_t eq_data;
+        char *slot_names[SENTIENCE_MAX_EQUIPMENT_SLOTS];
         int worn_count = 0;
         int slot;
+        int i;
 
         memset(&eq_data, 0, sizeof(eq_data));
+        memset(slot_names, 0, sizeof(slot_names));
 
         for (slot = 0; slot < MAX_WEAR && eq_data.num_slots < SENTIENCE_MAX_EQUIPMENT_SLOTS; slot++) {
             sentience_equipment_slot_t *s = &eq_data.slots[eq_data.num_slots];
             OBJ_DATA *worn = get_eq_char(ch, slot);
 
-            s->slot_name = "unknown";
+            slot_names[eq_data.num_slots] = nocolour(where_name[slot]);
+            s->slot_name = slot_names[eq_data.num_slots];
             s->slot_id = slot;
 
             if (worn) {
@@ -2050,6 +2054,12 @@ void sentience_gmcp_update(descriptor_t *d)
         sentience_send_package(d, "Sentience.Char.Equipment",
             sentience_build_equipment_json(&eq_data));
         cache->equipment_count = worn_count;
+
+        /* Free stripped slot name strings */
+        for (i = 0; i < eq_data.num_slots; i++) {
+            if (slot_names[i])
+                free_string(slot_names[i]);
+        }
     }
 
     /* ── Phase 4: Char.Abilities ───────────────────────────────── */
