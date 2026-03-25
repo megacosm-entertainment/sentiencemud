@@ -346,6 +346,7 @@
                 "Sentience.Room.Map",
                 "Sentience.Channel.Message",
                 "Sentience.Client.Preferences",
+                "Sentience.Client.Layout",
                 "Sentience.Link"
               ],
               "features": [

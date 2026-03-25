@@ -241,6 +241,7 @@ json_t *sentience_build_client_ready_capabilities_json(void)
     json_array_append_new(packages, json_string("Sentience.Room.Map"));
     json_array_append_new(packages, json_string("Sentience.Channel.Message"));
     json_array_append_new(packages, json_string("Sentience.Client.Preferences"));
+    json_array_append_new(packages, json_string("Sentience.Client.Layout"));
     json_array_append_new(packages, json_string("Sentience.Link"));
 
     json_array_append_new(features, json_string("links"));
@@ -786,6 +787,15 @@ void sentience_gmcp_update(descriptor_t *d)
         sentience_send_package(d, "Sentience.Client.Ready.State",
             sentience_build_client_ready_state_json(PULSE_TICK, PULSE_PER_SECOND));
         sentience_send_client_preferences(d);
+
+        /* Restore active layout for WebSocket clients */
+        if (ch->pcdata && ch->pcdata->active_layout[0]
+            && d->conn && d->conn->type == CONN_TYPE_WEBSOCKET_TLS) {
+            web_client_layout_t *active = layout_find(
+                ch->pcdata->web_client_layouts, ch->pcdata->active_layout);
+            if (active && active->layout)
+                sentience_send_layout_restore(d, active->name, active->layout);
+        }
     }
 
     /* ── Detect changes ─────────────────────────────────────────── */
