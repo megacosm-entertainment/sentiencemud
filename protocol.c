@@ -4004,7 +4004,7 @@ void ParseGMCP( descriptor_t *apDescriptor, char *string )
                  key = PullJSONString(t[i].start, t[i].end, string);
                  if (!strcmp(key, "action")) {
                      has_action = true;
-                     strcpy(action, PullJSONString(t[i + 1].start, t[i + 1].end, string));
+                     strlcpy(action, PullJSONString(t[i + 1].start, t[i + 1].end, string), sizeof(action));
                      break;
                  }
              }
@@ -4017,9 +4017,9 @@ void ParseGMCP( descriptor_t *apDescriptor, char *string )
                  for (i = 2; i < tokens; i += 2) {
                      key = PullJSONString(t[i].start, t[i].end, string);
                      if (!strcmp(key, "key")) {
-                         strcpy(pref_key, PullJSONString(t[i + 1].start, t[i + 1].end, string));
+                         strlcpy(pref_key, PullJSONString(t[i + 1].start, t[i + 1].end, string), sizeof(pref_key));
                      } else if (!strcmp(key, "scope")) {
-                         strcpy(scope, PullJSONString(t[i + 1].start, t[i + 1].end, string));
+                         strlcpy(scope, PullJSONString(t[i + 1].start, t[i + 1].end, string), sizeof(scope));
                      }
                  }
 
@@ -4164,6 +4164,8 @@ void ParseGMCP( descriptor_t *apDescriptor, char *string )
                                      pref_set_bitfield(pref_list, pref_category, pref_key, val);
                                      break;
                                  }
+                                 default:
+                                     break;
                              }
                              break;
                          }
