@@ -430,6 +430,12 @@ void sentience_gmcp_update(descriptor_t *d)
 
     cache = &proto->sentience_cache;
 
+    /* ── Phase 3: Client.Ready.State (one-shot on first update) ─── */
+    if (!cache->initialized) {
+        sentience_send_package(d, "Sentience.Client.Ready.State",
+            sentience_build_client_ready_state_json(PULSE_TICK, PULSE_PER_SECOND));
+    }
+
     /* ── Detect changes ─────────────────────────────────────────── */
 
     /* On first send, mark everything dirty */
@@ -646,6 +652,183 @@ void sentience_gmcp_update(descriptor_t *d)
 
         cache->room_id0 = room->area ? room->area->uid : 0;
         cache->room_id1 = room->vnum;
+    }
+
+    /* ── Phase 3: Char.Affects ─────────────────────────────────── */
+    if (ch->affected || cache->had_affects) {
+        AFFECT_DATA *af;
+        sentience_affect_input_t aff_inputs[64];
+        int num_aff = 0;
+        char mod_buf[64][64];
+
+        for (af = ch->affected; af && num_aff < 64; af = af->next) {
+            if (af->skill && af->skill->name)
+                aff_inputs[num_aff].name = af->skill->name;
+            else if (af->custom_name)
+                aff_inputs[num_aff].name = af->custom_name;
+            else
+                aff_inputs[num_aff].name = "unknown";
+
+            /* Skills don't have area/vnum like other entities, use NULL for wnum */
+            aff_inputs[num_aff].wnum = NULL;
+
+            aff_inputs[num_aff].duration = af->duration;
+            aff_inputs[num_aff].estimated_seconds = (af->duration >= 0)
+                ? (af->duration * PULSE_TICK / PULSE_PER_SECOND)
+                : -1;
+
+            if (af->location != APPLY_NONE && af->modifier != 0) {
+                snprintf(mod_buf[num_aff], sizeof(mod_buf[num_aff]),
+                         "%+d %s", af->modifier, affect_loc_name(af->location));
+                aff_inputs[num_aff].modifier = mod_buf[num_aff];
+            } else {
+                aff_inputs[num_aff].modifier = NULL;
+            }
+
+            aff_inputs[num_aff].level = af->level;
+            num_aff++;
+        }
+
+        sentience_send_package(d, "Sentience.Char.Affects",
+            sentience_build_affects_json(aff_inputs, num_aff));
+        cache->had_affects = (ch->affected != NULL);
+    }
+
+    /* ── Phase 3: Char.Enemies ─────────────────────────────────── */
+    if (ch->fighting || cache->was_fighting) {
+        sentience_enemy_input_t en_inputs[32];
+        int num_en = 0;
+        CHAR_DATA *vch;
+
+        if (ch->fighting && ch->fighting->in_room == ch->in_room) {
+            vch = ch->fighting;
+            en_inputs[num_en].name = IS_NPC(vch) ? vch->short_descr : vch->name;
+            en_inputs[num_en].instance_id[0] = vch->id[0];
+            en_inputs[num_en].instance_id[1] = vch->id[1];
+            en_inputs[num_en].hp_pct = (int)((vch->hit * 100) / UMAX(1, vch->max_hit));
+            en_inputs[num_en].is_primary = true;
+            en_inputs[num_en].target = (vch->fighting == ch) ? "you"
+                : (vch->fighting ? (IS_NPC(vch->fighting) ? vch->fighting->short_descr
+                                                           : vch->fighting->name)
+                                 : "no one");
+            num_en++;
+        }
+
+        for (vch = ch->in_room->people; vch && num_en < 32; vch = vch->next_in_room) {
+            if (vch == ch || vch == ch->fighting || vch->fighting != ch)
+                continue;
+            en_inputs[num_en].name = IS_NPC(vch) ? vch->short_descr : vch->name;
+            en_inputs[num_en].instance_id[0] = vch->id[0];
+            en_inputs[num_en].instance_id[1] = vch->id[1];
+            en_inputs[num_en].hp_pct = (int)((vch->hit * 100) / UMAX(1, vch->max_hit));
+            en_inputs[num_en].is_primary = false;
+            en_inputs[num_en].target = "you";
+            num_en++;
+        }
+
+        sentience_send_package(d, "Sentience.Char.Enemies",
+            sentience_build_enemies_json(en_inputs, num_en, ch->hit, ch->max_hit));
+        cache->was_fighting = (ch->fighting != NULL);
+    }
+
+    /* ── Phase 3: Room.Contents (fingerprint comparison) ──────── */
+    {
+        long cur_rid[2];
+        int cur_count = 0;
+
+        cur_rid[0] = ch->in_room->area ? ch->in_room->area->uid : 0;
+        cur_rid[1] = ch->in_room->vnum;
+
+        {
+            OBJ_DATA *obj;
+            CHAR_DATA *rch;
+            int dir;
+
+            for (obj = ch->in_room->contents; obj; obj = obj->next_content) {
+                if (can_see_obj(ch, obj))
+                    cur_count++;
+            }
+            for (rch = ch->in_room->people; rch; rch = rch->next_in_room) {
+                if (rch != ch && can_see(ch, rch))
+                    cur_count++;
+            }
+            for (dir = 0; dir < MAX_DIR; dir++) {
+                EXIT_DATA *ex = ch->in_room->exit[dir];
+                if (ex && ex->u1.to_room && IS_SET(ex->exit_info, EX_ISDOOR))
+                    cur_count++;
+            }
+        }
+
+        if (cur_rid[0] != cache->contents_room_id[0]
+            || cur_rid[1] != cache->contents_room_id[1]
+            || cur_count != cache->contents_count) {
+
+            sentience_room_entity_input_t item_inputs[128];
+            sentience_room_entity_input_t npc_inputs[64];
+            sentience_room_entity_input_t player_inputs[64];
+            sentience_room_door_input_t door_inputs[10];
+            sentience_room_contents_input_t data = {0};
+            OBJ_DATA *obj;
+            CHAR_DATA *rch;
+            int dir;
+
+            for (obj = ch->in_room->contents; obj; obj = obj->next_content) {
+                if (!can_see_obj(ch, obj) || data.num_items >= 128)
+                    continue;
+                item_inputs[data.num_items].name = obj->short_descr ? obj->short_descr : "something";
+                item_inputs[data.num_items].instance_id[0] = obj->id[0];
+                item_inputs[data.num_items].instance_id[1] = obj->id[1];
+                item_inputs[data.num_items].short_desc = obj->description ? obj->description : "";
+                data.num_items++;
+            }
+            data.items = item_inputs;
+
+            for (rch = ch->in_room->people; rch; rch = rch->next_in_room) {
+                if (rch == ch || !can_see(ch, rch))
+                    continue;
+
+                if (IS_NPC(rch)) {
+                    if (data.num_npcs >= 64) continue;
+                    npc_inputs[data.num_npcs].name = rch->short_descr ? rch->short_descr : "someone";
+                    npc_inputs[data.num_npcs].instance_id[0] = rch->id[0];
+                    npc_inputs[data.num_npcs].instance_id[1] = rch->id[1];
+                    npc_inputs[data.num_npcs].short_desc = rch->long_descr ? rch->long_descr : "";
+                    data.num_npcs++;
+                } else {
+                    if (data.num_players >= 64) continue;
+                    player_inputs[data.num_players].name = rch->name ? rch->name : "someone";
+                    player_inputs[data.num_players].instance_id[0] = 0;
+                    player_inputs[data.num_players].instance_id[1] = 0;
+                    player_inputs[data.num_players].short_desc = NULL;
+                    data.num_players++;
+                }
+            }
+            data.npcs = npc_inputs;
+            data.players = player_inputs;
+
+            for (dir = 0; dir < MAX_DIR && data.num_doors < 10; dir++) {
+                EXIT_DATA *ex = ch->in_room->exit[dir];
+                if (!ex || !ex->u1.to_room || !IS_SET(ex->exit_info, EX_ISDOOR))
+                    continue;
+                door_inputs[data.num_doors].direction = dir_name[dir];
+                if (IS_SET(ex->exit_info, EX_LOCKED))
+                    door_inputs[data.num_doors].state = "locked";
+                else if (IS_SET(ex->exit_info, EX_CLOSED))
+                    door_inputs[data.num_doors].state = "closed";
+                else
+                    door_inputs[data.num_doors].state = "open";
+                door_inputs[data.num_doors].is_locked = IS_SET(ex->exit_info, EX_LOCKED) ? true : false;
+                data.num_doors++;
+            }
+            data.doors = door_inputs;
+
+            sentience_send_package(d, "Sentience.Room.Contents",
+                sentience_build_room_contents_json(&data));
+
+            cache->contents_room_id[0] = cur_rid[0];
+            cache->contents_room_id[1] = cur_rid[1];
+            cache->contents_count = cur_count;
+        }
     }
 
     cache->initialized = true;
