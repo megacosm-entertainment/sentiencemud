@@ -2,7 +2,7 @@
 
 > Date: 2026-03-25
 > Status: Draft
-> Scope: Seven new/expanded GMCP packages for the Sentience web client
+> Scope: Nine new/expanded GMCP packages for the Sentience web client
 
 ---
 
@@ -440,6 +440,54 @@ New fields per class:
 - `type` — class category string: `"mage"`, `"cleric"`, `"thief"`, `"warrior"`,
   `"crafting"`, `"gathering"`, `"explorer"`
 - `action` — `null` for the active class, otherwise `{"label": "Switch to X", "cmd": "setclass X"}`
+- `flags` — array of applicable flag strings (e.g., `["combative", "caster"]`);
+  derived from `CLASS_*` flag constants (`CLASS_COMBATIVE`, `CLASS_CASTER`,
+  `CLASS_REMORT_ONLY`). Hidden flag excluded (hidden classes are already filtered).
+- `primary_stat` — primary stat name string (`"strength"`, `"intelligence"`, etc.)
+- `hp_range` — `[min, max]` HP gained per level (`[clazz->hp_min, clazz->hp_max]`)
+- `gains_mana` — boolean, whether this class gains mana
+- `description` — class description text (may be empty string)
+- `xp` — current XP in this class (`cl->xp`)
+- `active_title` — chosen title keyword or `null` (`cl->active_title`)
+- `available_titles` — array of title objects the character qualifies for:
+  `[{"keyword": "default", "display": "Wizard", "is_default": true}]`
+
+### Race Extended Data
+
+The Identity JSON also gains a `race_info` object with extended race data:
+
+```json
+{
+  "race_info": {
+    "id": "elf",
+    "description": "Ancient forest-dwelling people with natural magical affinity.",
+    "playable": true,
+    "starting": true,
+    "size": "medium",
+    "stats": {"str": 13, "int": 13, "wis": 13, "dex": 13, "con": 13},
+    "max_stats": {"str": 20, "int": 22, "wis": 20, "dex": 21, "con": 20},
+    "max_vitals": {"hp": 2500, "mana": 3750, "move": 2800},
+    "skills": ["sneak", "hide", "bow", "archery"],
+    "resistances": ["magic"],
+    "vulnerabilities": ["iron"],
+    "immunities": [],
+    "affects": ["haste"],
+    "remort_into": "seraph"
+  }
+}
+```
+
+Race info fields:
+- `id` — unique race identifier
+- `description` — race description text
+- `playable` / `starting` — whether this race is playable/available at creation
+- `size` — size category name from `size_table[]`
+- `stats` / `max_stats` — base and maximum stats by race
+- `max_vitals` — max HP/mana/move
+- `skills` — list of racial skill name strings
+- `resistances` / `vulnerabilities` / `immunities` — combat property names
+- `affects` — permanent affect names (e.g., `"haste"`, `"infrared"`)
+- `remort_into` — name of remort destination race, or `null`
 
 ### Traits Array
 
@@ -592,12 +640,20 @@ and by checking `songs_learned[uid]` + current class for songs.
 
 ### Caching / Update Frequency
 
-Dirty-flag fingerprint on the game pulse loop:
+Hybrid approach — dirty-flag fingerprint on pulse **plus** event-triggered push:
+
+**Pulse-based fingerprint:**
 - Track `abilities_count` in `sentience_gmcp_cache_t`
-- Fingerprint: count of entries in `ch->sorted_skills` + count of entries in
-  `ch->sorted_songs`
+- Fingerprint: count of entries in `ch->pcdata->sorted_skills` +
+  count of entries in `ch->pcdata->sorted_songs`
 - On mismatch → rebuild and send full abilities JSON
-- This catches all change sources: class swap, level up, token grants, scripting
+- This catches: level up, skill grants, token grants, scripting
+
+**Event-triggered push:**
+- Class swap (`do_setclass`) changes skill availability without altering counts.
+  After `do_setclass()` completes, invalidate the abilities cache by setting
+  `abilities_count = -1` to force a rebuild on next pulse.
+- This ensures availability flags update immediately on class swap.
 
 ---
 
@@ -654,10 +710,17 @@ Hidden reputations (`REPUTATION_HIDDEN` flag) are excluded.
 
 ### Caching / Update Frequency
 
-Dirty-flag fingerprint:
-- Track `reputation_count` in `sentience_gmcp_cache_t`
-- Fingerprint: count of entries in `ch->reputations` LLIST
-- On mismatch → rebuild and send full reputations JSON
+Event-driven push (not pulse-based). Reputation point changes don't alter list
+count, making count-based fingerprinting unreliable.
+
+- Track `reputation_count` in `sentience_gmcp_cache_t` (for detecting
+  new/removed faction entries on pulse)
+- Additionally, after `change_reputation()` is called, invalidate the
+  reputations cache by setting `reputation_count = -1` to force a rebuild
+  on next pulse.
+- Initial send on login.
+- This ensures both structural changes (new faction) and value changes
+  (point gain/loss, rank change) are detected.
 
 ---
 
@@ -742,7 +805,157 @@ Event-driven (not pulse-based). Church data changes rarely:
 
 ---
 
-## 8. Shared Implementation Notes
+## 8. Sentience.Channel.Message (Enhanced)
+
+### Purpose
+
+Enhance the existing `Sentience.Channel.Message` package to include the message
+`report_id` and an `actions` array. This allows the web client to offer
+message info and reporting features without relying on MXP links.
+
+### Changes to Existing JSON
+
+Current payload:
+```json
+{
+  "_v": 1,
+  "channel": "gossip",
+  "sender": "Tieryo",
+  "text": "Hello everyone!",
+  "timestamp": 1711396200,
+  "tell_target": null
+}
+```
+
+Enhanced payload:
+```json
+{
+  "_v": 1,
+  "channel": "gossip",
+  "sender": "Tieryo",
+  "text": "Hello everyone!",
+  "timestamp": 1711396200,
+  "tell_target": null,
+  "report_id": "local-12345",
+  "actions": [
+    {"label": "Info", "cmd": "msginfo gossip local-12345"},
+    {"label": "Report", "cmd": "report gossip local-12345"}
+  ]
+}
+```
+
+For directed channels (tell, whisper, sayto), `tell_target` is already populated:
+```json
+{
+  "_v": 1,
+  "channel": "tell",
+  "sender": "Tieryo",
+  "text": "Hey, want to group?",
+  "timestamp": 1711396200,
+  "tell_target": "Kynara",
+  "report_id": "local-12346",
+  "actions": [
+    {"label": "Reply", "cmd": "reply"},
+    {"label": "Info", "cmd": "msginfo tell local-12346"},
+    {"label": "Report", "cmd": "report tell local-12346"}
+  ]
+}
+```
+
+### New Fields
+
+- `report_id` — unique message identifier from the channel history ring
+  (format: `"local-<sequence>"` for local messages, may differ for transport-
+  backed messages). Used by the client to reference this specific message
+  for reporting or info queries.
+- `actions` — context actions available for this message:
+  - `Info` — view message metadata (timestamp, delivery info)
+  - `Report` — submit a player report for this message
+  - `Reply` — quick reply action (only for directed/tell channels)
+
+### Implementation Notes
+
+- Expand `sentience_channel_message_input_t` to include `const char *report_id`
+- In `channel_gmcp_broadcast()` and `channel_gmcp_send_directed()`, pass the
+  `report_id` from the history ring into the input struct
+- Builder emits `report_id` and `actions` array; actions are built server-side
+  based on channel type (directed channels get a Reply action)
+- `report_id` is generated by `channel_history_append()` before GMCP send
+
+---
+
+## 9. Sentience.Char.Race (Extended Race Info)
+
+### Purpose
+
+Provide detailed race information as a standalone package, sent once on login
+and whenever the character's race changes (remort, path transformation). This
+complements the `race` and `race_info` fields in Identity by providing a
+dedicated, comprehensive payload.
+
+### Direction
+
+Server → Client (push only).
+
+### Server → Client (Push)
+
+Package: `Sentience.Char.Race`
+
+```json
+{
+  "_v": 1,
+  "id": "elf",
+  "name": "elf",
+  "description": "Ancient forest-dwelling people with natural magical affinity.",
+  "playable": true,
+  "starting": true,
+  "size": "medium",
+  "stats": {"str": 13, "int": 13, "wis": 13, "dex": 13, "con": 13},
+  "max_stats": {"str": 20, "int": 22, "wis": 20, "dex": 21, "con": 20},
+  "max_vitals": {"hp": 2500, "mana": 3750, "move": 2800},
+  "skills": ["sneak", "hide", "bow", "archery"],
+  "resistances": ["magic"],
+  "vulnerabilities": ["iron"],
+  "immunities": [],
+  "affects": ["haste"],
+  "remort_into": "seraph",
+  "traits": [
+    {
+      "id": "mana_regen_multiplier",
+      "name": "Mana Regen Multiplier",
+      "type": "int",
+      "value": 2
+    }
+  ]
+}
+```
+
+### Fields
+
+- `id` — unique race identifier string
+- `name` — display name
+- `description` — race description text (may be empty)
+- `playable` / `starting` — availability flags
+- `size` — size category name from `size_table[]`
+- `stats` / `max_stats` — base and maximum stat values
+- `max_vitals` — maximum HP, mana, and move
+- `skills` — racial skill name strings
+- `resistances` / `vulnerabilities` / `immunities` — combat property name
+  strings (derived from `res`/`vuln`/`imm` bitfields via flag table lookup)
+- `affects` — permanent affect names (from `aff[]` bitfields)
+- `remort_into` — name of race this remorts into, or `null`
+- `traits` — race-specific trait values (from `race->trait_values`)
+
+### Caching / Update Frequency
+
+Event-driven. Race changes are extremely rare (remort, path transformation):
+- Sent on login
+- Resent when `ch->race` pointer changes
+- Track `race_uid` in cache for change detection
+
+---
+
+## 10. Shared Implementation Notes
 
 ### Build System
 
@@ -759,8 +972,10 @@ Register all packages in `sentience_build_client_ready_capabilities_json()`:
 - `"Sentience.Char.Abilities 1"` (new)
 - `"Sentience.Char.Reputations 1"` (new)
 - `"Sentience.Char.Church 1"` (new)
+- `"Sentience.Char.Race 1"` (new)
 
 `Sentience.Char.Identity` version stays at 1 (backward-compatible additions).
+`Sentience.Channel.Message` version stays at 1 (backward-compatible additions).
 
 ### Receive Table
 
@@ -774,9 +989,12 @@ New fields in `sentience_gmcp_cache_t`:
 - `int inventory_count` — visible items in `ch->lcarrying`
 - `int equipment_count` — equipped items in `ch->lworn`
 - `int abilities_count` — entries in `sorted_skills` + `sorted_songs`
+  (set to `-1` by class swap to force rebuild)
 - `int reputation_count` — entries in `ch->reputations`
+  (set to `-1` by reputation change to force rebuild)
 - `bool has_church` — whether character has church membership
 - `long church_uid` — UID of current church (for change detection)
+- `int16_t race_uid` — UID of current race (for change detection)
 
 ### Testing
 
