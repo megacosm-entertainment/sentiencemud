@@ -1536,8 +1536,12 @@ void sentience_gmcp_update(descriptor_t *d)
     /* Abilities — count skills + songs (cached; -1 forces rebuild) */
     {
         int cur_count = 0;
+        SKILL_ENTRY *entry;
 
-        /* Skill system not yet implemented in required form */
+        for (entry = ch->sorted_skills; entry; entry = entry->next)
+            cur_count++;
+        for (entry = ch->sorted_songs; entry; entry = entry->next)
+            cur_count++;
 
         if (cur_count != cache->abilities_count)
             dirty |= SENTIENCE_DIRTY_ABILITIES;
@@ -1547,7 +1551,17 @@ void sentience_gmcp_update(descriptor_t *d)
     {
         int cur_count = 0;
 
-        /* Reputation system not yet implemented */
+        if (ch->reputations) {
+            ITERATOR it;
+            REPUTATION_DATA *rep;
+
+            iterator_start(&it, ch->reputations);
+            while ((rep = (REPUTATION_DATA *)iterator_nextdata(&it)) != NULL) {
+                if (rep->pIndexData && !IS_SET(rep->pIndexData->flags, REPUTATION_HIDDEN))
+                    cur_count++;
+            }
+            iterator_stop(&it);
+        }
 
         if (cur_count != cache->reputation_count)
             dirty |= SENTIENCE_DIRTY_REPUTATIONS;
@@ -1555,10 +1569,8 @@ void sentience_gmcp_update(descriptor_t *d)
 
     /* Church — check membership and church uid */
     {
-        bool cur_has_church = false;
-        long cur_church_uid = 0;
-
-        /* Church system not implemented yet */
+        bool cur_has_church = (ch->church != NULL && ch->church_member != NULL);
+        long cur_church_uid = cur_has_church ? ch->church->uid : 0;
 
         if (cur_has_church != cache->has_church || cur_church_uid != cache->church_uid)
             dirty |= SENTIENCE_DIRTY_CHURCH;
@@ -2043,9 +2055,111 @@ void sentience_gmcp_update(descriptor_t *d)
     /* ── Phase 4: Char.Abilities ───────────────────────────────── */
     if (dirty & SENTIENCE_DIRTY_ABILITIES) {
         sentience_abilities_input_t ab_data;
+        SKILL_ENTRY *entry;
 
         memset(&ab_data, 0, sizeof(ab_data));
-        /* Skills/spells system not yet implemented in required form */
+
+        /* Skills and spells from sorted_skills */
+        for (entry = ch->sorted_skills; entry; entry = entry->next) {
+            sentience_ability_t *ab;
+            int rating;
+
+            if (ab_data.num_abilities >= SENTIENCE_MAX_ABILITIES)
+                break;
+
+            rating = skill_entry_rating(ch, entry);
+            if (rating < 1)
+                continue;
+
+            ab = &ab_data.abilities[ab_data.num_abilities];
+            ab->name = skill_entry_name(entry);
+            ab->type = entry->isspell ? "spell" : "skill";
+            ab->available = skill_entry_is_usable_now(ch, entry);
+            ab->rating = rating;
+            ab->modifier = skill_entry_mod(ch, entry);
+            ab->level = skill_entry_level(ch, entry);
+            ab->mana = entry->isspell ? skill_entry_mana(ch, entry) : 0;
+            ab->can_practice = entry->practice;
+            ab->learn_rate = skill_entry_learn(ch, entry);
+
+            /* Target type */
+            if (entry->skill_data) {
+                switch (entry->skill_data->target) {
+                case TAR_CHAR_OFFENSIVE:
+                    ab->target = "offensive";
+                    break;
+                case TAR_CHAR_DEFENSIVE:
+                case TAR_OBJ_CHAR_DEF:
+                case TAR_IGNORE_CHAR_DEF:
+                    ab->target = "defensive";
+                    break;
+                case TAR_CHAR_SELF:
+                    ab->target = "self";
+                    break;
+                case TAR_OBJ_INV:
+                case TAR_OBJ_GROUND:
+                    ab->target = "object";
+                    break;
+                case TAR_OBJ_CHAR_OFF:
+                case TAR_CHAR_FORMATION:
+                    ab->target = "offensive";
+                    break;
+                default:
+                    ab->target = entry->isspell ? "ignore" : "passive";
+                    break;
+                }
+            } else {
+                ab->target = entry->isspell ? "ignore" : "passive";
+            }
+
+            /* Actions */
+            ab->num_actions = 0;
+            if (entry->isspell && ab->available) {
+                ab->actions[ab->num_actions].label = "Cast";
+                ab->actions[ab->num_actions].cmd = "cast";
+                ab->num_actions++;
+            } else if (!entry->isspell && ab->available) {
+                ab->actions[ab->num_actions].label = "Use";
+                ab->actions[ab->num_actions].cmd = ab->name;
+                ab->num_actions++;
+            }
+
+            ab_data.num_abilities++;
+        }
+
+        /* Songs from sorted_songs */
+        for (entry = ch->sorted_songs; entry; entry = entry->next) {
+            sentience_ability_t *ab;
+            int rating;
+
+            if (ab_data.num_abilities >= SENTIENCE_MAX_ABILITIES)
+                break;
+
+            rating = skill_entry_rating(ch, entry);
+            if (rating < 1)
+                continue;
+
+            ab = &ab_data.abilities[ab_data.num_abilities];
+            ab->name = skill_entry_name(entry);
+            ab->type = "song";
+            ab->available = skill_entry_is_usable_now(ch, entry);
+            ab->rating = rating;
+            ab->modifier = skill_entry_mod(ch, entry);
+            ab->level = skill_entry_level(ch, entry);
+            ab->mana = skill_entry_mana(ch, entry);
+            ab->can_practice = entry->practice;
+            ab->learn_rate = skill_entry_learn(ch, entry);
+            ab->target = "ignore";
+
+            ab->num_actions = 0;
+            if (ab->available) {
+                ab->actions[ab->num_actions].label = "Play";
+                ab->actions[ab->num_actions].cmd = "play";
+                ab->num_actions++;
+            }
+
+            ab_data.num_abilities++;
+        }
 
         sentience_send_package(d, "Sentience.Char.Abilities",
             sentience_build_abilities_json(&ab_data));
@@ -2057,7 +2171,53 @@ void sentience_gmcp_update(descriptor_t *d)
         sentience_reputations_input_t rep_data;
 
         memset(&rep_data, 0, sizeof(rep_data));
-        /* Reputation system not yet implemented */
+
+        if (ch->reputations) {
+            ITERATOR it;
+            REPUTATION_DATA *rep;
+
+            iterator_start(&it, ch->reputations);
+            while ((rep = (REPUTATION_DATA *)iterator_nextdata(&it)) != NULL) {
+                sentience_reputation_t *r;
+                REPUTATION_INDEX_RANK_DATA *rank;
+                REPUTATION_INDEX_RANK_DATA *max_rank;
+
+                if (rep_data.num_reputations >= SENTIENCE_MAX_REPUTATIONS)
+                    break;
+                if (!rep->pIndexData || IS_SET(rep->pIndexData->flags, REPUTATION_HIDDEN))
+                    continue;
+
+                r = &rep_data.reputations[rep_data.num_reputations];
+                r->name = rep->pIndexData->name ? rep->pIndexData->name : "(unknown)";
+
+                rank = get_reputation_rank(rep->pIndexData, rep->current_rank);
+                r->rank = (rank && rank->name) ? rank->name : "(none)";
+                r->rank_color = "";
+                if (rank) {
+                    /* Convert color char to color name string */
+                    switch (rank->color) {
+                    case 'R': r->rank_color = "red"; break;
+                    case 'G': r->rank_color = "green"; break;
+                    case 'B': r->rank_color = "blue"; break;
+                    case 'Y': r->rank_color = "yellow"; break;
+                    case 'M': r->rank_color = "magenta"; break;
+                    case 'C': r->rank_color = "cyan"; break;
+                    case 'W': r->rank_color = "white"; break;
+                    case 'D': r->rank_color = "dark"; break;
+                    default: r->rank_color = "white"; break;
+                    }
+                }
+
+                r->points = (int)rep->reputation;
+                r->paragon_level = rep->paragon_level;
+
+                max_rank = get_reputation_rank(rep->pIndexData, rep->maximum_rank);
+                r->max_rank = (max_rank && max_rank->name) ? max_rank->name : "(none)";
+
+                rep_data.num_reputations++;
+            }
+            iterator_stop(&it);
+        }
 
         sentience_send_package(d, "Sentience.Char.Reputations",
             sentience_build_reputations_json(&rep_data));
@@ -2066,47 +2226,122 @@ void sentience_gmcp_update(descriptor_t *d)
 
     /* ── Phase 4: Char.Church ──────────────────────────────────── */
     if (dirty & SENTIENCE_DIRTY_CHURCH) {
-        sentience_church_input_t ch_data;
+        sentience_church_input_t church_data;
 
-        memset(&ch_data, 0, sizeof(ch_data));
+        memset(&church_data, 0, sizeof(church_data));
 
-        /* Church system not fully implemented yet */
-        ch_data.is_member = false;
+        if (ch->church && ch->church_member) {
+            CHURCH_DATA *church = ch->church;
+            CHURCH_PLAYER_DATA *member = ch->church_member;
+
+            church_data.is_member = true;
+            church_data.church_name = church->name ? church->name : "(unnamed)";
+            church_data.church_flag = church->flag ? church->flag : "";
+            church_data.pk = church->pk;
+
+            /* Alignment */
+            switch (church->alignment) {
+            case CHURCH_GOOD:    church_data.alignment = "good"; break;
+            case CHURCH_EVIL:    church_data.alignment = "evil"; break;
+            default:             church_data.alignment = "neutral"; break;
+            }
+
+            /* Size */
+            switch (church->size) {
+            case CHURCH_SIZE_BAND:   church_data.size = "band"; break;
+            case CHURCH_SIZE_CULT:   church_data.size = "cult"; break;
+            case CHURCH_SIZE_ORDER:  church_data.size = "order"; break;
+            case CHURCH_SIZE_CHURCH: church_data.size = "church"; break;
+            default:                 church_data.size = "band"; break;
+            }
+
+            /* Rank info */
+            if (member->rank) {
+                church_data.rank_name = member->rank->rank_name ? member->rank->rank_name : "(none)";
+
+                switch (member->rank->rank_type) {
+                case RANK_TYPE_OFFICER: church_data.rank_type = "officer"; break;
+                case RANK_TYPE_LEADER:  church_data.rank_type = "leader"; break;
+                default:                church_data.rank_type = "member"; break;
+                }
+
+                /* Use gender-appropriate title */
+                if (ch->sex == SEX_FEMALE && member->rank->title_female)
+                    church_data.rank_title = member->rank->title_female;
+                else if (ch->sex == SEX_MALE && member->rank->title_male)
+                    church_data.rank_title = member->rank->title_male;
+                else if (member->rank->title_neutral)
+                    church_data.rank_title = member->rank->title_neutral;
+                else
+                    church_data.rank_title = member->rank->rank_name ? member->rank->rank_name : "";
+            } else {
+                church_data.rank_name = "(none)";
+                church_data.rank_type = "member";
+                church_data.rank_title = "";
+            }
+
+            cache->has_church = true;
+            cache->church_uid = church->uid;
+        } else {
+            church_data.is_member = false;
+            cache->has_church = false;
+            cache->church_uid = 0;
+        }
 
         sentience_send_package(d, "Sentience.Char.Church",
-            sentience_build_church_json(&ch_data));
-        cache->has_church = ch_data.is_member;
-        cache->church_uid = 0;
+            sentience_build_church_json(&church_data));
     }
 
     /* ── Phase 4: Char.Race ────────────────────────────────────── */
     if (dirty & SENTIENCE_DIRTY_RACE) {
         if (ch->race) {
             sentience_race_info_t race_data;
+            int s;
 
             memset(&race_data, 0, sizeof(race_data));
 
-            race_data.id = ch->race->name ? ch->race->name : "";
+            race_data.id = ch->race->id ? ch->race->id : "";
             race_data.name = ch->race->name ? ch->race->name : "";
             race_data.description = ch->race->description ? ch->race->description : "";
             race_data.playable = ch->race->playable;
             race_data.starting = ch->race->starting;
-            race_data.size = "medium";  /* Simplified for now */
+            race_data.size = size_table[URANGE(0, ch->race->min_size, SIZE_GIANT)].name;
 
-            /* Stats - simplified */
-            {
-                int s;
-                for (s = 0; s < 5 && s < MAX_STATS; s++) {
-                    race_data.stats[s] = 0;
-                    race_data.max_stats[s] = 25;
-                }
+            /* Stats */
+            for (s = 0; s < 5 && s < MAX_STATS; s++) {
+                race_data.stats[s] = ch->race->stats[s];
+                race_data.max_stats[s] = ch->race->max_stats[s];
             }
 
-            /* Simplified for now */
-            race_data.resistances = "";
-            race_data.vulnerabilities = "";
-            race_data.immunities = "";
-            race_data.affects = "";
+            /* Max vitals */
+            race_data.max_vitals[0] = ch->race->max_vitals[0];
+            race_data.max_vitals[1] = ch->race->max_vitals[1];
+            race_data.max_vitals[2] = ch->race->max_vitals[2];
+
+            /* Resistances, vulnerabilities, immunities, affects */
+            race_data.resistances = ch->race->res ? flag_string(res_flags, ch->race->res) : "";
+            race_data.vulnerabilities = ch->race->vuln ? flag_string(vuln_flags, ch->race->vuln) : "";
+            race_data.immunities = ch->race->imm ? flag_string(imm_flags, ch->race->imm) : "";
+            race_data.affects = ch->race->aff[0] ? flag_string(affect_flags, ch->race->aff[0]) : "";
+
+            /* Remort destination */
+            race_data.remort_into = ch->race->remort_into_id;
+
+            /* Racial skills */
+            race_data.num_skills = 0;
+            if (ch->race->skills) {
+                ITERATOR it;
+                char *skill_name;
+
+                iterator_start(&it, ch->race->skills);
+                while ((skill_name = (char *)iterator_nextdata(&it)) != NULL) {
+                    if (race_data.num_skills >= SENTIENCE_MAX_RACE_SKILLS)
+                        break;
+                    race_data.skills[race_data.num_skills] = skill_name;
+                    race_data.num_skills++;
+                }
+                iterator_stop(&it);
+            }
 
             sentience_send_package(d, "Sentience.Char.Race",
                 sentience_build_race_json(&race_data));
