@@ -11,6 +11,7 @@
    - [Sentience.Client.Ready.Capabilities](#sentienceclientreadycapabilities)
    - [Sentience.Client.Ready.State](#sentienceclientreadystate)
    - [Sentience.Client.Preferences](#sentienceclientpreferences)
+   - [Sentience.Client.Layout](#sentienceclientlayout)
    - [Sentience.Char.Identity](#sentiencecharidentity)
    - [Sentience.Char.Vitals](#sentiencecharvitals)
    - [Sentience.Char.Stats](#sentiencecharstats)
@@ -24,6 +25,7 @@
    - [Sentience.Channel.Message](#sentiencechannelmessage)
    - [Sentience.Link.List](#sentiencelinklklist)
    - [Sentience.Auth.Resume](#sentienceauthresume)
+   - [Sentience.Auth.QRCode](#sentienceauthqrcode)
 4. [Update Lifecycle](#update-lifecycle)
 5. [Color Code Reference](#color-code-reference)
 6. [Client Implementation Notes](#client-implementation-notes)
@@ -64,6 +66,7 @@ Client                              Server
   |                                    |
   |  <── Client.Ready.State ─────────  |  Timing constants (once, after login)
   |  <── Client.Preferences ─────────  |  Current preference state (once)
+  |  <── Client.Layout (restore) ────  |  Active layout (WebSocket only, once)
   |  <── Char.Identity ──────────────  |  Full character data burst
   |  <── Char.Vitals ────────────────  |
   |  <── Char.Stats ─────────────────  |
@@ -193,6 +196,8 @@ Declares all GMCP packages the server supports.
     "Sentience.Room.Map",
     "Sentience.Channel.Message",
     "Sentience.Client.Preferences",
+    "Sentience.Client.Layout",
+    "Sentience.Auth.QRCode",
     "Sentience.Link"
   ],
   "features": ["links", "osc8"]
@@ -278,6 +283,114 @@ persists them, and echoes the full preference state back.
 - **`gmcp_suppress_minimap`:** When `true`, the server does not send
   `Sentience.Room.Map` and does not include inline ASCII maps in room text.
 - Preferences are persisted per-character and survive logout/reconnect.
+
+---
+
+### Sentience.Client.Layout
+
+**Direction:** Bidirectional
+**When:** Client sends to save/load/delete/list layouts; server responds with confirmation or data
+**WebSocket only:** Layout restore on login is only sent to WebSocket clients
+
+Allows the web client to persist FlexLayout configurations on the server,
+so layouts survive across sessions and devices.
+
+#### Client → Server Actions
+
+**Save a layout:**
+
+```json
+Sentience.Client.Layout {
+  "action": "save",
+  "name": "default",
+  "layout": { ... }
+}
+```
+
+The `layout` field is an opaque JSON object (the FlexLayout model). The server
+stores it as-is without interpreting the contents.
+
+**Load a layout:**
+
+```json
+Sentience.Client.Layout {"action": "load", "name": "default"}
+```
+
+**Delete a layout:**
+
+```json
+Sentience.Client.Layout {"action": "delete", "name": "default"}
+```
+
+**List saved layouts:**
+
+```json
+Sentience.Client.Layout {"action": "list"}
+```
+
+#### Server → Client Responses
+
+**Saved confirmation:**
+
+```json
+{"action": "saved", "name": "default", "_v": 1}
+```
+
+**Layout restore** (on load, or automatically on login for WebSocket clients):
+
+```json
+{"action": "restore", "name": "default", "layout": { ... }, "_v": 1}
+```
+
+**Layout list:**
+
+```json
+{"action": "list", "layouts": ["default", "compact", "mobile"], "active": "default", "_v": 1}
+```
+
+The `active` field is the name of the last saved/loaded layout, or `null` if none.
+
+**Deleted confirmation:**
+
+```json
+{"action": "deleted", "name": "default", "_v": 1}
+```
+
+**Error:**
+
+```json
+{"action": "error", "reason": "invalid_name", "_v": 1}
+```
+
+#### Error Codes
+
+| Code | Cause |
+|------|-------|
+| `invalid_payload` | Root JSON is not an object, or layout field is not an object |
+| `invalid_action` | Missing, non-string, or unrecognized action |
+| `invalid_name` | Missing name, or name fails validation rules |
+| `not_found` | Load/delete for a name that doesn't exist |
+| `size_limit_exceeded` | Layout JSON exceeds 16 KB when serialized |
+| `max_layouts_reached` | Already at 5 saved layouts (save of new name) |
+
+#### Constraints
+
+| Constraint | Value |
+|------------|-------|
+| Name length | 1–32 characters |
+| Name characters | `[a-zA-Z0-9_-]` only |
+| Max layouts per character | 5 |
+| Max layout size | 16 KB (JSON compact) |
+
+#### Implementation Notes
+
+- **Saving is explicit.** The client should provide a "Save Layout" button; the
+  server does not auto-save on every resize. Consider debouncing rapid saves.
+- **Active layout is auto-set** when saving or loading. It determines which
+  layout is restored on the next login.
+- **Login restore** is only sent to WebSocket clients. The server sends a
+  `restore` message with the active layout during the first GMCP update burst.
+- **Name matching is case-insensitive** for find/delete operations.
 
 ---
 
@@ -882,6 +995,54 @@ complete flow. Summary of events:
 
 ---
 
+### Sentience.Auth.QRCode
+
+**Direction:** Server → Client
+**When:** During MFA TOTP setup flow (account or character level)
+**WebSocket only:** Telnet clients receive an ASCII QR code instead
+
+Delivers a QR code as a PNG image encoded in base64, allowing the web client
+to display a scannable QR code during authenticator app setup.
+
+#### Server → Client
+
+```json
+{
+  "_v": 1,
+  "purpose": "totp_setup",
+  "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUg...",
+  "uri": "otpauth://totp/Sentience:PlayerName?secret=BASE32SECRET&issuer=Sentience",
+  "expires_at": 0
+}
+```
+
+| Field        | Type    | Description                                                |
+|--------------|---------|------------------------------------------------------------|
+| `purpose`    | string  | Always `"totp_setup"` (reserved for future use)            |
+| `image`      | string  | PNG image as a `data:image/png;base64,...` data URL         |
+| `uri`        | string  | The `otpauth://` URI for manual entry or copy/paste        |
+| `expires_at` | integer | Unix timestamp when QR expires, or `0` for no expiry       |
+
+#### Client Implementation
+
+```jsx
+// React example
+<img src={data.image} alt="Scan this QR code with your authenticator app" />
+<p>Or enter this URI manually: <code>{data.uri}</code></p>
+```
+
+The `image` field is a complete data URL — assign it directly to an `<img>` tag's
+`src` attribute. No decoding required.
+
+#### Notes
+
+- Only sent to WebSocket clients. Telnet clients see an ASCII art QR code.
+- The QR code is generated server-side using libqrencode + libpng.
+- Appears during the MFA setup menu flow (both account-level and character-level).
+- The `uri` field can be used as a fallback for users who cannot scan QR codes.
+
+---
+
 ## Update Lifecycle
 
 ### Server Update Loop
@@ -915,6 +1076,7 @@ ensuring every package is sent. This includes:
 
 - `Sentience.Client.Ready.State` (one-shot, never sent again)
 - `Sentience.Client.Preferences` (one-shot, echoed on changes)
+- `Sentience.Client.Layout` restore (WebSocket only, if active layout exists)
 - All `Char.*` packages
 - All `Room.*` packages
 
@@ -1172,6 +1334,7 @@ function parseWnum(wnum) {
 | Client.Ready.Capabilities | S→C | Once (handshake) | Lists all server packages |
 | Client.Ready.State | S→C | Once (first update) | Timing constants |
 | Client.Preferences | Bidirectional | On change | Preference sync |
+| Client.Layout | Bidirectional | On save/load/delete/list | FlexLayout persistence |
 | Char.Identity | S→C | On change | Level/name/class |
 | Char.Vitals | S→C | On change | HP/mana/move (most frequent) |
 | Char.Stats | S→C | On change | Attributes |
@@ -1185,6 +1348,7 @@ function parseWnum(wnum) {
 | Channel.Message | S→C | On message | Chat channels + tells |
 | Link.List | S→C | Per text frame | Interactive link metadata |
 | Auth.Resume | Bidirectional | On connect/disconnect | Session resume tokens |
+| Auth.QRCode | S→C | MFA TOTP setup | QR code as PNG data URL (WS only) |
 
 > All `Sentience.*` packages are prefixed with `Sentience.` in the GMCP frame.
 > Example: `Sentience.Char.Vitals {...}`
