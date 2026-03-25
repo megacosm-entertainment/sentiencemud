@@ -1445,13 +1445,18 @@ void display_account_prefs_menu(DESCRIPTOR_DATA *d)
     ACCOUNT_DATA *acct = d->account;
     char buf[MAX_STRING_LENGTH];
 
-    write_to_buffer(d, "\n\r{B=={W[ {YACCOUNT PREFERENCES {W]{B=={x\n\r", 0);
-    write_to_buffer(d, "{DSet defaults for all your characters. Character-specific\n\r"
-                       "overrides (set in-game via 'prefs') take priority.{x\n\r", 0);
+    write_to_buffer(d, formatf("\n\r{B=={W[ {Y%s{W ]{B=={x\n\r", LT(d, "menu.account.header.prefs")), 0);
+    write_to_buffer(d, formatf("{D%s{x\n\r", LT(d, "msg.account.prefs.disclaimer")), 0);
 
     /* --- Toggle Settings --- */
-    write_to_buffer(d, "\n\r{Y--- Toggle Settings ---{x\n\r", 0);
-    write_to_buffer(d, "{D  Setting          Value    Source{x\n\r", 0);
+    write_to_buffer(d, formatf("\n\r{Y--- %s ---{x\n\r", LT(d, "menu.account.header.prefs.toggle")), 0);
+    const char *tcol1 = LT(d, "menu.account.header.prefs.toggle.setting");
+    const char *tcol2 = LT(d, "menu.account.header.prefs.toggle.value");
+    const char *tcol3 = LT(d, "menu.account.header.prefs.toggle.source");
+    write_to_buffer(d, formatf("{D  %s%s %s%s %s{x\n\r",
+        tcol1, pad_string(tcol1, 16, NULL, " "),
+        tcol2, pad_string(tcol2, 8, NULL, " "),
+        tcol3), 0);
     write_to_buffer(d, "{D──────────────────────────────────────────{x\n\r", 0);
 
     for (int i = 0; pc_set_table[i].name; i++) {
@@ -1464,16 +1469,19 @@ void display_account_prefs_menu(DESCRIPTOR_DATA *d)
 
         if (acct_pref && acct_pref->type == PREF_TYPE_BOOL) {
             is_on = acct_pref->val.b;
-            source_tag = "{C(acct){x";
+            source_tag = formatf("{C(%s){x", LT(d, "menu.account.prefs.source.account"));
         } else {
             is_on = get_default_bool(pc_set_table[i].name,
                                      pc_set_table[i].default_state);
-            source_tag = "{D(def){x ";
+            source_tag = formatf("{D(%s){x", LT(d, "menu.account.prefs.source.default"));
         }
 
-        sprintf(buf, "  %-16s %s    %s\n\r",
+        // TODO: Should preference names be localized?
+        const char *state = LT(d, is_on ? "menu.account.prefs.toggle.on" : "menu.account.prefs.toggle.off");
+        sprintf(buf, "  %-16s {%c%s{x%s %s\n\r",
                 pc_set_table[i].name,
-                is_on ? "{WON{x " : "{DOFF{x",
+                is_on ? 'W' : 'D',
+                state, pad_string(state, 6, NULL, " "),
                 source_tag);
         write_to_buffer(d, buf, 0);
     }
@@ -1482,11 +1490,11 @@ void display_account_prefs_menu(DESCRIPTOR_DATA *d)
     {
         PREF_ENTRY *wp = pref_find(acct->preferences, "wimpy");
         if (wp && wp->type == PREF_TYPE_INT) {
-            sprintf(buf, "  %-16s {W%-5d{x  {C(acct){x\n\r", "wimpy", wp->val.i);
+            sprintf(buf, "  %-16s {W%-5d{x  {C(%s){x\n\r", "wimpy", wp->val.i, LT(d, "menu.account.prefs.source.account"));
         } else {
             PREF_ENTRY *gp = pref_find(game_settings.pref_defaults, "wimpy");
             int def_wimpy = (gp && gp->type == PREF_TYPE_INT) ? gp->val.i : 0;
-            sprintf(buf, "  %-16s {W%-5d{x  {D(def){x\n\r", "wimpy", def_wimpy);
+            sprintf(buf, "  %-16s {W%-5d{x  {D(%s){x\n\r", "wimpy", def_wimpy, LT(d, "menu.account.prefs.source.default"));
         }
         write_to_buffer(d, buf, 0);
     }
@@ -1495,24 +1503,32 @@ void display_account_prefs_menu(DESCRIPTOR_DATA *d)
     {
         PREF_ENTRY *sp = pref_find(acct->preferences, "scroll");
         if (sp && sp->type == PREF_TYPE_INT) {
-            if (sp->val.i == 0)
-                sprintf(buf, "  %-16s {DOFF{x    {C(acct){x\n\r", "scroll");
-            else
-                sprintf(buf, "  %-16s {W%-5d{x  {C(acct){x\n\r", "scroll", sp->val.i);
+            if (sp->val.i == 0) {
+                const char *off = LT(d, "menu.account.prefs.toggle.off");
+                sprintf(buf, "  %-16s {D%s{x%s  {C(%s){x\n\r", "scroll", off, pad_string(off, 5, NULL, " "), LT(d, "menu.account.prefs.source.account"));
+            } else
+                sprintf(buf, "  %-16s {W%-5d{x  {C(%s){x\n\r", "scroll", sp->val.i, LT(d, "menu.account.prefs.source.account"));
         } else {
             PREF_ENTRY *gp = pref_find(game_settings.pref_defaults, "scroll");
             int def_scroll = (gp && gp->type == PREF_TYPE_INT) ? gp->val.i : 0;
-            if (def_scroll == 0)
-                sprintf(buf, "  %-16s {DOFF{x    {D(def){x\n\r", "scroll");
-            else
-                sprintf(buf, "  %-16s {W%-5d{x  {D(def){x\n\r", "scroll", def_scroll);
+            if (def_scroll == 0) {
+                const char *off = LT(d, "menu.account.prefs.toggle.off");
+                sprintf(buf, "  %-16s {D%s{x%s  {D(%s){x\n\r", "scroll", off, pad_string(off, 5, NULL, " "), LT(d, "menu.account.prefs.source.default"));
+            } else
+                sprintf(buf, "  %-16s {W%-5d{x  {D(%s){x\n\r", "scroll", def_scroll, LT(d, "menu.account.prefs.source.default"));
         }
         write_to_buffer(d, buf, 0);
     }
 
     /* --- Channel Settings --- */
-    write_to_buffer(d, "\n\r{Y--- Channel Settings ---{x\n\r", 0);
-    write_to_buffer(d, "{D  Channel          Status   Source{x\n\r", 0);
+    write_to_buffer(d, formatf("\n\r{Y--- %s ---{x\n\r", LT(d, "menu.account.header.prefs.channel")), 0);
+    const char *ccol1 = LT(d, "menu.account.header.prefs.channel.channel");
+    const char *ccol2 = LT(d, "menu.account.header.prefs.channel.status");
+    const char *ccol3 = LT(d, "menu.account.header.prefs.channel.source");
+    write_to_buffer(d, formatf("{D  %s%s %s%s %s{x\n\r",
+        ccol1, pad_string(tcol1, 16, NULL, " "),
+        ccol2, pad_string(tcol2, 8, NULL, " "),
+        ccol3), 0);
     write_to_buffer(d, "{D──────────────────────────────────────────{x\n\r", 0);
 
     for (int i = 0; acct_channel_table[i].name; i++) {
@@ -1522,28 +1538,30 @@ void display_account_prefs_menu(DESCRIPTOR_DATA *d)
 
         if (cp && cp->type == PREF_TYPE_BOOL) {
             is_on = cp->val.b;
-            source_tag = "{C(acct){x";
+            source_tag = formatf("{C(%s){x", LT(d, "menu.account.prefs.source.account"));
         } else {
             /* Default: all channels ON */
             is_on = true;
-            source_tag = "{D(def){x ";
+            source_tag = formatf("{D(%s){x", LT(d, "menu.account.prefs.source.default"));
         }
 
-        sprintf(buf, "  %-16s %s    %s\n\r",
+        const char *state = LT(d, is_on ? "menu.account.prefs.toggle.on" : "menu.account.prefs.toggle.off");
+        sprintf(buf, "  %-16s {%c%s{x%s %s\n\r",
                 acct_channel_table[i].name,
-                is_on ? "{WON{x " : "{DOFF{x",
+                is_on ? 'W' : 'D',
+                state, pad_string(state, 6, NULL, " "),
                 source_tag);
         write_to_buffer(d, buf, 0);
     }
 
     /* --- Prompt --- */
-    write_to_buffer(d, "\n\r{Y--- Prompt ---{x\n\r", 0);
+    write_to_buffer(d, formatf("\n\r{Y--- %s ---{x\n\r", LT(d, "menu.account.header.prefs.prompt")), 0);
     {
         PREF_ENTRY *pp = pref_find(acct->preferences, "prompt");
         if (pp && pp->type == PREF_TYPE_STRING && !IS_NULLSTR(pp->val.str)) {
-            sprintf(buf, "  Prompt: {W%s{x  {C(acct){x\n\r", pp->val.str);
+            sprintf(buf, "  %s: {W%s{x  {C(%s){x\n\r", LT(d, "menu.account.prefs.prompt.prompt"), pp->val.str, LT(d, "menu.account.prefs.source.account"));
         } else {
-            sprintf(buf, "  Prompt: {W(game default){x  {D(def){x\n\r");
+            sprintf(buf, "  %s: {W(%s){x  {D(%s){x\n\r", LT(d, "menu.account.prefs.prompt.prompt"), LT(d, "menu.account.prefs.prompt.default"), LT(d, "menu.account.prefs.source.default"));
         }
         write_to_buffer(d, buf, 0);
     }
@@ -1552,17 +1570,15 @@ void display_account_prefs_menu(DESCRIPTOR_DATA *d)
     int acct_prefs = acct->preferences ? pref_count(acct->preferences) : 0;
     write_to_buffer(d, "\n\r", 0);
     if (acct_prefs > 0) {
-        sprintf(buf, "{D%d account preference%s set.{x\n\r",
-                acct_prefs, acct_prefs == 1 ? "" : "s");
-        write_to_buffer(d, buf, 0);
+        write_to_buffer(d, formatf("{D%s{x\n\r", LTF(d, acct_prefs == 1 ? "menu.account.prefs.count" : "menu.account.prefs.counts", acct_prefs)), 0);
     }
 
-    write_to_buffer(d, "\n\r{DType a setting or channel name to toggle it.{x\n\r", 0);
-    write_to_buffer(d, "{DType 'wimpy <value>' to set wimpy.{x\n\r", 0);
-    write_to_buffer(d, "{DType 'scroll <lines>' to set scroll (0 = off, 10-100).{x\n\r", 0);
-    write_to_buffer(d, "{DType 'prompt <string>' to set prompt, 'prompt clear' to reset.{x\n\r", 0);
-    write_to_buffer(d, "{GR{x) Reset all account preferences\n\r", 0);
-    write_to_buffer(d, "{GB{x) Back to account menu\n\r\n\r", 0);
+    write_to_buffer(d, formatf("\n\r{D%s{x\n\r", LT(d, "menu.account.prefs.usage1")), 0);
+    write_to_buffer(d, formatf("{D%s{x\n\r", LT(d, "menu.account.prefs.usage2")), 0);
+    write_to_buffer(d, formatf("{D%s{x\n\r", LT(d, "menu.account.prefs.usage3")), 0);
+    write_to_buffer(d, formatf("{D%s{x\n\r", LT(d, "menu.account.prefs.usage4")), 0);
+    write_to_buffer(d, formatf("{GR{x)%s\n\r", LT(d, "menu.account.prefs.usage5")), 0);
+    write_to_buffer(d, formatf("{GB{x)%s\n\r", LT(d, "menu.account.prefs.usage6")), 0);
 
     d->connected = CON_ACCOUNT_PREFS;
 }
