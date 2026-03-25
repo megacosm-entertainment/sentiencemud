@@ -628,6 +628,7 @@ json_t *sentience_build_preferences_json(const sentience_preferences_input_t *in
     if (!input) return NULL;
 
     obj = json_object();
+    if (!obj) return NULL;
     json_object_set_new(obj, "_v", json_integer(SENTIENCE_PACKAGE_VERSION));
 
     prefs = json_array();
@@ -663,6 +664,7 @@ json_t *sentience_build_inventory_json(const sentience_inventory_input_t *input)
     if (!input) return NULL;
 
     obj = json_object();
+    if (!obj) return NULL;
     json_object_set_new(obj, "_v", json_integer(SENTIENCE_PACKAGE_VERSION));
 
     items_arr = json_array();
@@ -728,6 +730,7 @@ json_t *sentience_build_equipment_json(const sentience_equipment_input_t *input)
     if (!input) return NULL;
 
     obj = json_object();
+    if (!obj) return NULL;
     json_object_set_new(obj, "_v", json_integer(SENTIENCE_PACKAGE_VERSION));
 
     slots_arr = json_array();
