@@ -875,6 +875,119 @@ json_t *sentience_build_church_json(const sentience_church_input_t *input)
     return obj;
 }
 
+static json_t *split_to_json_array(const char *space_separated)
+{
+    json_t *arr;
+    const char *p;
+    const char *start;
+
+    arr = json_array();
+    if (!space_separated || !*space_separated)
+        return arr;
+
+    p = space_separated;
+    while (*p) {
+        while (*p == ' ') p++;
+        if (!*p) break;
+        start = p;
+        while (*p && *p != ' ') p++;
+        {
+            char buf[256];
+            int len = (int)(p - start);
+            if (len >= (int)sizeof(buf)) len = (int)sizeof(buf) - 1;
+            memcpy(buf, start, len);
+            buf[len] = '\0';
+            json_array_append_new(arr, json_string(buf));
+        }
+    }
+
+    return arr;
+}
+
+json_t *sentience_build_race_json(const sentience_race_info_t *input)
+{
+    json_t *obj;
+    json_t *stats;
+    json_t *max_stats;
+    json_t *max_vitals;
+    json_t *skills;
+    json_t *traits_arr;
+    int i;
+
+    if (!input) return NULL;
+
+    obj = json_object();
+    if (!obj) return NULL;
+
+    json_object_set_new(obj, "id",          json_string(input->id ? input->id : ""));
+    json_object_set_new(obj, "name",        json_string(input->name ? input->name : ""));
+    json_object_set_new(obj, "description", json_string(input->description ? input->description : ""));
+    json_object_set_new(obj, "playable",    input->playable ? json_true() : json_false());
+    json_object_set_new(obj, "starting",    input->starting ? json_true() : json_false());
+    json_object_set_new(obj, "size",        json_string(input->size ? input->size : "medium"));
+
+    /* stats object */
+    stats = json_object();
+    json_object_set_new(stats, "str", json_integer(input->stats[0]));
+    json_object_set_new(stats, "int", json_integer(input->stats[1]));
+    json_object_set_new(stats, "wis", json_integer(input->stats[2]));
+    json_object_set_new(stats, "dex", json_integer(input->stats[3]));
+    json_object_set_new(stats, "con", json_integer(input->stats[4]));
+    json_object_set_new(obj, "stats", stats);
+
+    /* max_stats object */
+    max_stats = json_object();
+    json_object_set_new(max_stats, "str", json_integer(input->max_stats[0]));
+    json_object_set_new(max_stats, "int", json_integer(input->max_stats[1]));
+    json_object_set_new(max_stats, "wis", json_integer(input->max_stats[2]));
+    json_object_set_new(max_stats, "dex", json_integer(input->max_stats[3]));
+    json_object_set_new(max_stats, "con", json_integer(input->max_stats[4]));
+    json_object_set_new(obj, "max_stats", max_stats);
+
+    /* max_vitals object */
+    max_vitals = json_object();
+    json_object_set_new(max_vitals, "hp",   json_integer(input->max_vitals[0]));
+    json_object_set_new(max_vitals, "mana", json_integer(input->max_vitals[1]));
+    json_object_set_new(max_vitals, "move", json_integer(input->max_vitals[2]));
+    json_object_set_new(obj, "max_vitals", max_vitals);
+
+    /* skills array */
+    skills = json_array();
+    for (i = 0; i < input->num_skills; i++)
+        json_array_append_new(skills, json_string(input->skills[i] ? input->skills[i] : ""));
+    json_object_set_new(obj, "skills", skills);
+
+    /* Split space-separated flags into arrays */
+    json_object_set_new(obj, "resistances",     split_to_json_array(input->resistances));
+    json_object_set_new(obj, "vulnerabilities",  split_to_json_array(input->vulnerabilities));
+    json_object_set_new(obj, "immunities",       split_to_json_array(input->immunities));
+    json_object_set_new(obj, "affects",          split_to_json_array(input->affects));
+
+    json_object_set_new(obj, "remort_into", input->remort_into ? json_string(input->remort_into) : json_null());
+
+    /* traits array */
+    traits_arr = json_array();
+    for (i = 0; i < input->num_traits; i++) {
+        const sentience_trait_t *t = &input->traits[i];
+        json_t *trait = json_object();
+        json_object_set_new(trait, "id",   json_string(t->id ? t->id : ""));
+        json_object_set_new(trait, "name", json_string(t->name ? t->name : ""));
+        json_object_set_new(trait, "type", json_string(t->type ? t->type : "bool"));
+        if (t->type && !strcmp(t->type, "int"))
+            json_object_set_new(trait, "value", json_integer(t->value_int));
+        else if (t->type && !strcmp(t->type, "string"))
+            json_object_set_new(trait, "value", json_string(t->value_string ? t->value_string : ""));
+        else
+            json_object_set_new(trait, "value", t->value_bool ? json_true() : json_false());
+        json_array_append_new(traits_arr, trait);
+    }
+    json_object_set_new(obj, "traits", traits_arr);
+
+    json_object_set_new(obj, "_v", json_integer(SENTIENCE_PACKAGE_VERSION));
+
+    return obj;
+}
+
 /**
  * sentience_send_client_preferences - Send current GMCP prefs to client
  *

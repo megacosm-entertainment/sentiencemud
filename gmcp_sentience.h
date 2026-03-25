@@ -178,6 +178,8 @@ typedef struct {
     sentience_trait_t traits[SENTIENCE_MAX_TRAITS];
 } sentience_race_info_t;
 
+json_t *sentience_build_race_json(const sentience_race_info_t *input);
+
 typedef struct {
     const char *id;
     const char *name;

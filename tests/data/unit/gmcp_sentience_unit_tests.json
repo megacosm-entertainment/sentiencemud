@@ -1741,6 +1741,100 @@
         ]
       },
       "expected_result": "pass"
+    },
+    {
+      "test_type": "gmcp_sentience_",
+      "name": "gmcp_build_race_full",
+      "description": "Standalone race builder with all data",
+      "input": {
+        "function": "build_race",
+        "test_cases": [
+          {
+            "scenario": "full_race",
+            "params": {
+              "id": "elf",
+              "name": "Elf",
+              "description": "Graceful and magical beings.",
+              "playable": true,
+              "starting": true,
+              "size": "medium",
+              "stats": [11, 16, 14, 15, 10],
+              "max_stats": [18, 23, 21, 22, 17],
+              "max_vitals": [2000, 3000, 2500],
+              "skills": ["meditation", "lore"],
+              "resistances": "charm magic",
+              "vulnerabilities": "iron cold_iron",
+              "immunities": "",
+              "affects": "infrared detect_magic",
+              "remort_into": "high_elf",
+              "traits": [
+                {
+                  "id": "mana_regen", "name": "Mana Regeneration",
+                  "type": "int", "value_int": 15
+                }
+              ]
+            },
+            "expected": {
+              "_v": 1,
+              "id": "elf",
+              "name": "Elf",
+              "playable": true,
+              "stats_int": 16,
+              "max_stats_dex": 22,
+              "skills_count": 2,
+              "resistances_count": 2,
+              "first_resistance": "charm",
+              "vulnerabilities_count": 2,
+              "immunities_count": 0,
+              "affects_count": 2,
+              "remort_into": "high_elf",
+              "traits_count": 1,
+              "first_trait_id": "mana_regen"
+            }
+          }
+        ]
+      },
+      "expected_result": "pass"
+    },
+    {
+      "test_type": "gmcp_sentience_",
+      "name": "gmcp_build_race_minimal",
+      "description": "Race builder with minimal data",
+      "input": {
+        "function": "build_race",
+        "test_cases": [
+          {
+            "scenario": "minimal_race",
+            "params": {
+              "id": "human",
+              "name": "Human",
+              "description": "Versatile.",
+              "playable": true,
+              "starting": true,
+              "size": "medium",
+              "stats": [13, 13, 13, 13, 13],
+              "max_stats": [20, 20, 20, 20, 20],
+              "max_vitals": [2500, 2500, 2500],
+              "skills": [],
+              "resistances": "",
+              "vulnerabilities": "",
+              "immunities": "",
+              "affects": "",
+              "remort_into": null,
+              "traits": []
+            },
+            "expected": {
+              "_v": 1,
+              "id": "human",
+              "skills_count": 0,
+              "resistances_count": 0,
+              "remort_into_null": true,
+              "traits_count": 0
+            }
+          }
+        ]
+      },
+      "expected_result": "pass"
     }
   ]
 }
