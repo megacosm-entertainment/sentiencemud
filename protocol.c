@@ -4393,32 +4393,43 @@ void UpdateGMCPNumber( descriptor_t *apDescriptor, GMCP_VARIABLE var, const long
  */
 void SendGMCPRaw( descriptor_t *apDescriptor, const char *package, const char *json_body )
 {
-   char buf[MSL + 64];
-
    if ( !apDescriptor || !apDescriptor->pProtocol || !apDescriptor->pProtocol->bGMCP )
       return;
 
    if ( !package || !json_body )
       return;
 
+   size_t pkg_len = strlen(package);
+   size_t json_len = strlen(json_body);
+
    /* WebSocket: send as plain text frame (no telnet IAC framing) */
    if ( !descriptor_uses_telnet_iac(apDescriptor) )
    {
+      /* "package json\n\r\0" */
+      size_t need = pkg_len + 1 + json_len + 2 + 1;
+      char *buf = alloc_mem(need);
+
       if ( !apDescriptor->fcommand && apDescriptor->pProtocol->WriteOOB <= 0 )
          apDescriptor->pProtocol->WriteOOB = 2;
-      snprintf( buf, sizeof(buf), "%s %s\n\r", package, json_body );
+      snprintf( buf, need, "%s %s\n\r", package, json_body );
       write_to_buffer( apDescriptor, buf, 0 );
+      free_mem( buf, need );
       return;
    }
 
    /* Telnet: wrap in IAC SB GMCP ... IAC SE */
-   snprintf( buf, sizeof(buf), "%s%s %s%s",
+   /* 3 (iac_sb_gmcp) + pkg + 1 (space) + json + 2 (iac_se) + 1 (nul) */
+   size_t need = 3 + pkg_len + 1 + json_len + 2 + 1;
+   char *buf = alloc_mem(need);
+
+   snprintf( buf, need, "%s%s %s%s",
              ( char * ) iac_sb_gmcp,
              package,
              json_body,
              ( char * ) iac_se );
 
    Write( apDescriptor, buf );
+   free_mem( buf, need );
 }
 
 static char *OneArg( char *fStr, char *bStr )

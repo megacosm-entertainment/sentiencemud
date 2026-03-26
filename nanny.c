@@ -3033,8 +3033,10 @@ void login_read_motd(DESCRIPTOR_DATA *d, char *argument)
             (ch->alignment > 0 && ch->church->alignment == CHURCH_EVIL)) {
             act("{YAs you enter Sentience, you feel your church's faith has been changed.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
             act("{YYou feel your psychic link to $T being severed.{x", ch, NULL, NULL, NULL, NULL, NULL, ch->church->name, TO_CHAR, NULL, NULL);
-            remove_member(ch->church_member);
+            if (ch->church_member)
+                remove_member(ch->church_member);
             ch->church = NULL;
+            ch->church_member = NULL;
         } else {
             // Send a message to the church
             sprintf(buf, "{Y[%s has entered the game.]{x\n\r", ch->name);

@@ -3703,10 +3703,20 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
         value = json_object_get(character, "wiznet");
         if (value) ch->wiznet = json_integer_value(value);
 
-        // Church membership
+        // Church membership — reconnect the member record from the
+        // church's people list so ch->church_member is valid on login.
         str = json_get_string(character, "church", "");
         if (str) {
             ch->church = get_church_by_name(str);
+            if (ch->church) {
+                for (CHURCH_PLAYER_DATA *m = ch->church->people; m; m = m->next) {
+                    if (m->name && !str_cmp(m->name, ch->name)) {
+                        ch->church_member = m;
+                        m->ch = ch;
+                        break;
+                    }
+                }
+            }
         }
 
         // Immortal imm_flag (custom who-tag)
