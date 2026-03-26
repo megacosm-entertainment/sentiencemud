@@ -78,8 +78,8 @@ structs) use editor-specific handlers registered in the `OLC_EDITOR_DEF`.
 ```c
 typedef struct olc_changeset {
     int editor_type;            // ED_ROOM, ED_MOBILE, etc.
-    long entity_id;             // vnum or uid
-    char *entity_label;         // Human-readable label (e.g., "Room 3001: A Dark Cave")
+    WNUM_LOAD entity_wnum;      // Area UID + vnum (persistent identifier)
+    char *entity_label;         // Human-readable label (e.g., "Room 5#3001: A Dark Cave")
     char *author;               // Builder character name
     LLIST *changes;             // List of olc_pending_change_t*
     time_t created_at;
@@ -229,7 +229,7 @@ static const olc_field_handler_t redit_field_handlers[] = {
 
 1. Builder runs `commit [comment]` or sends `Sentience.Editor.Commit` via GMCP
 2. System validates all pending changes (field handlers can reject)
-3. Each `olc_pending_change.apply_fn` writes to the live entity
+3. Each pending change is applied via its `olc_field_handler_t.apply_fn` (looked up by `field_path`)
 4. A **committed changeset record** is created and appended to the entity's
    `olc_change_history` (existing audit infrastructure, extended with group_id)
 5. Entity is saved to disk (area JSON save or entity-specific save)
@@ -255,6 +255,20 @@ static const olc_field_handler_t redit_field_handlers[] = {
    persistence is partial.
 7. A `olc_changeset_group` record ties the commits together
 8. Each entity's history entry includes the `group_id`
+9. `Sentience.Editor.CommitResult` sent with per-entity results:
+   ```json
+   {
+     "group_id": 42,
+     "results": [
+       {"entity_id": "room:5#3001", "status": "success", "changes_applied": 3},
+       {"entity_id": "mob:5#3005", "status": "success", "changes_applied": 1},
+       {"entity_id": "obj:5#3010", "status": "save_failed", "changes_applied": 2,
+        "error": "Disk write failed for area 5"}
+     ],
+     "comment": "Rebuilt tavern area",
+     "_v": 1
+   }
+   ```
 
 ### Revert
 
@@ -366,10 +380,15 @@ Sent for individual field updates. Triggered by:
 
 #### `Sentience.Editor.Close`
 
+Sent only when the editor is actually exited (not on commit).
+
+Valid `reason` values: `"done"` (builder exited normally), `"forced"` (admin override
+or entity deleted), `"disconnect"` (session lost, after auto-draft saved).
+
 ```json
 {
   "entity_id": "room:5#3001",
-  "reason": "committed",
+  "reason": "done",
   "_v": 1
 }
 ```
@@ -615,6 +634,7 @@ gmcp_sentience.c                    # Add editor prompt indicator to update cycl
 protocol.h                          # Add GMCP_SENTIENCE_EDITOR to receive enum
 protocol.c                          # Add dispatch entry for Sentience.Editor.*
 merc.h                              # Add olc_edit_state to descriptor/pcdata
+mem.c                               # Hook auto-draft into free_descriptor() cleanup
 CMakeLists.txt                      # Add new source files
 Makefile                            # Add new source files (keep synchronized)
 ```
