@@ -64,11 +64,14 @@ typedef struct olc_pending_change {
     olc_field_type_t field_type;
     json_t *old_value;          // Jansson JSON — can hold any type
     json_t *new_value;          // Jansson JSON — can hold any type
-
-    // Type-specific apply callback: writes new_value to live entity
-    bool (*apply_fn)(void *entity, struct olc_pending_change *change);
 } olc_pending_change_t;
 ```
+
+**Apply dispatch:** The `olc_pending_change` struct is data-only. Application is
+always dispatched through `olc_field_handler_t` lookups. Simple scalar fields
+(string, int, bool, flags) use generic framework-provided handlers registered
+automatically for each `olc_field_type_t`. Complex fields (exits, lists, embedded
+structs) use editor-specific handlers registered in the `OLC_EDITOR_DEF`.
 
 #### `olc_changeset` — Per-entity pending changes for one builder
 
@@ -112,14 +115,16 @@ typedef struct olc_edit_state {
 
 ### Change Modes (extended enum)
 
+The existing enum in `olc_editor.h` is extended by appending the new value.
+Existing values and their implicit integer assignments are preserved.
+
 ```c
-typedef enum olc_change_mode {
-    OLC_CHANGE_NONE = 0,
-    OLC_CHANGE_IMMEDIATE,
-    OLC_CHANGE_AREA_FLAG,
-    OLC_CHANGE_EXPLICIT_SAVE,
-    OLC_CHANGE_CUSTOM,
-    OLC_CHANGE_STAGED,          // NEW: Field-level overlay with commit semantics
+typedef enum {
+    OLC_CHANGE_AREA_FLAG,       // 0 — existing
+    OLC_CHANGE_EXPLICIT_SAVE,   // 1 — existing
+    OLC_CHANGE_CUSTOM,          // 2 — existing
+    OLC_CHANGE_NONE,            // 3 — existing
+    OLC_CHANGE_STAGED,          // 4 — NEW: Field-level overlay with commit semantics
 } olc_change_mode_t;
 ```
 
@@ -131,12 +136,46 @@ When `editor_def->change_mode == OLC_CHANGE_STAGED`, the helpers follow this flo
 2. **Validate** the new value (range checks, flag lookups — unchanged)
 3. **Store** an `olc_pending_change` in the active changeset instead of writing to `field_ptr`
 4. **Call `record_fn`** for audit history (unchanged)
-5. **Set `SENTIENCE_DIRTY_EDITOR`** on the descriptor
+5. **Send GMCP response immediately** (not via dirty-flag polling — editor updates
+   are event-driven, sent directly from the command handler for zero latency)
 6. **Show feedback** with staged indicator: `[STAGED] Name set to: A Dark Tavern`
+
+**Note on GMCP delivery:** Unlike `Sentience.Char.*` packages which use dirty-flag
+polling in `sentience_gmcp_update()`, editor messages are sent **immediately** from
+within the command handler or GMCP message handler. This avoids unnecessary latency
+from waiting for the next update tick. A `SENTIENCE_DIRTY_EDITOR` flag is still used
+for the prompt indicator (showing that pending changes exist) but does not drive
+GMCP message dispatch.
 
 If a pending change already exists for the same `field_path`, it is updated in place
 (the `old_value` is preserved from the original, `new_value` is updated). If the new
 value equals the original `old_value`, the pending change is removed (no-op detection).
+
+### List Operation Semantics
+
+List fields (extra descriptions, resets, affects) require special overlay handling:
+
+**Field path keying:** List items use keyword-based paths when items have unique
+identifiers (e.g., `extra_descr/statue`, `extra_descr/fountain`). For lists without
+unique keys (resets, affects), use index-based paths (e.g., `resets/0`, `resets/1`).
+Index-based paths reference the item's position in the **original** live list at the
+time editing began — not the position after applying other pending changes.
+
+**Operation collapsing rules:**
+- `LIST_ADD` then `LIST_REMOVE` for the same item → collapse to no-op, purge both
+- `LIST_ADD` then `LIST_UPDATE` for the same item → collapse to `LIST_ADD` with updated value
+- `LIST_REMOVE` then `LIST_ADD` for the same key → collapse to `LIST_UPDATE`
+- `LIST_UPDATE` then `LIST_UPDATE` → keep original `old_value`, update `new_value`
+- `LIST_UPDATE` then `LIST_REMOVE` → collapse to `LIST_REMOVE` with original's `old_value`
+
+**old_value for list operations:**
+- `LIST_ADD`: `old_value` is `null` (item didn't exist)
+- `LIST_REMOVE`: `old_value` is the complete serialized item being removed
+- `LIST_UPDATE`: `old_value` is the item's state before any pending changes
+
+**Commit ordering:** List operations are applied in insertion order (the order they
+were added to the changeset). This matters for remove-then-add-back scenarios where
+order determines the final state.
 
 ### Preview Helpers
 
@@ -195,16 +234,27 @@ static const olc_field_handler_t redit_field_handlers[] = {
    `olc_change_history` (existing audit infrastructure, extended with group_id)
 5. Entity is saved to disk (area JSON save or entity-specific save)
 6. Pending changeset is cleared
-7. `Sentience.Editor.Close` sent via GMCP with reason `"committed"`
+7. `Sentience.Editor.CommitResult` sent via GMCP:
+   ```json
+   {"entity_id": "room:5#3001", "status": "success", "changes_applied": 2, "_v": 1}
+   ```
+   Note: Commit does **not** close the editor — the builder can continue editing.
+   `Sentience.Editor.Close` is only sent when the builder exits via `done`.
 
 ### Group Commit Flow
 
 1. Builder has pending changes on room 3001, mob 3005, object 3010
 2. `commit group Updated tavern area` or GMCP `Sentience.Editor.Commit` with `group` array
-3. All changesets validated first — if any fail, none are committed
-4. All applied atomically, each entity saved
-5. A `olc_changeset_group` record ties the commits together
-6. Each entity's history entry includes the `group_id`
+3. All changesets validated first — if any fail validation, none are committed
+4. All in-memory changes applied first (all entities updated in memory)
+5. Then all entities saved to disk sequentially
+6. **Partial failure handling:** If entity N's disk save fails after entities 1..N-1
+   succeeded, the error is logged, the builder is told which entities succeeded and
+   which failed, and the failed entity's changes remain as "pending" so the builder
+   can retry. In-memory state is consistent (all changes applied) even if disk
+   persistence is partial.
+7. A `olc_changeset_group` record ties the commits together
+8. Each entity's history entry includes the `group_id`
 
 ### Revert
 
@@ -222,6 +272,10 @@ Location: data/drafts/<author>/<editor_type>_<entity_id>.json
 - On editor open, if a draft exists, prompt: `"You have a saved draft with N changes. Restore? (y/n)"`
 - `discardraft` deletes the file
 - Drafts are automatically deleted on successful commit
+- **Auto-draft on disconnect:** When a descriptor is freed with non-empty pending
+  changesets, all are automatically saved as drafts. This prevents data loss from
+  link-dead disconnects, crashes, or accidental quit. The existing draft restore
+  prompt on editor-open handles the reconnect case seamlessly.
 - Draft format is the same JSON used for changeset serialization
 
 ## GMCP Protocol: `Sentience.Editor.*`
@@ -241,7 +295,7 @@ the web client can render a dynamic editor form.
 ```json
 {
   "editor_type": "room",
-  "entity_id": "room:3001",
+  "entity_id": "room:5#3001",
   "entity_name": "A Dark Cave",
   "tabs": [
     {
@@ -273,27 +327,35 @@ the web client can render a dynamic editor form.
 
 #### `Sentience.Editor.State`
 
-Sent when pending changes are updated (field set, reverted, etc.).
+Sent for bulk state changes (not individual field edits). Triggered by:
+- `revert` (all fields cleared)
+- `loaddraft` / draft auto-restore (bulk restore of pending changes)
+- `Sentience.Editor.Request` response (client requests full state)
+- After commit (pending list is now empty)
 
 ```json
 {
-  "entity_id": "room:3001",
+  "entity_id": "room:5#3001",
   "pending_count": 2,
   "changes": [
     {"field": "name", "old_value": "A Dark Cave", "new_value": "A Glowing Cavern", "type": "string"},
     {"field": "heal_rate", "old_value": 100, "new_value": 200, "type": "int"}
   ],
+  "draft_restored": false,
   "_v": 1
 }
 ```
 
 #### `Sentience.Editor.Field`
 
-Sent for individual field updates (e.g., after a single `Sentience.Editor.Set`).
+Sent for individual field updates. Triggered by:
+- A single `Sentience.Editor.Set` from the client
+- A MUD command that modifies one field (e.g., `redit name A Glowing Cavern`)
+- A single-field `revert <field>`
 
 ```json
 {
-  "entity_id": "room:3001",
+  "entity_id": "room:5#3001",
   "field": "name",
   "value": "A Glowing Cavern",
   "type": "string",
@@ -306,7 +368,7 @@ Sent for individual field updates (e.g., after a single `Sentience.Editor.Set`).
 
 ```json
 {
-  "entity_id": "room:3001",
+  "entity_id": "room:5#3001",
   "reason": "committed",
   "_v": 1
 }
@@ -316,7 +378,7 @@ Sent for individual field updates (e.g., after a single `Sentience.Editor.Set`).
 
 ```json
 {
-  "entity_id": "room:3001",
+  "entity_id": "room:5#3001",
   "field": "level",
   "error": "out_of_range",
   "message": "Level must be between 1 and 200.",
@@ -329,7 +391,7 @@ Sent for individual field updates (e.g., after a single `Sentience.Editor.Set`).
 #### `Sentience.Editor.Set`
 
 ```json
-{"entity_id": "room:3001", "field": "name", "value": "A Glowing Cavern"}
+{"entity_id": "room:5#3001", "field": "name", "value": "A Glowing Cavern"}
 ```
 
 Server validates, stores in overlay, responds with `Editor.Field` or `Editor.Error`.
@@ -338,13 +400,13 @@ Server validates, stores in overlay, responds with `Editor.Field` or `Editor.Err
 
 Single entity:
 ```json
-{"entity_id": "room:3001", "comment": "Updated room name and description"}
+{"entity_id": "room:5#3001", "comment": "Updated room name and description"}
 ```
 
 Multi-entity group:
 ```json
 {
-  "group": ["room:3001", "mob:3005", "obj:3010"],
+  "group": ["room:5#3001", "mob:5#3005", "obj:5#3010"],
   "comment": "Rebuilt tavern area"
 }
 ```
@@ -353,24 +415,24 @@ Multi-entity group:
 
 All pending:
 ```json
-{"entity_id": "room:3001"}
+{"entity_id": "room:5#3001"}
 ```
 
 Single field:
 ```json
-{"entity_id": "room:3001", "field": "name"}
+{"entity_id": "room:5#3001", "field": "name"}
 ```
 
 #### `Sentience.Editor.Request`
 
 Request entity data (e.g., on reconnect or tab switch):
 ```json
-{"entity_id": "room:3001", "tab": "General"}
+{"entity_id": "room:5#3001", "tab": "General"}
 ```
 
 Request history:
 ```json
-{"entity_id": "room:3001", "type": "history", "limit": 20}
+{"entity_id": "room:5#3001", "type": "history", "limit": 20}
 ```
 
 ### Incoming Message Handling
@@ -379,17 +441,36 @@ Incoming `Sentience.Editor.*` messages are parsed using **Jansson** (`json_loads
 not jsmn, due to the complexity of the payloads. This follows the precedent set by
 `Sentience.Client.Layout` in `gmcp_sentience.c`.
 
-New handler registration in `GMCPReceiveTable` (protocol.c):
+New handler registration in `GMCPReceiveTable` (protocol.c) — one entry per
+sub-message, matching the existing exact-match dispatch pattern:
 
 ```c
-{ GMCP_SENTIENCE_EDITOR,  "Sentience.Editor" }
+{ GMCP_SENTIENCE_EDITOR_SET,     "Sentience.Editor.Set"     }
+{ GMCP_SENTIENCE_EDITOR_COMMIT,  "Sentience.Editor.Commit"  }
+{ GMCP_SENTIENCE_EDITOR_REVERT,  "Sentience.Editor.Revert"  }
+{ GMCP_SENTIENCE_EDITOR_REQUEST, "Sentience.Editor.Request"  }
+{ GMCP_SENTIENCE_EDITOR_STRING_SAVE,   "Sentience.Editor.StringEdit.Save"   }
+{ GMCP_SENTIENCE_EDITOR_STRING_CANCEL, "Sentience.Editor.StringEdit.Cancel" }
+{ GMCP_SENTIENCE_EDITOR_DRAFT_SAVE,    "Sentience.Editor.Draft.Save"        }
+{ GMCP_SENTIENCE_EDITOR_DRAFT_LOAD,    "Sentience.Editor.Draft.Load"        }
 ```
 
-The handler extracts the sub-message from the package name (e.g., `Set`, `Commit`,
-`Revert`, `Request`) and dispatches to specific functions:
+Each `case` in `ParseGMCP()` extracts the raw JSON substring from the jsmn token
+and passes it to a Jansson-based handler function (following the `Sentience.Client.Layout`
+precedent where `json_loads()` parses the full payload):
 
 ```c
-void sentience_handle_editor(descriptor_t *d, const char *sub_msg, const char *json_str);
+case GMCP_SENTIENCE_EDITOR_SET:
+case GMCP_SENTIENCE_EDITOR_COMMIT:
+case GMCP_SENTIENCE_EDITOR_REVERT:
+case GMCP_SENTIENCE_EDITOR_REQUEST:
+case GMCP_SENTIENCE_EDITOR_STRING_SAVE:
+case GMCP_SENTIENCE_EDITOR_STRING_CANCEL:
+case GMCP_SENTIENCE_EDITOR_DRAFT_SAVE:
+case GMCP_SENTIENCE_EDITOR_DRAFT_LOAD:
+    sentience_handle_editor(apDescriptor, GMCPReceiveTable[i].module,
+                            string + t[1].start);
+    break;
 ```
 
 All incoming editor messages require:
@@ -428,7 +509,7 @@ if (is_websocket_connection(ch->desc) && ch->desc->pProtocol->bGMCP) {
 
 ```json
 {
-  "entity_id": "room:3001",
+  "entity_id": "room:5#3001",
   "field": "description",
   "current_value": "The room is dark and musty...",
   "max_length": 4096,
@@ -468,13 +549,16 @@ Each open string edit is tracked in the builder's `olc_edit_state`:
 
 ```c
 typedef struct olc_string_edit_session {
-    int session_id;             // "se_1", "se_2", etc.
+    int session_id;             // Integer internally, formatted as "se_N" for GMCP
     char *entity_id;            // Which entity this belongs to
     char *field_path;           // Which field
     char **field_ptr;           // Direct pointer (for non-staged mode)
     olc_changeset_t *changeset; // For staged mode
 } olc_string_edit_session_t;
 ```
+
+The `session_id` is stored as an integer and formatted to string `"se_N"` at
+GMCP message build time.
 
 Multiple string edits can be open simultaneously (e.g., room description + extra
 description), since each has its own session_id and panel in the web client.
@@ -526,8 +610,8 @@ editors/areas/redit.c               # Opt in: change_mode = OLC_CHANGE_STAGED
 editors/areas/medit.c               # Opt in: change_mode = OLC_CHANGE_STAGED
 editors/areas/oedit.c               # Opt in: change_mode = OLC_CHANGE_STAGED
 editors/areas/aedit.c               # Opt in: change_mode = OLC_CHANGE_STAGED
-gmcp_sentience.h                    # Add SENTIENCE_DIRTY_EDITOR flag
-gmcp_sentience.c                    # Add editor dirty tracking to update cycle
+gmcp_sentience.h                    # Add SENTIENCE_DIRTY_EDITOR flag (for prompt indicator)
+gmcp_sentience.c                    # Add editor prompt indicator to update cycle
 protocol.h                          # Add GMCP_SENTIENCE_EDITOR to receive enum
 protocol.c                          # Add dispatch entry for Sentience.Editor.*
 merc.h                              # Add olc_edit_state to descriptor/pcdata
@@ -537,16 +621,21 @@ Makefile                            # Add new source files (keep synchronized)
 
 ## Entity ID Format
 
-Entities are identified in GMCP messages using a `type:id` string format:
+Entities are identified in GMCP messages using a `type:area_uid#vnum` string format,
+matching the existing WNUM_LOAD serialization used throughout the codebase:
 
 ```
-"room:3001"     — Room with vnum 3001
-"mob:3005"      — Mobile with vnum 3005
-"obj:3010"      — Object with vnum 3010
-"area:10"       — Area with uid 10
+"room:5#3001"   — Room with vnum 3001 in area uid 5
+"mob:5#3005"    — Mobile with vnum 3005 in area uid 5
+"obj:5#3010"    — Object with vnum 3010 in area uid 5
+"area:10"       — Area with uid 10 (no vnum component)
 ```
 
-This allows the protocol to be entity-type agnostic while remaining human-readable.
+**Parsing:** Split on `:` to get entity type, then parse the remainder as a wnum
+string (split on `#` for `area_uid` and `vnum`). Areas use uid-only format since
+they are identified by a single value. This prevents ambiguity when multiple areas
+contain entities with the same vnum, and aligns with existing `Sentience.Room.Info`
+GMCP messages which already use wnum strings.
 
 ## Security
 
@@ -567,12 +656,45 @@ validation as typed commands.
 - Unit tests for changeset CRUD (create, add change, remove change, clear)
 - Unit tests for overlay read (staged value vs live value)
 - Unit tests for commit flow (apply changes, clear pending)
+- Unit tests for list operation collapsing (add+remove→noop, add+update→add, etc.)
 - Unit tests for draft serialization/deserialization
+- Unit tests for draft restore of corrupt/incompatible JSON (graceful failure)
 - Unit tests for GMCP message building (JSON output format)
 - Integration tests for full edit→commit cycle via commands
 - Integration tests for GMCP round-trip (Set → Field response)
+- Integration tests for GMCP Set with invalid field / unauthorized entity
 - Integration tests for group commit across multiple entities
+- Integration tests for group commit with partial validation failure
 - Integration tests for revert (all and single-field)
+- Integration tests for commit with no pending changes (should be rejected)
+- Integration tests for string edit session with disconnected entity
+- Integration tests for auto-draft on descriptor free
+
+## Safety Limits
+
+- Maximum 100 pending changes per entity
+- Maximum 500 total pending changes across all open entities per builder
+- Exceeding limits returns `Editor.Error` with `"error": "too_many_pending"`
+- Draft files have a maximum size of 64KB
+
+## Concurrent Editing
+
+Concurrent editing conflict resolution is out of scope for Phase 1, but the system
+includes a **stale-commit warning**: when committing, if the entity's
+`olc_change_history` shows a commit by another builder since this changeset was
+created (`changeset.created_at < latest_history_entry.timestamp`), the builder is
+warned: `"Warning: {author} committed changes to this entity since you started editing. Proceed? (y/n)"`.
+For GMCP commits, the response includes `"warning": "stale_changeset"` and the
+client must send a confirmation.
+
+## Future Enhancements (Out of Scope)
+
+- `Sentience.Editor.OpenRequest` — Client-initiated editor open (for "click room to
+  edit" flows in the web client)
+- Rollback of committed changesets
+- Tier 2/3 editor migration
+- Real-time collaborative editing
+- Conflict resolution for concurrent edits
 
 ## Migration Path
 
