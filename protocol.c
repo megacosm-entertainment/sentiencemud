@@ -4413,7 +4413,7 @@ void SendGMCPRaw( descriptor_t *apDescriptor, const char *package, const char *j
 
       if ( !apDescriptor->fcommand && apDescriptor->pProtocol->WriteOOB <= 0 )
          apDescriptor->pProtocol->WriteOOB = 2;
-      snprintf( buf, need, "%s %s", package, json_body );
+      snprintf( buf, need, "%s %s\n\r", package, json_body );
       write_to_buffer( apDescriptor, buf, 0 );
       free_mem( buf, need );
       return;
