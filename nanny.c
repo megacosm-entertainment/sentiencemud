@@ -1605,18 +1605,20 @@ void login_account_prefs_menu(DESCRIPTOR_DATA *d, char *argument)
         return;
     }
 
+    unichar_t cp = utf8_getchar(arg);
+
     /* Back to account menu */
-    if (toupper(arg[0]) == 'B' && arg[1] == '\0') {
+    if (utf8_toupper(cp) == 'B' && arg[utf8_bytes(cp)] == '\0') {
         display_account_menu(d);
         d->connected = CON_ACCOUNT_MENU;
         return;
     }
 
     /* Reset all account preferences */
-    if (toupper(arg[0]) == 'R' && arg[1] == '\0') {
+    if (utf8_toupper(cp) == 'R' && arg[utf8_bytes(cp)] == '\0') {
         int count = acct->preferences ? pref_count(acct->preferences) : 0;
         if (count == 0) {
-            write_to_buffer(d, "\n\rYou have no account preferences to reset.\n\r", 0);
+            write_to_buffer(d, formatf("\n\r%s\n\r", LT(d, "error.msg.account.prefs.none_to_reset")), 0);
             display_account_prefs_menu(d);
             return;
         }
@@ -1755,10 +1757,13 @@ void login_account_prefs_menu(DESCRIPTOR_DATA *d, char *argument)
                           pc_set_table[i].name, new_val);
             save_account(acct);
 
-            sprintf(buf, "\n\r%s is now %s{x for your account.\n\r",
+            write_to_buffer(d, formatf("\n\r%s\n\r",
+                LTF(d, "msg.account.prefs.setting.toggle",
                     pc_set_table[i].name,
-                    new_val ? "{WON" : "{DOFF");
-            write_to_buffer(d, buf, 0);
+                    new_val ? "{W" : "{D",
+                    LT(d, new_val ? "menu.account.prefs.toggle.on" : "menu.account.prefs.toggle.off")
+                 )
+                ), 0);
             display_account_prefs_menu(d);
             return;
         }
@@ -1777,17 +1782,21 @@ void login_account_prefs_menu(DESCRIPTOR_DATA *d, char *argument)
                           acct_channel_table[i].pref_key, new_val);
             save_account(acct);
 
-            sprintf(buf, "\n\r%s channel is now %s{x for your account.\n\r",
+
+            write_to_buffer(d, formatf("\n\r%s\n\r",
+                LTF(d, "msg.account.prefs.channel.toggle",
                     acct_channel_table[i].name,
-                    new_val ? "{WON" : "{DOFF");
-            write_to_buffer(d, buf, 0);
+                    new_val ? "{W" : "{D",
+                    LT(d, new_val ? "menu.account.prefs.toggle.on" : "menu.account.prefs.toggle.off")
+                 )
+                ), 0);
             display_account_prefs_menu(d);
             return;
         }
     }
 
     /* No match */
-    write_to_buffer(d, "\n\rUnknown setting. Type a setting or channel name to toggle it.\n\r", 0);
+    write_to_buffer(d, formatf("\n\r%s\n\r", LT(d, "error.msg.account.prefs.unknown")), 0);
     display_account_prefs_menu(d);
 }
 
