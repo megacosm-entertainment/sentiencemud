@@ -4405,7 +4405,9 @@ void SendGMCPRaw( descriptor_t *apDescriptor, const char *package, const char *j
    /* WebSocket: send as plain text frame (no telnet IAC framing) */
    if ( !descriptor_uses_telnet_iac(apDescriptor) )
    {
-      /* "package json\n\r\0" */
+      /* "package json\n\r\0" — the \n\r delimiter is required for the
+       * client to split multiple GMCP packages per tick.  The client
+       * must strip GMCP lines from visible output. */
       size_t need = pkg_len + 1 + json_len + 2 + 1;
       char *buf = alloc_mem(need);
 
