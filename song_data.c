@@ -2,7 +2,6 @@
  *  Song Data System - Implementation                                      *
  *                                                                         *
  *  Data-driven song definitions loaded from JSON files.                   *
- *  Replaces the legacy static music_table[] array in const.c.             *
  *                                                                         *
  *  TODO (future expansion):                                               *
  *  - Add token/script references (presong_fun, song_fun) for             *
@@ -21,6 +20,7 @@
 #include "tables.h"
 #include "song_data.h"
 #include <jansson.h>
+#include "io/json/json_common.h"
 
 /***************************************************************************
  * Song Flags                                                              *
@@ -177,40 +177,14 @@ static void insert_song(SONG_DATA *song)
 }
 
 /***************************************************************************
- * Bootstrap: Generate from legacy music_table[]                           *
+ * Bootstrap (legacy — music_table[] removed in Phase 9)                   *
  ***************************************************************************/
 
 bool bootstrap_songs(void)
 {
-    int i;
-
-    log_string("bootstrap_songs: generating SONG_DATA from music_table[]");
-
-    if (!songs_list)
-        songs_list = list_create(false);
-
-    for (i = 0; i < MAX_SONGS && music_table[i].name; i++) {
-        SONG_DATA *song = new_song_data();
-
-        song->name   = str_dup(music_table[i].name);
-        song->uid    = i;
-        song->level  = music_table[i].level;
-        song->mana   = music_table[i].mana;
-        song->target = music_table[i].target;
-        song->beats  = music_table[i].beats;
-        song->spell1 = music_table[i].spell1 ? str_dup(music_table[i].spell1) : NULL;
-        song->spell2 = music_table[i].spell2 ? str_dup(music_table[i].spell2) : NULL;
-        song->spell3 = music_table[i].spell3 ? str_dup(music_table[i].spell3) : NULL;
-        song->flags  = SONG_NONE;
-
-        insert_song(song);
-
-        if (song->uid > top_song_uid)
-            top_song_uid = song->uid;
-    }
-
-    log_stringf("bootstrap_songs: created %d songs (top_uid=%d)", i, top_song_uid);
-    return true;
+    log_string("bootstrap_songs: ERROR — music_table[] removed in Phase 9. "
+               "Song JSON file must exist in data/songs.json.");
+    return false;
 }
 
 /***************************************************************************
@@ -232,7 +206,7 @@ static SONG_DATA *load_song_from_json(json_t *obj)
     if (!json_is_object(obj))
         return NULL;
 
-    str = json_string_value(json_object_get(obj, "name"));
+    str = json_get_string(obj, "name", "");
     if (!str || !str[0]) {
         log_string("load_song_from_json: song missing 'name' field");
         return NULL;
@@ -253,16 +227,16 @@ static SONG_DATA *load_song_from_json(json_t *obj)
     val = json_object_get(obj, "beats");
     song->beats = val ? (int16_t)json_integer_value(val) : 0;
 
-    str = json_string_value(json_object_get(obj, "target"));
+    str = json_get_string(obj, "target", "");
     song->target = target_from_string(str);
 
-    str = json_string_value(json_object_get(obj, "spell1"));
+    str = json_get_string(obj, "spell1", "");
     song->spell1 = (str && str[0]) ? str_dup(str) : NULL;
 
-    str = json_string_value(json_object_get(obj, "spell2"));
+    str = json_get_string(obj, "spell2", "");
     song->spell2 = (str && str[0]) ? str_dup(str) : NULL;
 
-    str = json_string_value(json_object_get(obj, "spell3"));
+    str = json_get_string(obj, "spell3", "");
     song->spell3 = (str && str[0]) ? str_dup(str) : NULL;
 
     val = json_object_get(obj, "flags");
@@ -293,8 +267,8 @@ bool load_songs(void)
     /* Try to load from JSON file */
     root = json_load_file(songs_file, 0, &error);
     if (!root) {
-        /* No file exists — bootstrap from music_table[] */
-        log_stringf("load_songs: %s not found, bootstrapping from music_table[]", songs_file);
+        /* No JSON file — music_table[] was removed in Phase 9 */
+        log_stringf("load_songs: %s not found, cannot bootstrap (music_table removed)", songs_file);
 
         if (!bootstrap_songs())
             return false;
@@ -305,7 +279,7 @@ bool load_songs(void)
     }
 
     /* Validate format */
-    const char *fmt = json_string_value(json_object_get(root, "_format"));
+    const char *fmt = json_get_string(root, "_format", "");
     if (!fmt || str_cmp(fmt, "song_data")) {
         log_stringf("load_songs: invalid format '%s' in %s", fmt ? fmt : "(null)", songs_file);
         json_decref(root);

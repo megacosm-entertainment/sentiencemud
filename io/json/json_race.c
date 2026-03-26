@@ -144,7 +144,7 @@ static RACE_DATA *race_load_json(const char *filename)
         return NULL;
 
     /* Validate format */
-    str = json_string_value(json_object_get(root, "_format"));
+    str = json_get_string(root, "_format", "");
     if (!str || str_cmp(str, "race_data")) {
         pbugf(LOG_INIT, "Invalid format in race file: %s", filename);
         json_decref(root);
@@ -154,22 +154,22 @@ static RACE_DATA *race_load_json(const char *filename)
     race = new_race_data();
 
     /* Core identification */
-    str = json_string_value(json_object_get(root, "id"));
+    str = json_get_string(root, "id", "");
     race->id = str_dup(str ? str : "unknown");
 
     val = json_object_get(root, "uid");
     race->uid = val ? (int16_t)json_integer_value(val) : 0;
 
-    str = json_string_value(json_object_get(root, "name"));
+    str = json_get_string(root, "name", "");
     race->name = str_dup(str ? str : race->id);
 
-    str = json_string_value(json_object_get(root, "description"));
+    str = json_get_string(root, "description", "");
     race->description = str_dup(str ? str : "");
 
-    str = json_string_value(json_object_get(root, "summary"));
+    str = json_get_string(root, "summary", "");
     race->summary = str_dup(str ? str : "");
 
-    str = json_string_value(json_object_get(root, "comments"));
+    str = json_get_string(root, "comments", "");
     race->comments = str_dup(str ? str : "");
 
     /* Playability flags */
@@ -180,7 +180,7 @@ static RACE_DATA *race_load_json(const char *filename)
     /* Display section */
     obj = json_object_get(root, "display");
     if (obj && json_is_object(obj)) {
-        str = json_string_value(json_object_get(obj, "who_name"));
+        str = json_get_string(obj, "who_name", "");
         race->who_name = str_dup(str ? str : "");
     } else {
         race->who_name = str_dup("");
@@ -291,13 +291,13 @@ static RACE_DATA *race_load_json(const char *filename)
     /* Remort section */
     obj = json_object_get(root, "remort");
     if (obj && json_is_object(obj)) {
-        str = json_string_value(json_object_get(obj, "prerequisite_race"));
+        str = json_get_string(obj, "prerequisite_race", "");
         if (str && str[0]) {
             race->remort_race_id = str_dup(str);
             race->starting = false;  /* Remort races are not starting races */
         }
 
-        str = json_string_value(json_object_get(obj, "remort_into"));
+        str = json_get_string(obj, "remort_into", "");
         if (str && str[0]) {
             race->remort_into_id = str_dup(str);
         }

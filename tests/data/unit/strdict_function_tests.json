@@ -1,0 +1,78 @@
+{
+  "type": "test_suite",
+  "test_suite": "strdict_function_tests",
+  "description": "Unit tests for string dictionary functions",
+  "version": "1.0",
+  "requires_mud_environment": false,
+  "test_level": "unit",
+  "tests": [
+    {
+      "name": "strdict_basic",
+      "description": "Create dictionary, set key-value pairs, get them back, verify",
+      "test_type": "strdict_basic",
+      "input": {
+        "scenario": "basic_ops",
+        "initial_cap": 16,
+        "key_values": [
+          ["name", "John"],
+          ["age", "25"],
+          ["city", "Seattle"]
+        ]
+      }
+    },
+    {
+      "name": "strdict_overwrite",
+      "description": "Set same key twice, verify latest value overwrites",
+      "test_type": "strdict_overwrite",
+      "input": {
+        "scenario": "overwrite",
+        "test_key": "status",
+        "first_value": "pending",
+        "second_value": "complete"
+      }
+    },
+    {
+      "name": "strdict_delete",
+      "description": "Delete keys, verify they're gone, count decreases",
+      "test_type": "strdict_delete",
+      "input": {
+        "scenario": "delete_ops",
+        "initial_pairs": [
+          ["key1", "value1"],
+          ["key2", "value2"],
+          ["key3", "value3"]
+        ],
+        "delete_key": "key2"
+      }
+    },
+    {
+      "name": "strdict_iteration",
+      "description": "Add multiple entries, iterate all, verify all found",
+      "test_type": "strdict_iteration",
+      "input": {
+        "scenario": "iteration",
+        "test_pairs": [
+          ["alpha", "first"],
+          ["beta", "second"],
+          ["gamma", "third"],
+          ["delta", "fourth"]
+        ]
+      }
+    },
+    {
+      "name": "strdict_clear",
+      "description": "Add entries, clear dictionary, verify count is 0",
+      "test_type": "strdict_clear",
+      "input": {
+        "scenario": "clear_ops",
+        "setup_pairs": [
+          ["item1", "data1"],
+          ["item2", "data2"],
+          ["item3", "data3"],
+          ["item4", "data4"],
+          ["item5", "data5"]
+        ]
+      }
+    }
+  ]
+}

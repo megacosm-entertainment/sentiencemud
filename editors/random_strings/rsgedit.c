@@ -743,7 +743,7 @@ RSGEDIT(rsgedit_name)
     }
 
     changed = olc_cmd_string(ch, argument, "Name", "Syntax: name <new name>",
-        &rsg->name, OLC_STR_DEFAULT, rsg, rsgedit_record_cb);
+        &rsg->name, OLC_STR_DEFAULT | OLC_STR_UTF8_RESTRICT, rsg, rsgedit_record_cb);
     if (!changed)
         return false;
 

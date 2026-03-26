@@ -36,6 +36,7 @@
 #include "../common/olc_editor.h"
 #include "../common/olc_display.h"
 #include "../common/olc_commands.h"
+#include "../../skill_data.h"
 
 /* Forward declarations */
 static void tedit_show_general_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
@@ -233,7 +234,7 @@ static void tedit_show_general_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEd
 
     olc_display_string(ctx, theme, "Name:",  "name",  token_index->name);
     olc_display_string(ctx, theme, "Area:",  NULL,    token_index->area->name);
-    olc_display_number(ctx, theme, "Vnum:",  NULL,    token_index->vnum);
+    olc_display_string(ctx, theme, "Vnum:",  NULL,    widevnum_string_token(token_index, token_index->area));
     olc_display_string(ctx, theme, "Type:",  "type",  token_table[token_index->type].name);
     olc_display_flags(ctx, theme,  "Flags:", "flags", token_flags, token_index->flags);
     olc_display_number(ctx, theme, "Timer:", "timer", token_index->timer);
@@ -288,7 +289,7 @@ TEDIT(tedit_show)
     ctx = olc_display_new(ch, theme);
 
     olc_display_header(ctx, "TEdit", token_index->name,
-        formatf("%ld", token_index->vnum), &tedit_def);
+        formatf("%s", widevnum_string_token(token_index, token_index->area)), &tedit_def);
 
     /* Dispatch to active tab's show function */
     tab = olc_show_all_tabs_mode(ch) ? -1 : (ch->desc ? ch->desc->nEditTab : 0);
@@ -844,8 +845,8 @@ TEDIT(tedit_valuename)
 
     free_string(token_index->value_name[value_num]);
     token_index->value_name[value_num] = str_dup(argument);
-    sprintf(buf, "Set token %ld's value %d to be named '%s'.\n\r", token_index->vnum,
-        value_num, argument);
+    sprintf(buf, "Set token %s's value %d to be named '%s'.\n\r",
+        widevnum_string_token(token_index, token_index->area), value_num, argument);
     send_to_char(buf, ch);
     return true;
 }
@@ -889,7 +890,8 @@ TEDIT (tedit_addtprog)
         else
         {
             int sn = skill_lookup(phrase);
-            if(sn < 0 || skill_table[sn].spell_fun == spell_null) {
+            SKILL_DATA *spell_ref = skill_find_uid(sn);
+            if(sn < 0 || !spell_ref || spell_ref->spell_fun == spell_null) {
                 send_to_char("Invalid spell for trigger.\n\r",ch);
                 return false;
             }

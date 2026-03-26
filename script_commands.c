@@ -1498,6 +1498,7 @@ SCRIPT_CMD(scriptcmd_addaffectname)
     af.group	= group;
     af.where     = where;
     af.type      = -1;
+    af.skill     = NULL;
     af.location  = loc;
     af.modifier  = mod;
     af.level     = level;
@@ -8273,7 +8274,8 @@ SCRIPT_CMD(scriptcmd_grantskill)
         if( skill_entry_findsn(mob->sorted_skills, sn) )
             return;
 
-        if( skill_table[sn].spell_fun == spell_null ) {
+        SKILL_DATA *learn_sk = skill_find_uid(sn);
+        if( !learn_sk || learn_sk->spell_fun == spell_null ) {
             skill_entry_addskill(mob, sn, NULL, source, flags);
         } else {
             skill_entry_addspell(mob, sn, NULL, source, flags);
@@ -11914,6 +11916,7 @@ SCRIPT_CMD(scriptcmd_addaura)
     CHAR_DATA *ch;
     BUFFER *name = NULL;
     BUFFER *desc = NULL;
+    char *placeholder;
 
     SETRETURN(0);
 
@@ -11943,6 +11946,21 @@ SCRIPT_CMD(scriptcmd_addaura)
         return;
     }
 
+    if (IS_NULLSTR(name->string) || IS_NULLSTR(desc->string))
+    {
+        free_buf(name);
+        free_buf(desc);
+        return;
+    }
+
+    placeholder = strstr(desc->string, "%s");
+    if (!placeholder || strstr(placeholder + 2, "%s"))
+    {
+        free_buf(name);
+        free_buf(desc);
+        return;
+    }
+
     add_aura_to_char(ch, name->string, desc->string);
 
     free_buf(name);
@@ -11956,6 +11974,7 @@ SCRIPT_CMD(scriptcmd_remaura)
 {
     char *rest = argument;
     CHAR_DATA *ch;
+    BUFFER *name = NULL;
 
     SETRETURN(0);
 
@@ -11964,7 +11983,25 @@ SCRIPT_CMD(scriptcmd_remaura)
 
     PARSE_ARGTYPE(STRING);
 
-    remove_aura_from_char(ch, arg->d.str);
+    name = new_buf();
+    if (!name)
+        return;
+
+    if (!add_buf(name, arg->d.str))
+    {
+        free_buf(name);
+        return;
+    }
+
+    if (IS_NULLSTR(name->string))
+    {
+        free_buf(name);
+        return;
+    }
+
+    remove_aura_from_char(ch, name->string);
+
+    free_buf(name);
 
     SETRETURN(1);
 }
@@ -12001,7 +12038,8 @@ SCRIPT_CMD(scriptcmd_addspell)
     if(sn <= 0)
         return;
 
-    if(skill_table[sn].spell_fun == spell_null)
+    SKILL_DATA *cast_sk1 = skill_find_uid(sn);
+    if(!cast_sk1 || cast_sk1->spell_fun == spell_null)
         return;
 
     if(rest && *rest) {
@@ -12268,7 +12306,8 @@ SCRIPT_CMD(scriptcmd_remspell)
     if(sn <= 0)
         return;
 
-    if(skill_table[sn].spell_fun == spell_null)
+    SKILL_DATA *cast_sk2 = skill_find_uid(sn);
+    if(!cast_sk2 || cast_sk2->spell_fun == spell_null)
         return;
 
     if(rest && *rest) {
@@ -12345,8 +12384,9 @@ SCRIPT_CMD(scriptcmd_remspell)
 
             if(!found) {
                 if(show) {
-                    if(skill_table[sn].msg_off) {
-                        send_to_char(skill_table[sn].msg_off, target->carried_by);
+                    SKILL_DATA *strip_sk = skill_find_uid(sn);
+                    if(strip_sk && strip_sk->msg_off) {
+                        send_to_char(strip_sk->msg_off, target->carried_by);
                         send_to_char("\n\r", target->carried_by);
                     }
                 }
@@ -14775,7 +14815,15 @@ SCRIPT_CMD(scriptcmd_alterroom)
 
         if(script_security < min_sec) {
             sprintf(buf,"AlterRoom - Attempting to alter '%s' with security %d.\n\r", field, script_security);
-            wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
+            log_event_t ev = {
+                .severity = EVENT_SEV_WARN,
+                .category = LOG_SCRIPTS,
+                .plain_message = buf,
+                .staff_message = buf,
+                .wiznet_flag = WIZ_SCRIPTS,
+                .source_file = __FILE__, .source_line = __LINE__, .source_func = __func__,
+            };
+            log_emit_event(&ev, NULL);
             pbug(LOG_SCRIPTS, buf);
             return;
         }
@@ -14830,7 +14878,15 @@ SCRIPT_CMD(scriptcmd_alterroom)
 
     if(script_security < min_sec) {
         sprintf(buf,"AlterRoom - Attempting to alter '%s' with security %d.\n\r", field, script_security);
-        wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
+        log_event_t ev = {
+            .severity = EVENT_SEV_WARN,
+            .category = LOG_SCRIPTS,
+            .plain_message = buf,
+            .staff_message = buf,
+            .wiznet_flag = WIZ_SCRIPTS,
+            .source_file = __FILE__, .source_line = __LINE__, .source_func = __func__,
+        };
+        log_emit_event(&ev, NULL);
         pbug(LOG_SCRIPTS, buf);
         return;
     }
@@ -15548,7 +15604,15 @@ SCRIPT_CMD(scriptcmd_wiznet)
     // Broadcast the message
     if(buffer->string)
     {
-        wiznet(buffer->string, NULL, NULL, wiznet_flag, 0, 0);
+        log_event_t ev = {
+            .severity = EVENT_SEV_INFO,
+            .category = LOG_SCRIPTS,
+            .plain_message = buffer->string,
+            .staff_message = buffer->string,
+            .wiznet_flag = wiznet_flag,
+            .source_file = __FILE__, .source_line = __LINE__, .source_func = __func__,
+        };
+        log_emit_event(&ev, NULL);
     }
     free_buf(buffer);
 }

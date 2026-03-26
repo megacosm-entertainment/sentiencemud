@@ -32,6 +32,29 @@
 
 #define OLC_HISTORY_DIR "data/history"
 
+static void emit_json_persist_event(event_severity_t severity,
+                                    const char *category,
+                                    const char *message,
+                                    const char *action,
+                                    const char *target)
+{
+    log_context_t ctx = {
+        .actor_type = "system",
+        .actor_name = "json_persist",
+        .action = action,
+        .target_type = target ? "storage" : NULL,
+        .target_name = target,
+    };
+    log_event_t ev = {
+        .severity = severity,
+        .category = category ? category : LOG_ERROR,
+        .plain_message = message,
+        .context = &ctx,
+        .source_file = __FILE__, .source_line = __LINE__, .source_func = __func__,
+    };
+    log_emit_event(&ev, NULL);
+}
+
 /***************************************************************************
  * External References                                                     *
  ***************************************************************************/
@@ -76,11 +99,6 @@ static const char *persist_json_objects_path(char *buf, size_t bufsize)
     return resolve_game_path(PERSIST_JSON_OBJECTS, buf, bufsize);
 }
 
-static const char *persist_dat_path(char *buf, size_t bufsize)
-{
-    return resolve_game_path(PERSIST_FILE, buf, bufsize);
-}
-
 /***************************************************************************
  * Initialization                                                          *
  ***************************************************************************/
@@ -100,30 +118,42 @@ bool json_persist_init(void)
     /* Create main persist directory */
     ret = mkdir(persist_dir, 0755);
     if (ret != 0 && errno != EEXIST) {
-        log_stringf("json_persist_init: Failed to create %s: %s",
-                   persist_dir, strerror(errno));
+        char msg[MSL];
+        snprintf(msg, sizeof(msg), "json_persist_init: Failed to create %s: %s",
+                 persist_dir, strerror(errno));
+        emit_json_persist_event(EVENT_SEV_ERROR, LOG_ERROR, msg,
+                                "persist_init_mkdir_failed", persist_dir);
         return false;
     }
 
     /* Create subdirectories */
     ret = mkdir(rooms_dir, 0755);
     if (ret != 0 && errno != EEXIST) {
-        log_stringf("json_persist_init: Failed to create %s: %s",
-                   rooms_dir, strerror(errno));
+        char msg[MSL];
+        snprintf(msg, sizeof(msg), "json_persist_init: Failed to create %s: %s",
+                 rooms_dir, strerror(errno));
+        emit_json_persist_event(EVENT_SEV_ERROR, LOG_ERROR, msg,
+                                "persist_init_mkdir_failed", rooms_dir);
         return false;
     }
 
     ret = mkdir(mobiles_dir, 0755);
     if (ret != 0 && errno != EEXIST) {
-        log_stringf("json_persist_init: Failed to create %s: %s",
-                   mobiles_dir, strerror(errno));
+        char msg[MSL];
+        snprintf(msg, sizeof(msg), "json_persist_init: Failed to create %s: %s",
+                 mobiles_dir, strerror(errno));
+        emit_json_persist_event(EVENT_SEV_ERROR, LOG_ERROR, msg,
+                                "persist_init_mkdir_failed", mobiles_dir);
         return false;
     }
 
     ret = mkdir(objects_dir, 0755);
     if (ret != 0 && errno != EEXIST) {
-        log_stringf("json_persist_init: Failed to create %s: %s",
-                   objects_dir, strerror(errno));
+        char msg[MSL];
+        snprintf(msg, sizeof(msg), "json_persist_init: Failed to create %s: %s",
+                 objects_dir, strerror(errno));
+        emit_json_persist_event(EVENT_SEV_ERROR, LOG_ERROR, msg,
+                                "persist_init_mkdir_failed", objects_dir);
         return false;
     }
 
@@ -528,14 +558,18 @@ json_t *json_persist_affect_to_json(AFFECT_DATA *paf)
     /* For skill-based locations, store skill name for readability */
     if (paf->location >= APPLY_SKILL && paf->location < APPLY_SKILL_MAX) {
         int skill_index = paf->location - APPLY_SKILL;
-        if (skill_table[skill_index].name) {
-            json_object_set_new(json, "skill_name", json_string(skill_table[skill_index].name));
+        SKILL_DATA *loc_sk = skill_find_uid(skill_index);
+        if (loc_sk && loc_sk->name) {
+            json_object_set_new(json, "skill_name", json_string(loc_sk->name));
         }
     }
 
     /* For skill-based types, store skill name */
-    if (paf->type >= 0 && paf->type < MAX_SKILL && skill_table[paf->type].name) {
-        json_object_set_new(json, "type_name", json_string(skill_table[paf->type].name));
+    {
+        SKILL_DATA *type_sk = skill_find_uid(paf->type);
+        if (paf->type >= 0 && paf->type < MAX_SKILL && type_sk && type_sk->name) {
+            json_object_set_new(json, "type_name", json_string(type_sk->name));
+        }
     }
 
     return json;
@@ -1306,8 +1340,8 @@ OBJ_DATA *json_persist_json_to_object(json_t *json)
     if (array && json_is_array(array)) {
         json_array_foreach(array, index, elem) {
             EXTRA_DESCR_DATA *ed = new_extra_descr();
-            ed->keyword = str_dup(json_string_value(json_object_get(elem, "keyword")));
-            ed->description = str_dup(json_string_value(json_object_get(elem, "description")));
+            ed->keyword = str_dup(json_get_string(elem, "keyword", ""));
+            ed->description = str_dup(json_get_string(elem, "description", ""));
             ed->next = obj->extra_descr;
             obj->extra_descr = ed;
         }
@@ -1386,8 +1420,12 @@ bool json_persist_save_object(OBJ_DATA *obj)
 
     json = json_persist_object_to_json(obj);
     if (!json) {
-        log_stringf("json_persist_save_object: failed to serialize object %lu_%lu",
-                   obj->id[0], obj->id[1]);
+        char msg[MSL];
+        snprintf(msg, sizeof(msg),
+                 "json_persist_save_object: failed to serialize object %lu_%lu",
+                 obj->id[0], obj->id[1]);
+        emit_json_persist_event(EVENT_SEV_ERROR, LOG_ERROR, msg,
+                                "persist_save_object_serialize_failed", path);
         return false;
     }
 
@@ -1599,7 +1637,8 @@ json_t *json_persist_mobile_to_json(CHAR_DATA *ch)
             if (paf->custom_name) {
                 json_object_set_new(aff, "custom_name", json_string(paf->custom_name));
             } else {
-                json_object_set_new(aff, "skill_name", json_string(skill_table[paf->type].name));
+                SKILL_DATA *aff_sk = skill_find_uid(paf->type);
+                json_object_set_new(aff, "skill_name", json_string(aff_sk ? aff_sk->name : "unknown"));
             }
             json_object_set_new(aff, "group", json_string(flag_string(affgroup_mobile_flags, paf->group)));
             json_object_set_new(aff, "where", json_integer(paf->where));
@@ -1831,7 +1870,7 @@ CHAR_DATA *json_persist_json_to_mobile(json_t *json)
     array = json_object_get(json, "toxins");
     if (array && json_is_array(array)) {
         json_array_foreach(array, index, elem) {
-            const char *tname = json_string_value(json_object_get(elem, "name"));
+            const char *tname = json_get_string(elem, "name", "");
             int tval = json_integer_value(json_object_get(elem, "value"));
             if (tname) {
                 for (i = 0; i < MAX_TOXIN; i++) {
@@ -2091,8 +2130,12 @@ bool json_persist_save_mobile(CHAR_DATA *ch)
 
     json = json_persist_mobile_to_json(ch);
     if (!json) {
-        log_stringf("json_persist_save_mobile: failed to serialize mobile %lu_%lu",
-                   ch->id[0], ch->id[1]);
+        char msg[MSL];
+        snprintf(msg, sizeof(msg),
+                 "json_persist_save_mobile: failed to serialize mobile %lu_%lu",
+                 ch->id[0], ch->id[1]);
+        emit_json_persist_event(EVENT_SEV_ERROR, LOG_ERROR, msg,
+                                "persist_save_mobile_serialize_failed", path);
         return false;
     }
 
@@ -2572,8 +2615,11 @@ bool json_persist_save_room(ROOM_INDEX_DATA *room)
     json = json_persist_room_to_json(room);
     if (!json) {
         char room_id[256];
+        char msg[MSL];
         json_persist_room_id(room, room_id, sizeof(room_id));
-        log_stringf("json_persist_save_room: failed to serialize room %s", room_id);
+        snprintf(msg, sizeof(msg), "json_persist_save_room: failed to serialize room %s", room_id);
+        emit_json_persist_event(EVENT_SEV_ERROR, LOG_ERROR, msg,
+                                "persist_save_room_serialize_failed", path);
         return false;
     }
 
@@ -3035,44 +3081,7 @@ bool json_persist_load_all(void)
  * Migration Utilities                                                     *
  ***************************************************************************/
 
-bool json_persist_needs_migration(void)
-{
-    FILE *fp;
-    DIR *dir;
-    char persist_file_buf[MAX_INPUT_LENGTH];
-    char objects_dir_buf[MAX_INPUT_LENGTH];
-    const char *persist_file = persist_dat_path(persist_file_buf, sizeof(persist_file_buf));
-    const char *objects_dir = persist_json_objects_path(objects_dir_buf, sizeof(objects_dir_buf));
-
-    /* Check if persist.dat exists */
-    fp = fopen(persist_file, "r");
-    if (!fp) {
-        return false;  /* No old file to migrate */
-    }
-    fclose(fp);
-
-    /* Check if JSON persist directory has content */
-    dir = opendir(objects_dir);
-    if (dir) {
-        struct dirent *entry;
-        while ((entry = readdir(dir)) != NULL) {
-            if (entry->d_name[0] != '.') {
-                closedir(dir);
-                return false;  /* Already has JSON files */
-            }
-        }
-        closedir(dir);
-    }
-
-    return true;  /* Has persist.dat but no JSON files */
-}
-
-bool json_persist_migrate_from_dat(void)
-{
-    /* TODO: Implement migration from persist.dat */
-    log_string("json_persist_migrate_from_dat: Not yet implemented");
-    return false;
-}
+/* Legacy migration functions removed - JSON is now the sole persist format */
 
 /***************************************************************************
  * Phase 2: Background Dirty Queue Worker                                  *
@@ -3326,6 +3335,13 @@ static bool write_dirty_key_to_disk(const char *key, bool *retryable)
         fp = fopen(tmp_path, "w");
         if (!fp) {
             log_stringf("persist_worker: Failed to open temp file %s for writing: %s", tmp_path, strerror(errno));
+            {
+                char msg[MSL];
+                snprintf(msg, sizeof(msg),
+                         "persist_worker: Failed to open temp file %s for writing: %s", tmp_path, strerror(errno));
+                emit_json_persist_event(EVENT_SEV_ERROR, LOG_ERROR, msg,
+                                        "persist_worker_open_temp_failed", tmp_path);
+            }
             free(json_str);
             return false;
         }
@@ -3333,6 +3349,13 @@ static bool write_dirty_key_to_disk(const char *key, bool *retryable)
         written = fwrite(json_str, 1, json_len, fp);
         if (written != json_len) {
             log_stringf("persist_worker: Short write to %s (%zu/%zu): %s", tmp_path, written, json_len, strerror(errno));
+            {
+                char msg[MSL];
+                snprintf(msg, sizeof(msg),
+                         "persist_worker: Short write to %s (%zu/%zu): %s", tmp_path, written, json_len, strerror(errno));
+                emit_json_persist_event(EVENT_SEV_ERROR, LOG_ERROR, msg,
+                                        "persist_worker_short_write", tmp_path);
+            }
             fclose(fp);
             unlink(tmp_path);
             free(json_str);
@@ -3341,6 +3364,13 @@ static bool write_dirty_key_to_disk(const char *key, bool *retryable)
 
         if (fflush(fp) != 0) {
             log_stringf("persist_worker: fflush failed for %s: %s", tmp_path, strerror(errno));
+            {
+                char msg[MSL];
+                snprintf(msg, sizeof(msg),
+                         "persist_worker: fflush failed for %s: %s", tmp_path, strerror(errno));
+                emit_json_persist_event(EVENT_SEV_ERROR, LOG_ERROR, msg,
+                                        "persist_worker_fflush_failed", tmp_path);
+            }
             fclose(fp);
             unlink(tmp_path);
             free(json_str);
@@ -3349,6 +3379,13 @@ static bool write_dirty_key_to_disk(const char *key, bool *retryable)
 
         if (fsync(fileno(fp)) != 0) {
             log_stringf("persist_worker: fsync failed for %s: %s", tmp_path, strerror(errno));
+            {
+                char msg[MSL];
+                snprintf(msg, sizeof(msg),
+                         "persist_worker: fsync failed for %s: %s", tmp_path, strerror(errno));
+                emit_json_persist_event(EVENT_SEV_ERROR, LOG_ERROR, msg,
+                                        "persist_worker_fsync_failed", tmp_path);
+            }
             fclose(fp);
             unlink(tmp_path);
             free(json_str);
@@ -3357,6 +3394,13 @@ static bool write_dirty_key_to_disk(const char *key, bool *retryable)
 
         if (fclose(fp) != 0) {
             log_stringf("persist_worker: fclose failed for %s: %s", tmp_path, strerror(errno));
+            {
+                char msg[MSL];
+                snprintf(msg, sizeof(msg),
+                         "persist_worker: fclose failed for %s: %s", tmp_path, strerror(errno));
+                emit_json_persist_event(EVENT_SEV_ERROR, LOG_ERROR, msg,
+                                        "persist_worker_fclose_failed", tmp_path);
+            }
             unlink(tmp_path);
             free(json_str);
             return false;
@@ -3364,6 +3408,13 @@ static bool write_dirty_key_to_disk(const char *key, bool *retryable)
 
         if (rename(tmp_path, path) != 0) {
             log_stringf("persist_worker: rename(%s -> %s) failed: %s", tmp_path, path, strerror(errno));
+            {
+                char msg[MSL];
+                snprintf(msg, sizeof(msg),
+                         "persist_worker: rename(%s -> %s) failed: %s", tmp_path, path, strerror(errno));
+                emit_json_persist_event(EVENT_SEV_ERROR, LOG_ERROR, msg,
+                                        "persist_worker_rename_failed", path);
+            }
             unlink(tmp_path);
             free(json_str);
             return false;
@@ -3509,8 +3560,12 @@ bool json_persist_save_object_cached(OBJ_DATA *obj)
 
     json = json_persist_object_to_json(obj);
     if (!json) {
-        log_stringf("json_persist_save_object_cached: failed to serialize object %lu_%lu",
-                   obj->id[0], obj->id[1]);
+        char msg[MSL];
+        snprintf(msg, sizeof(msg),
+                 "json_persist_save_object_cached: failed to serialize object %lu_%lu",
+                 obj->id[0], obj->id[1]);
+        emit_json_persist_event(EVENT_SEV_ERROR, LOG_ERROR, msg,
+                                "persist_save_object_cached_serialize_failed", "redis");
         return false;
     }
 
@@ -3518,8 +3573,12 @@ bool json_persist_save_object_cached(OBJ_DATA *obj)
     json_decref(json);
 
     if (!json_str) {
-        log_stringf("json_persist_save_object_cached: json_dumps failed for object %lu_%lu",
-                   obj->id[0], obj->id[1]);
+        char msg[MSL];
+        snprintf(msg, sizeof(msg),
+                 "json_persist_save_object_cached: json_dumps failed for object %lu_%lu",
+                 obj->id[0], obj->id[1]);
+        emit_json_persist_event(EVENT_SEV_ERROR, LOG_ERROR, msg,
+                                "persist_save_object_cached_dump_failed", "redis");
         return false;
     }
 
@@ -3547,8 +3606,12 @@ bool json_persist_save_mobile_cached(CHAR_DATA *ch)
 
     json = json_persist_mobile_to_json(ch);
     if (!json) {
-        log_stringf("json_persist_save_mobile_cached: failed to serialize mobile %lu_%lu",
-                   ch->id[0], ch->id[1]);
+        char msg[MSL];
+        snprintf(msg, sizeof(msg),
+                 "json_persist_save_mobile_cached: failed to serialize mobile %lu_%lu",
+                 ch->id[0], ch->id[1]);
+        emit_json_persist_event(EVENT_SEV_ERROR, LOG_ERROR, msg,
+                                "persist_save_mobile_cached_serialize_failed", "redis");
         return false;
     }
 
@@ -3556,8 +3619,12 @@ bool json_persist_save_mobile_cached(CHAR_DATA *ch)
     json_decref(json);
 
     if (!json_str) {
-        log_stringf("json_persist_save_mobile_cached: json_dumps failed for mobile %lu_%lu",
-                   ch->id[0], ch->id[1]);
+        char msg[MSL];
+        snprintf(msg, sizeof(msg),
+                 "json_persist_save_mobile_cached: json_dumps failed for mobile %lu_%lu",
+                 ch->id[0], ch->id[1]);
+        emit_json_persist_event(EVENT_SEV_ERROR, LOG_ERROR, msg,
+                                "persist_save_mobile_cached_dump_failed", "redis");
         return false;
     }
 
@@ -3586,7 +3653,13 @@ bool json_persist_save_room_cached(ROOM_INDEX_DATA *room)
     json = json_persist_room_to_json(room);
     if (!json) {
         json_persist_room_id(room, room_id, sizeof(room_id));
-        log_stringf("json_persist_save_room_cached: failed to serialize room %s", room_id);
+        {
+            char msg[MSL];
+            snprintf(msg, sizeof(msg),
+                     "json_persist_save_room_cached: failed to serialize room %s", room_id);
+            emit_json_persist_event(EVENT_SEV_ERROR, LOG_ERROR, msg,
+                                    "persist_save_room_cached_serialize_failed", "redis");
+        }
         return false;
     }
 
@@ -3595,7 +3668,13 @@ bool json_persist_save_room_cached(ROOM_INDEX_DATA *room)
 
     if (!json_str) {
         json_persist_room_id(room, room_id, sizeof(room_id));
-        log_stringf("json_persist_save_room_cached: json_dumps failed for room %s", room_id);
+        {
+            char msg[MSL];
+            snprintf(msg, sizeof(msg),
+                     "json_persist_save_room_cached: json_dumps failed for room %s", room_id);
+            emit_json_persist_event(EVENT_SEV_ERROR, LOG_ERROR, msg,
+                                    "persist_save_room_cached_dump_failed", "redis");
+        }
         return false;
     }
 

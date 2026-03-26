@@ -217,6 +217,16 @@ Track baseline metrics:
 - interrupt/fizzle rates
 - catalyst usage distribution by type
 
+Telemetry acquisition strategy when population is low:
+
+- Build deterministic scenario packs (duels, small-party encounters, sustained PvE rotations).
+- Run scripted casting benchmarks under fixed seeds to compare pre/post changes.
+- Capture profile-level metrics from synthetic runs first; layer in live telemetry later.
+
+Acceptance note:
+
+- During dormancy/progression overhaul, synthetic benchmark deltas are the primary decision input for Phase 0-2 tuning.
+
 ## Phase 1 - Compatibility Layer
 
 - Add domain mapping table from existing catalyst/types.

@@ -39,6 +39,38 @@
 #include <time.h>
 #include <math.h>
 #include "merc.h"
+
+static void emit_obj_staff_event(const char *plain_message,
+                                 const char *staff_message,
+                                 CHAR_DATA *actor,
+                                 const char *action)
+{
+    log_context_t ctx = {0};
+    const log_context_t *ctx_ptr = NULL;
+
+    if (actor) {
+        ctx.actor_type = IS_NPC(actor) ? "npc" : "player";
+        ctx.actor_name = IS_NPC(actor) ? actor->short_descr : actor->name;
+        ctx.actor_uid[0] = actor->id[0];
+        ctx.actor_uid[1] = actor->id[1];
+        ctx.actor_wnum = (IS_NPC(actor) && actor->pIndexData)
+                       ? widevnum_string_mobile(actor->pIndexData, NULL) : NULL;
+        ctx.action = action;
+        ctx_ptr = &ctx;
+    }
+
+    log_event_t ev = {
+        .severity = EVENT_SEV_INFO,
+        .category = LOG_ADMIN,
+        .plain_message = plain_message ? plain_message : "object action",
+        .staff_message = staff_message,
+        .wiznet_flag = WIZ_IMMLOG,
+        .context = ctx_ptr,
+        .source_file = __FILE__, .source_line = __LINE__, .source_func = __func__,
+    };
+
+    log_emit_event(&ev, actor);
+}
 #include "magic.h"
 #include "interp.h"
 #include "recycle.h"
@@ -46,6 +78,7 @@
 #include "traits.h"
 #include "skill_data.h"
 #include "requirements.h"
+#include "utils/localization.h"
 
 /**
  * obj_has_money - Check if a container has money visible to character
@@ -1476,7 +1509,7 @@ void do_drop(CHAR_DATA *ch, char *argument)
             if (IS_IMMORTAL(ch) && !IS_NPC(ch)) {
                 sprintf(buf, "%s drops %s.", ch->name, cart->short_descr);
                 plog(LOG_ADMIN, buf);
-                wiznet(buf, NULL, NULL, WIZ_IMMLOG, 0, 0);
+                emit_obj_staff_event(buf, buf, ch, "drop");
             }
 
             p_percent_trigger(NULL, cart, NULL, NULL, ch, NULL, NULL, cart, NULL, TRIG_DROP, NULL);
@@ -1531,7 +1564,7 @@ void do_drop(CHAR_DATA *ch, char *argument)
         if (IS_IMMORTAL(ch) && !IS_NPC(ch)) {
             sprintf(buf, "%s drops %s.", ch->name, obj->short_descr);
             plog(LOG_ADMIN, buf);
-            wiznet(buf, NULL, NULL, WIZ_IMMLOG, 0, 0);
+            emit_obj_staff_event(buf, buf, ch, "drop");
         }
 
         p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_DROP, NULL);
@@ -1614,7 +1647,7 @@ void do_drop(CHAR_DATA *ch, char *argument)
                     if (IS_IMMORTAL(ch) && !IS_NPC(ch)) {
                         sprintf(buf, "%s drops %s.", ch->name, obj->short_descr);
                         plog(LOG_ADMIN, buf);
-                        wiznet(buf, NULL, NULL, WIZ_IMMLOG, 0, 0);
+                        emit_obj_staff_event(buf, buf, ch, "drop");
                     }
 
                     p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_DROP, NULL);
@@ -1814,7 +1847,7 @@ void do_give(CHAR_DATA *ch, char *argument)
                 ch->name, IS_NPC(victim) ? victim->short_descr : victim->name,
                 amount, gold ? "gold" : "silver");
             plog(LOG_ADMIN, buf);
-            wiznet(buf, NULL, NULL, WIZ_IMMLOG, 0, 0);
+                emit_obj_staff_event(buf, buf, ch, "give_money");
         }
 
         return;
@@ -1982,7 +2015,7 @@ void do_give(CHAR_DATA *ch, char *argument)
             obj->short_descr,
             IS_NPC(victim) ? victim->short_descr : victim->name);
         plog(LOG_ADMIN, buf);
-        wiznet(buf, NULL, NULL, WIZ_IMMLOG, 0, 0);
+        emit_obj_staff_event(buf, buf, ch, "give_item");
     }
 
     /* Give trigger */
@@ -2328,7 +2361,8 @@ void do_restring(CHAR_DATA *ch, char *argument)
 
     if (arg1[0] == '\0' || arg2[0] == '\0' || (argument[0] == '\0' && str_cmp(arg2, "desc")))
     {
-        send_to_char("Syntax: restring item short <new name>\n\r", ch);
+        send_to_char("Syntax: restring item name  <new name>\n\r", ch);
+        send_to_char("        restring item short <new name>\n\r", ch);
         send_to_char("        restring item long  <new name>\n\r", ch);
         send_to_char("        restring item desc  (for the description)\n\r", ch);
         return;
@@ -2349,7 +2383,7 @@ void do_restring(CHAR_DATA *ch, char *argument)
     if (IS_SET(obj->extra[0], ITEM_NORESTRING) || CAN_WEAR(obj, ITEM_WEAR_TABARD))
     {
         // Allow color changes to SHORTS on NORESTRING.
-        if( str_cmp(arg2, "short") || str_cmp_nocolour(obj->short_descr, argument)) {
+        if(str_cmp(arg2, "short") || str_cmp_nocolour(obj->short_descr, argument)) {
             act("{R$N tells you, 'Sorry, but you can't restring $p.'{x", ch, mob, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
             return;
         }
@@ -2412,18 +2446,128 @@ void do_restring(CHAR_DATA *ch, char *argument)
             obj->short_descr);
         send_to_char(buf, ch);
 
+        // NORESTRING objects PRESERVE the name.
+        if (!norestring) {
+            char *keywords = NULL;
+            char *invalid = NULL;
+            LOCALIZATION_ERROR err = localization_short_to_keywords(obj->short_descr, &keywords, &invalid);
+            if (err == LOC_OK)
+            {
+                if (IS_NULLSTR(keywords))
+                {
+                    send_to_char("{RNone of the short description could be applied to the name.{x\n\r"
+                                 "Please use {Yrestring item name  <new name>{x to set the name.\n\r",
+                                 ch);
+                    if (keywords) free(keywords); // Since it can't be used
+                }
+                else
+                {
+                    if (obj->old_name == NULL)
+                        obj->old_name = obj->name;
+                    else
+                        free_string(obj->name);	// The object has already been restrung
+
+                    obj->name = keywords;
+
+                    // If there were any invalid words, tell the player, in case they want to redo the whole name field
+                    if (!IS_NULLSTR(invalid))
+                    {
+                        sprintf(buf, "{RCould not apply the following words from the short to the name:{x\n\r{W%s{x\n\r",
+                            invalid);
+                        send_to_char(buf, ch);
+                    }
+
+                }
+
+            } else {
+                send_to_char("{RNone of the short description could be applied to the name.{x\n\r"
+                                "Please use {Yrestring item name  <new name>{x to set the name.\n\r",
+                                ch);
+                if (keywords) free(keywords); // Since it can't be used
+            }
+            if (invalid) free(invalid);
+        }
+
         do_say(mob, "Nice doin' business with ya bub.");
 
         deduct_cost(ch, cost);
+        return;
+    }
 
-        // NORESTRING objects PRESERVE the name.
-        if (!norestring) {
-            if (obj->old_name == NULL)
-                obj->old_name = obj->name;
-            else
-                free_string(obj->name);	// The object has already been restrung
+    if (!str_cmp("name", arg2))
+    {
+        act("You give $p to $N.", ch, mob, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+        act("$n gives $p to $N.", ch, mob, NULL, obj, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+        act("$n spins a 360 on $s heel.", mob, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
-            obj->name = short_to_name(obj->short_descr);
+        char *temp_str = nocolour(argument);
+        if (str_cmp(argument, temp_str))
+        {
+            free_string(temp_str);
+            act("$N gives you $p.", ch, mob, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+            act("$N gives $n $p.", ch, mob, NULL, obj, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+
+            do_say(mob, "Don' be flashy in da name, bub.");
+            send_to_char("{RPlease don't use colors in names.{x\n\r", ch);
+            return;
+        }
+        free_string(temp_str);
+
+        size_t bad_position;
+        LOCALIZATION_ERROR err = localization_validate_string(argument, &bad_position, NULL);
+        switch(err)
+        {
+        case LOC_OK:
+            {
+                act("$N gives you $p.", ch, mob, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+                act("$N gives $n $p.", ch, mob, NULL, obj, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+
+                if (obj->old_name == NULL)
+                    obj->old_name = obj->name;
+                else
+                    free_string(obj->name);	// The object has already been restrung
+
+                obj->name = str_dup(argument);
+
+                sprintf(buf, "The name has been changed to {G%s{x.\n\r", obj->name);
+                send_to_char(buf, ch);
+
+                do_say(mob, "Nice doin' business with ya bub.");
+
+                deduct_cost(ch, cost);
+                break;
+            }
+
+        case LOC_ERR_FORBIDDEN_CODEPOINT:
+            {
+                act("$N gives you $p.", ch, mob, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+                act("$N gives $n $p.", ch, mob, NULL, obj, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+
+                do_say(mob, "Somethin' wrong with wha ya want, bub.");
+                send_to_char(formatf("{RForbidden character at position {W%ld{R.{x\n\r", bad_position), ch);
+                break;
+            }
+
+        case LOC_ERR_INVALID_UTF8:
+            {
+                act("$N gives you $p.", ch, mob, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+                act("$N gives $n $p.", ch, mob, NULL, obj, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+
+                do_say(mob, "Somethin' wrong with wha ya want, bub.");
+                send_to_char(formatf("{RErroneous character at position {W%ld{R.{x\n\r", bad_position), ch);
+                break;
+            }
+
+        default:
+            {
+                act("$N gives you $p.", ch, mob, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+                act("$N gives $n $p.", ch, mob, NULL, obj, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+
+                do_say(mob, "Somethin' wrong with wha ya want, bub.");
+                send_to_char("{RError logged for investigation.  Thank you for your patience.{x\n\r", ch);
+                pbugf(LOG_ERROR, "Encountered error '%s' when restringing name with argument '%s'", localization_error_string(err), argument);
+                break;
+            }
         }
         return;
     }
@@ -2629,14 +2773,20 @@ void do_envenom(CHAR_DATA *ch, char *argument)
             FLUID_CON(obj)->poison = 1;
         check_improve(ch,skill_resolve_gsn("envenom"),true,4);
         }
-        WAIT_STATE(ch,skill_table[skill_resolve_gsn("envenom")].beats);
+        {
+            SKILL_DATA *sk = skill_find("envenom");
+            if (sk) WAIT_STATE(ch, sk->beats);
+        }
         return;
     }
 
     act("You fail to poison $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR, NULL, NULL);
     if (!((obj->item_type == ITEM_FOOD) ? FOOD(obj)->poison : FLUID_CON(obj)->poison))
         check_improve(ch,skill_resolve_gsn("envenom"),false,4);
-    WAIT_STATE(ch,skill_table[skill_resolve_gsn("envenom")].beats);
+    {
+        SKILL_DATA *sk = skill_find("envenom");
+        if (sk) WAIT_STATE(ch, sk->beats);
+    }
     return;
      }
 
@@ -2695,14 +2845,20 @@ memset(&af,0,sizeof(af));
         act("$n coats $p with deadly venom.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM, NULL, NULL);
         act("You coat $p with venom.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR, NULL, NULL);
         check_improve(ch,skill_resolve_gsn("envenom"),true,3);
-        WAIT_STATE(ch,skill_table[skill_resolve_gsn("envenom")].beats);
+        {
+            SKILL_DATA *sk = skill_find("envenom");
+            if (sk) WAIT_STATE(ch, sk->beats);
+        }
             return;
         }
     else
     {
         act("You fail to envenom $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR, NULL, NULL);
         check_improve(ch,skill_resolve_gsn("envenom"),false,3);
-        WAIT_STATE(ch,skill_table[skill_resolve_gsn("envenom")].beats);
+        {
+            SKILL_DATA *sk = skill_find("envenom");
+            if (sk) WAIT_STATE(ch, sk->beats);
+        }
         return;
     }
     }
@@ -4617,7 +4773,12 @@ void do_brandish(CHAR_DATA *ch, char *argument)
                 for (spell = staff->spells; spell != NULL; spell = spell->next)
         {
             sn = spell->sn;
-            switch (skill_table[sn].target)
+            SKILL_DATA *sk = skill_find_uid(sn);
+            if (!sk) {
+                pbugf(LOG_ERROR, "Do_brandish: unknown skill for sn %d.", sn);
+                return;
+            }
+            switch (sk->target)
             {
             default:
             pbugf(LOG_ERROR, "Do_brandish: bad target for sn %d.", sn);
@@ -4851,7 +5012,10 @@ void do_steal(CHAR_DATA *ch, char *argument)
     return;
     }
 
-    WAIT_STATE(ch, skill_table[skill_resolve_gsn("steal")].beats);
+    {
+        SKILL_DATA *sk = skill_find("steal");
+        if (sk) WAIT_STATE(ch, sk->beats);
+    }
     percent  = number_percent();
 
     if (!IS_AWAKE(victim))
@@ -7891,7 +8055,10 @@ void do_turn(CHAR_DATA *ch, char *argument)
 
         act("{WYou feel a powerful divine presence pass through you!{x",ch, vch, NULL, NULL, NULL, NULL, NULL, TO_VICT, NULL, NULL);
 
-        WAIT_STATE(ch, skill_table[skill_resolve_gsn("turn undead")].beats);
+        {
+            SKILL_DATA *sk = skill_find("turn undead");
+            if (sk) WAIT_STATE(ch, sk->beats);
+        }
 
         if (IS_UNDEAD(vch)) {
             chance = (ch->tot_level - vch->tot_level) + skill / 5;
@@ -8177,8 +8344,9 @@ void do_brew(CHAR_DATA *ch, char *argument)
 
     sn = find_spell(ch, arg);
 
+    SKILL_DATA *sk = skill_find_uid(sn);
     if ((sn) < 1
-    || skill_table[sn].spell_fun == spell_null
+    || !sk || sk->spell_fun == spell_null
     || get_skill(ch, sn) == 0)
     {
         send_to_char("You don't know any spells of that name.\n\r", ch);
@@ -8188,7 +8356,7 @@ void do_brew(CHAR_DATA *ch, char *argument)
     mana = 0;
     if (sn > 0)
     {
-        mana += skill_table[sn].min_mana;
+        mana += sk->min_mana;
         mana = mana * 2 / 3;
     }
 
@@ -8209,11 +8377,11 @@ void do_brew(CHAR_DATA *ch, char *argument)
         return;
     }
 
-    if (skill_table[sn].target != TAR_CHAR_DEFENSIVE
-    &&   skill_table[sn].target != TAR_CHAR_SELF
-    &&   skill_table[sn].target != TAR_OBJ_CHAR_DEF
-    &&   skill_table[sn].target != TAR_CHAR_OFFENSIVE
-    &&   skill_table[sn].target != TAR_OBJ_CHAR_OFF)
+    if (sk->target != TAR_CHAR_DEFENSIVE
+    &&   sk->target != TAR_CHAR_SELF
+    &&   sk->target != TAR_OBJ_CHAR_DEF
+    &&   sk->target != TAR_CHAR_OFFENSIVE
+    &&   sk->target != TAR_OBJ_CHAR_OFF)
     {
         send_to_char("You may only brew potions of spells which you can cast on people.\n\r", ch);
         return;
@@ -8276,7 +8444,7 @@ void brew_end(CHAR_DATA *ch, int16_t sn)
     return;
     }
 
-    sprintf(potion_name, "%s", skill_table[sn].name);
+    sprintf(potion_name, "%s", skill_name(skill_find_uid(sn)));
 
     sprintf(buf, "You brew a potion of %s.", potion_name);
     act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
@@ -8432,7 +8600,10 @@ void do_hands(CHAR_DATA *ch, char *argument)
     act("$n places $s hands over $s heart.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
     }
 
-    WAIT_STATE(ch, skill_table[skill_resolve_gsn("healing hands")].beats);
+    {
+        SKILL_DATA *sk = skill_find("healing hands");
+        if (sk) WAIT_STATE(ch, sk->beats);
+    }
 
     if (number_percent() > get_skill(ch, skill_resolve_gsn("healing hands")))
     {
@@ -8535,7 +8706,8 @@ void do_scribe(CHAR_DATA *ch, char *argument)
 
     sn1 = find_spell(ch, arg1);
 
-    if ((sn1) < 1 || skill_table[sn1].spell_fun == spell_null ||
+    SKILL_DATA *sk1 = skill_find_uid(sn1);
+    if ((sn1) < 1 || !sk1 || sk1->spell_fun == spell_null ||
         get_skill(ch, sn1) == 0)
     {
         send_to_char("You don't know any spells of that name.\n\r", ch);
@@ -8546,7 +8718,8 @@ void do_scribe(CHAR_DATA *ch, char *argument)
     {
         sn2 = find_spell(ch, arg2);
 
-        if ((sn2) < 1 || skill_table[sn2].spell_fun == spell_null ||
+        SKILL_DATA *sk2 = skill_find_uid(sn2);
+        if ((sn2) < 1 || !sk2 || sk2->spell_fun == spell_null ||
             get_skill(ch, sn2) == 0)
         {
             send_to_char("You don't know any spells of that name.\n\r", ch);
@@ -8558,7 +8731,8 @@ void do_scribe(CHAR_DATA *ch, char *argument)
     {
         sn3 = find_spell(ch, arg3);
 
-        if ((sn3) < 1 || skill_table[sn3].spell_fun == spell_null ||
+        SKILL_DATA *sk3 = skill_find_uid(sn3);
+        if ((sn3) < 1 || !sk3 || sk3->spell_fun == spell_null ||
             get_skill(ch, sn3) == 0)
         {
             send_to_char("You don't know any spells of that name.\n\r", ch);
@@ -8567,9 +8741,9 @@ void do_scribe(CHAR_DATA *ch, char *argument)
     }
 
     mana = 0;
-    if (sn1 > 0) mana += skill_table[sn1].min_mana;
-    if (sn2 > 0) mana += skill_table[sn2].min_mana;
-    if (sn3 > 0) mana += skill_table[sn3].min_mana;
+    if (sn1 > 0 && sk1) mana += sk1->min_mana;
+    if (sn2 > 0) { SKILL_DATA *sk = skill_find_uid(sn2); if (sk) mana += sk->min_mana; }
+    if (sn3 > 0) { SKILL_DATA *sk = skill_find_uid(sn3); if (sk) mana += sk->min_mana; }
 
     if (mana > 200)
     {
@@ -8681,14 +8855,17 @@ void scribe_end(CHAR_DATA *ch, int16_t sn, int16_t sn2, int16_t sn3)
         return;
     }
 
+    SKILL_DATA *sk_sn = skill_find_uid(sn);
+    SKILL_DATA *sk_sn2 = sn2 ? skill_find_uid(sn2) : NULL;
+    SKILL_DATA *sk_sn3 = sn3 ? skill_find_uid(sn3) : NULL;
     if (sn2 == 0)
-    sprintf(scroll_name, "%s", skill_table[sn].name);
+    sprintf(scroll_name, "%s", skill_name(sk_sn));
     else
     {
         if (sn3 == 0)
-            sprintf(scroll_name, "%s, %s", skill_table[sn].name, skill_table[sn2].name);
+            sprintf(scroll_name, "%s, %s", skill_name(sk_sn), skill_name(sk_sn2));
         else
-            sprintf(scroll_name, "%s, %s, %s", skill_table[sn].name, skill_table[sn2].name, skill_table[sn3].name);
+            sprintf(scroll_name, "%s, %s, %s", skill_name(sk_sn), skill_name(sk_sn2), skill_name(sk_sn3));
     }
 
     sprintf(buf, "You create a scroll of %s.", scroll_name);
@@ -9050,14 +9227,20 @@ memset(&af,0,sizeof(af));
             act("$n carefully infuses $p with a magical enchantment.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM, NULL, NULL);
         act("You carefully infuse $p with a magical enchantment.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR, NULL, NULL);
         check_improve(ch,skill_resolve_gsn("infuse"),true,3);
-        WAIT_STATE(ch,skill_table[skill_resolve_gsn("infuse")].beats);
+        {
+            SKILL_DATA *sk = skill_find("infuse");
+            if (sk) WAIT_STATE(ch, sk->beats);
+        }
             return;
         }
     else
     {
         act("You fail to infuse $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR, NULL, NULL);
         check_improve(ch,skill_resolve_gsn("infuse"),false,3);
-        WAIT_STATE(ch,skill_table[skill_resolve_gsn("infuse")].beats);
+        {
+            SKILL_DATA *sk = skill_find("infuse");
+            if (sk) WAIT_STATE(ch, sk->beats);
+        }
         return;
     }
     }

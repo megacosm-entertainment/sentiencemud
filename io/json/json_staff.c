@@ -73,7 +73,7 @@ IMMORTAL_DATA *json_immortal_deserialize(json_t *json)
 
     IMMORTAL_DATA *immortal = new_immortal();
 
-    const char *name = json_string_value(json_object_get(json, "name"));
+    const char *name = json_get_string(json, "name", "");
     if (name) {
         free_string(immortal->name);
         immortal->name = str_dup(name);
@@ -82,7 +82,7 @@ IMMORTAL_DATA *json_immortal_deserialize(json_t *json)
     immortal->duties = json_integer_value(json_object_get(json, "duties"));
     immortal->created = (time_t)json_integer_value(json_object_get(json, "created"));
 
-    const char *imm_flag = json_string_value(json_object_get(json, "imm_flag"));
+    const char *imm_flag = json_get_string(json, "imm_flag", "");
     if (imm_flag) {
         free_string(immortal->imm_flag);
         immortal->imm_flag = str_dup(imm_flag);
@@ -100,13 +100,13 @@ IMMORTAL_DATA *json_immortal_deserialize(json_t *json)
         immortal->leader = NULL;
     }
 
-    const char *bamfin = json_string_value(json_object_get(json, "bamfin"));
+    const char *bamfin = json_get_string(json, "bamfin", "");
     if (bamfin) {
         free_string(immortal->bamfin);
         immortal->bamfin = str_dup(bamfin);
     }
 
-    const char *bamfout = json_string_value(json_object_get(json, "bamfout"));
+    const char *bamfout = json_get_string(json, "bamfout", "");
     if (bamfout) {
         free_string(immortal->bamfout);
         immortal->bamfout = str_dup(bamfout);

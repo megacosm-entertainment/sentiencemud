@@ -78,6 +78,11 @@ redisContext *redis_get_connection(void);
 // Return connection to pool
 void redis_release_connection(redisContext *c);
 
+// Create a new independent, fully-authenticated Redis connection.
+// The caller owns the returned context and must redisFree() it when done.
+// Returns NULL on failure. Safe to call from any thread.
+redisContext *redis_new_context(void);
+
 // Test if Redis is available
 bool redis_is_available(void);
 

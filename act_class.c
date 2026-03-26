@@ -17,6 +17,7 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <jansson.h>
+#include "io/json/json_common.h"
 
 #include "merc.h"
 #include "interp.h"
@@ -27,6 +28,7 @@
 #include "skill_group.h"
 #include "recycle.h"
 #include "db.h"
+#include "gmcp_sentience.h"
 
 /* Forward declarations */
 static bool has_reward_been_applied(CLASS_LEVEL *cl, int level, int type, const char *name);
@@ -74,7 +76,7 @@ static bool has_reward_been_applied(CLASS_LEVEL *cl, int level, int type, const 
 
         int e_level = (int)json_integer_value(json_object_get(entry, "level"));
         int e_type  = (int)json_integer_value(json_object_get(entry, "type"));
-        const char *e_name = json_string_value(json_object_get(entry, "name"));
+        const char *e_name = json_get_string(entry, "name", "");
 
         if (e_level == level && e_type == type) {
             if (!name || !name[0]) {
@@ -264,7 +266,8 @@ static void apply_skill_reward(CHAR_DATA *ch, CLASS_DATA *clazz,
     }
 
     /* Grant the skill */
-    if (skill_table[sn].spell_fun != spell_null) {
+    SKILL_DATA *skill = skill_find_uid(sn);
+    if (skill && skill->spell_fun != spell_null) {
         skill_entry_addspell(ch, sn, NULL, SKILLSRC_NORMAL, 0);
     } else {
         skill_entry_addskill(ch, sn, NULL, SKILLSRC_NORMAL, 0);
@@ -283,7 +286,7 @@ static void apply_skill_reward(CHAR_DATA *ch, CLASS_DATA *clazz,
     if (!silent) {
         char buf[MAX_STRING_LENGTH];
         sprintf(buf, "{MYou have learned {W%s{M as a %s.{x\n\r",
-                skill_table[sn].name, clazz->name);
+                skill ? skill->name : "unknown", clazz->name);
         send_to_char(buf, ch);
     }
 }
@@ -330,17 +333,6 @@ static void apply_group_reward(CHAR_DATA *ch, CLASS_DATA *clazz,
 
         if (!found)
             list_appendlink(ch->pcdata->known_groups, group);
-    }
-
-    /* Also set legacy group_known flag for backward compat */
-    {
-        int g;
-        for (g = 0; g < MAX_GROUP; g++) {
-            if (group_table[g].name && !str_cmp(group_table[g].name, name)) {
-                ch->pcdata->group_known[g] = true;
-                break;
-            }
-        }
     }
 
     /* Apply each skill in the group */
@@ -397,9 +389,9 @@ static void apply_single_reward(CHAR_DATA *ch, CLASS_DATA *clazz, CLASS_LEVEL *c
                 if (reward->data) {
                     json_t *disp = json_object_get(reward->data, "display");
                     if (disp) {
-                        title_name = json_string_value(json_object_get(disp, "neutral"));
+                        title_name = json_get_string(disp, "neutral", "");
                         if (!title_name)
-                            title_name = json_string_value(json_object_get(disp, "male"));
+                            title_name = json_get_string(disp, "male", "");
                     }
                 }
                 if (title_name) {
@@ -906,7 +898,8 @@ bool class_grants_skill(CLASS_DATA *clazz, int sn)
     if (!clazz || !clazz->rewards || sn < 0 || sn >= MAX_SKILL)
         return false;
 
-    skill_name = skill_table[sn].name;
+    SKILL_DATA *skill = skill_find_uid(sn);
+    skill_name = skill ? skill->name : NULL;
     if (!skill_name || !skill_name[0])
         return false;
 
@@ -1069,6 +1062,7 @@ void do_setclass(CHAR_DATA *ch, char *argument)
     }
 
     save_char_obj(ch);
+    sentience_invalidate_cache(ch, SENTIENCE_DIRTY_ABILITIES | SENTIENCE_DIRTY_IDENTITY);
 }
 
 /**

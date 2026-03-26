@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <jansson.h>
+#include "io/json/json_common.h"
 #include "merc.h"
 #include "traits.h"
 
@@ -56,7 +57,7 @@ void load_trait_definitions(void)
         return;
     }
 
-    str = json_string_value(json_object_get(root, "_format"));
+    str = json_get_string(root, "_format", "");
     if (!str || str_cmp(str, "trait_definitions")) {
         pbugf(LOG_INIT, "Invalid format in %s", traits_path);
         json_decref(root);
@@ -79,19 +80,19 @@ void load_trait_definitions(void)
         def->valid = true;
         def->index = trait_def_count;
 
-        str = json_string_value(json_object_get(trait_obj, "id"));
+        str = json_get_string(trait_obj, "id", "");
         def->id = str_dup(str ? str : "unknown");
 
-        str = json_string_value(json_object_get(trait_obj, "name"));
+        str = json_get_string(trait_obj, "name", "");
         def->name = str_dup(str ? str : def->id);
 
-        str = json_string_value(json_object_get(trait_obj, "description"));
+        str = json_get_string(trait_obj, "description", "");
         def->description = str_dup(str ? str : "");
 
-        str = json_string_value(json_object_get(trait_obj, "category"));
+        str = json_get_string(trait_obj, "category", "");
         def->category = str_dup(str ? str : "");
 
-        str = json_string_value(json_object_get(trait_obj, "type"));
+        str = json_get_string(trait_obj, "type", "");
         if (!str || !str_cmp(str, "boolean"))
             def->type = TRAIT_BOOLEAN;
         else if (!str_cmp(str, "integer"))

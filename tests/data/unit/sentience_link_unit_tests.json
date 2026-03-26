@@ -1,0 +1,277 @@
+{
+    "type": "test_suite",
+    "test_suite": "sentience_link_unit_tests",
+    "description": "Unit tests for Sentience.Link abstraction layer",
+    "version": "1.0",
+    "requires_mud_environment": false,
+    "test_level": "unit",
+    "tests": [
+        {
+            "test_type": "slink_",
+            "name": "slink_url_encode_simple",
+            "description": "URL-encode a simple command with spaces",
+            "input": {
+                "function": "url_encode",
+                "test_cases": [
+                    {
+                        "scenario": "simple_spaces",
+                        "params": { "input": "look sword" },
+                        "expected": { "output": "look%20sword", "length": 12 }
+                    }
+                ]
+            }
+        },
+        {
+            "test_type": "slink_",
+            "name": "slink_url_encode_special",
+            "description": "URL-encode a command with special characters",
+            "input": {
+                "function": "url_encode",
+                "test_cases": [
+                    {
+                        "scenario": "special_chars",
+                        "params": { "input": "goto 3:1024" },
+                        "expected": { "output": "goto%203%3A1024", "length": 15 }
+                    }
+                ]
+            }
+        },
+        {
+            "test_type": "slink_",
+            "name": "slink_url_encode_passthrough",
+            "description": "URL-encode leaves alphanumerics and safe chars unchanged",
+            "input": {
+                "function": "url_encode",
+                "test_cases": [
+                    {
+                        "scenario": "passthrough",
+                        "params": { "input": "help-fireball_2.0" },
+                        "expected": { "output": "help-fireball_2.0", "length": 17 }
+                    }
+                ]
+            }
+        },
+        {
+            "test_type": "slink_",
+            "name": "slink_queue_add_single",
+            "description": "Add one link to an empty queue",
+            "input": {
+                "function": "queue_add",
+                "test_cases": [
+                    {
+                        "scenario": "single_add",
+                        "params": {
+                            "text": "a steel sword",
+                            "hint": "A sword lies here",
+                            "category": "obj",
+                            "actions": [
+                                { "label": "Look", "cmd": "look sword", "hint": null }
+                            ]
+                        },
+                        "expected": { "id": "lk_0", "count": 1 }
+                    }
+                ]
+            }
+        },
+        {
+            "test_type": "slink_",
+            "name": "slink_queue_json_two_entries",
+            "description": "Build JSON from a queue with two entries",
+            "input": {
+                "function": "queue_json",
+                "test_cases": [
+                    {
+                        "scenario": "two_entries",
+                        "params": {
+                            "entries": [
+                                {
+                                    "text": "sword",
+                                    "hint": "A steel sword",
+                                    "category": "obj",
+                                    "actions": [
+                                        { "label": "Look", "cmd": "look sword", "hint": null },
+                                        { "label": "Get",  "cmd": "get sword",  "hint": null }
+                                    ]
+                                },
+                                {
+                                    "text": "Gandalf",
+                                    "hint": null,
+                                    "category": "player",
+                                    "actions": [
+                                        { "label": "Look", "cmd": "look gandalf", "hint": null }
+                                    ]
+                                }
+                            ]
+                        },
+                        "expected": {
+                            "count": 2,
+                            "first_id": "lk_0",
+                            "first_category": "obj"
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "test_type": "slink_",
+            "name": "slink_queue_json_empty",
+            "description": "Build JSON from an empty queue returns empty array",
+            "input": {
+                "function": "queue_json",
+                "test_cases": [
+                    {
+                        "scenario": "empty_queue",
+                        "params": { "entries": [] },
+                        "expected": { "count": 0 }
+                    }
+                ]
+            }
+        },
+        {
+            "test_type": "slink_",
+            "name": "slink_osc8_gmcp_basic",
+            "description": "OSC 8 GMCP marker wraps text with link ID",
+            "input": {
+                "function": "osc8_gmcp",
+                "test_cases": [
+                    {
+                        "scenario": "basic_marker",
+                        "params": { "link_id": "lk_0", "text": "sword" },
+                        "expected": { "output": "\u001b]8;;lk_0\u0007sword\u001b]8;;\u0007" }
+                    }
+                ]
+            }
+        },
+        {
+            "test_type": "slink_",
+            "name": "slink_osc8_gmcp_null_id",
+            "description": "OSC 8 GMCP with null link_id outputs plain text",
+            "input": {
+                "function": "osc8_gmcp",
+                "test_cases": [
+                    {
+                        "scenario": "null_id_fallback",
+                        "params": { "link_id": null, "text": "sword" },
+                        "expected": { "output": "sword" }
+                    }
+                ]
+            }
+        },
+        {
+            "test_type": "slink_",
+            "name": "slink_osc8_telnet_basic",
+            "description": "OSC 8 telnet hyperlink with mud:// URI",
+            "input": {
+                "function": "osc8_telnet",
+                "test_cases": [
+                    {
+                        "scenario": "basic_hyperlink",
+                        "params": { "cmd": "look sword", "text": "sword" },
+                        "expected": { "output": "\u001b]8;;mud://look%20sword\u0007sword\u001b]8;;\u0007" }
+                    }
+                ]
+            }
+        },
+        {
+            "test_type": "slink_",
+            "name": "slink_filter_staff_player_only",
+            "description": "Non-staff user sees only player actions, staff_only filtered out",
+            "input": {
+                "function": "filter_staff",
+                "test_cases": [
+                    {
+                        "scenario": "non_staff_filters",
+                        "params": {
+                            "is_staff": false,
+                            "items": [
+                                { "cmd": "look sword", "hint": "Look", "staff_only": false },
+                                { "cmd": "examine sword", "hint": "Examine", "staff_only": false },
+                                { "cmd": "stat obj 1 2", "hint": "Stat object", "staff_only": true },
+                                { "cmd": "oedit 1:2", "hint": "Edit index", "staff_only": true }
+                            ]
+                        },
+                        "expected": { "count": 2, "first_cmd": "look sword", "last_cmd": "examine sword" }
+                    }
+                ]
+            }
+        },
+        {
+            "test_type": "slink_",
+            "name": "slink_filter_staff_all_pass",
+            "description": "Staff user sees all actions including staff_only",
+            "input": {
+                "function": "filter_staff",
+                "test_cases": [
+                    {
+                        "scenario": "staff_sees_all",
+                        "params": {
+                            "is_staff": true,
+                            "items": [
+                                { "cmd": "look sword", "hint": "Look", "staff_only": false },
+                                { "cmd": "stat obj 1 2", "hint": "Stat object", "staff_only": true },
+                                { "cmd": "oedit 1:2", "hint": "Edit index", "staff_only": true }
+                            ]
+                        },
+                        "expected": { "count": 3, "first_cmd": "look sword", "last_cmd": "oedit 1:2" }
+                    }
+                ]
+            }
+        },
+        {
+            "test_type": "slink_",
+            "name": "slink_filter_staff_all_filtered",
+            "description": "Non-staff user with only staff_only actions gets zero results",
+            "input": {
+                "function": "filter_staff",
+                "test_cases": [
+                    {
+                        "scenario": "all_filtered_out",
+                        "params": {
+                            "is_staff": false,
+                            "items": [
+                                { "cmd": "stat obj 1 2", "hint": "Stat", "staff_only": true },
+                                { "cmd": "oedit 1:2", "hint": "Edit", "staff_only": true }
+                            ]
+                        },
+                        "expected": { "count": 0 }
+                    }
+                ]
+            }
+        },
+        {
+            "test_type": "slink_",
+            "name": "slink_queue_sequential_ids",
+            "description": "Sequential queue adds produce lk_0, lk_1, lk_2",
+            "input": {
+                "function": "queue_sequential",
+                "test_cases": [
+                    {
+                        "scenario": "three_sequential",
+                        "params": {
+                            "texts": ["sword", "shield", "helm"]
+                        },
+                        "expected": {
+                            "ids": ["lk_0", "lk_1", "lk_2"],
+                            "count": 3
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "test_type": "slink_",
+            "name": "slink_queue_overflow",
+            "description": "Queue rejects entries beyond SENTIENCE_LINK_QUEUE_MAX (256)",
+            "input": {
+                "function": "queue_overflow",
+                "test_cases": [
+                    {
+                        "scenario": "overflow_at_cap",
+                        "params": {},
+                        "expected": { "overflow_returns_null": true }
+                    }
+                ]
+            }
+        }
+    ]
+}

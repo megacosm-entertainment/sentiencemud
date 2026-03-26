@@ -575,6 +575,7 @@ enum entity_type_enum {
     ENT_ILLIST_MIN,
     ENT_ILLIST_MOB_GROUP,
     ENT_ILLIST_VARIABLE,
+    ENT_ILLIST_AURA_STR,
     ENT_ILLIST_SECTIONS,
     ENT_ILLIST_INSTANCES,
     ENT_ILLIST_SPECIALROOMS,
@@ -850,6 +851,7 @@ enum entity_mobile_enum {
     ENTITY_MOB_HOUSE,
     ENTITY_MOB_CARRYING,
     ENTITY_MOB_AFFECTS,
+    ENTITY_MOB_AURAS,
     ENTITY_MOB_TOKENS,
     ENTITY_MOB_MOUNT,
     ENTITY_MOB_RIDER,
@@ -2595,6 +2597,7 @@ DECL_IFC_FUN(ifc_affected);
 DECL_IFC_FUN(ifc_affected2);
 DECL_IFC_FUN(ifc_affectedname);
 DECL_IFC_FUN(ifc_affectedspell);
+DECL_IFC_FUN(ifc_aura);
 DECL_IFC_FUN(ifc_age);
 DECL_IFC_FUN(ifc_align);
 DECL_IFC_FUN(ifc_angle);

@@ -62,6 +62,9 @@
 #include <zlib.h>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
+#include <openssl/bio.h>
+#include <openssl/evp.h>
+#include <openssl/buffer.h>
 #include <libpng/png.h>
 /* VIZZWILDS - support for plogf() and printf_to_char() functions*/
 #include <stdarg.h>
@@ -114,7 +117,25 @@ bool validate_totp_code(const char *key, const char *code)
     time_t current_time = time(NULL);
     char current_totp[MIL];
     char previous_totp[MIL];
+    char normalized_key[MIL];
     char *current_code, *previous_code;
+    bool has_secret_chars = false;
+    size_t normalized_len = 0;
+    const char *original_key = key;
+
+    if (!key || !code)
+        return false;
+
+    if (IS_NULLSTR(key) || IS_NULLSTR(code))
+        return false;
+
+    if (strlen(code) != 6)
+        return false;
+
+    for (const char *p = code; *p; p++) {
+        if (!isdigit((unsigned char)*p))
+            return false;
+    }
     
     // Check if the key is encrypted
     char *plaintext_key = NULL;
@@ -123,12 +144,55 @@ bool validate_totp_code(const char *key, const char *code)
     if (is_encrypted) {
         // Decrypt the key before validation
         plaintext_key = decrypt_string_versioned(key);
-        key = plaintext_key;
+        if (!IS_NULLSTR(plaintext_key)) {
+            key = plaintext_key;
+        } else {
+            if (plaintext_key)
+                free_string(plaintext_key);
+            plaintext_key = NULL;
+            key = original_key;
+        }
     }
+
+    if (!key || key[0] == '\0') {
+        if (is_encrypted && plaintext_key)
+            free_string(plaintext_key);
+        return false;
+    }
+
+    // libcotp does not defensively handle bad secrets; reject malformed inputs here.
+    // Also normalize key format so grouped/lowercase secrets still validate.
+    for (const unsigned char *p = (const unsigned char *)key; *p; p++) {
+        if (isspace(*p) || *p == '-')
+            continue;
+
+        if (!(isalpha(*p) || (*p >= '2' && *p <= '7') || *p == '=')) {
+            if (is_encrypted && plaintext_key)
+                free_string(plaintext_key);
+            return false;
+        }
+
+        if (normalized_len >= sizeof(normalized_key) - 1) {
+            if (is_encrypted && plaintext_key)
+                free_string(plaintext_key);
+            return false;
+        }
+
+        normalized_key[normalized_len++] = isalpha(*p) ? toupper(*p) : *p;
+        has_secret_chars = true;
+    }
+
+    if (!has_secret_chars) {
+        if (is_encrypted && plaintext_key)
+            free_string(plaintext_key);
+        return false;
+    }
+
+    normalized_key[normalized_len] = '\0';
     
     // Get current and previous tokens (30-second window)
-    current_code = get_totp_at(key, current_time, 6, 30, SHA1, &err);
-    previous_code = get_totp_at(key, current_time - 30, 6, 30, SHA1, &err);
+    current_code = get_totp_at(normalized_key, current_time, 6, 30, SHA1, &err);
+    previous_code = get_totp_at(normalized_key, current_time - 30, 6, 30, SHA1, &err);
     
     if (!current_code || !previous_code) {
         if (is_encrypted && plaintext_key)
@@ -137,8 +201,8 @@ bool validate_totp_code(const char *key, const char *code)
     }
     
     // Store the tokens in our buffer
-    sprintf(current_totp, "%s", current_code);
-    sprintf(previous_totp, "%s", previous_code);
+    snprintf(current_totp, sizeof(current_totp), "%s", current_code);
+    snprintf(previous_totp, sizeof(previous_totp), "%s", previous_code);
     
     // Check if the provided code matches either the current or previous token
     bool valid = (!str_cmp(code, current_totp) || !str_cmp(code, previous_totp));
@@ -147,9 +211,9 @@ bool validate_totp_code(const char *key, const char *code)
     // (handling the case where user's clock is slightly ahead)
     if (!valid) {
         char next_totp[MIL];
-        char *next_code = get_totp_at(key, current_time + 30, 6, 30, SHA1, &err);
+        char *next_code = get_totp_at(normalized_key, current_time + 30, 6, 30, SHA1, &err);
         if (next_code) {
-            sprintf(next_totp, "%s", next_code);
+            snprintf(next_totp, sizeof(next_totp), "%s", next_code);
             valid = !str_cmp(code, next_totp);
         }
     }
@@ -318,8 +382,20 @@ void save_qr_code_as_png(QRcode *qrcode, const char *filename, int scale)
     png_write_info(png_ptr, info_ptr);
     
     png_bytep *row_pointers = malloc(sizeof(png_bytep) * width);
+    if (!row_pointers) {
+        png_destroy_write_struct(&png_ptr, &info_ptr);
+        fclose(fp);
+        return;
+    }
     for (int i = 0; i < width; i++) {
         row_pointers[i] = malloc(width * 3);
+        if (!row_pointers[i]) {
+            for (int j = 0; j < i; j++) free(row_pointers[j]);
+            free(row_pointers);
+            png_destroy_write_struct(&png_ptr, &info_ptr);
+            fclose(fp);
+            return;
+        }
     }
     
     for (int y = 0; y < qrcode->width; y++) {
@@ -348,6 +424,156 @@ void save_qr_code_as_png(QRcode *qrcode, const char *filename, int scale)
     
     png_destroy_write_struct(&png_ptr, &info_ptr);
     fclose(fp);
+}
+
+/* ----- In-memory PNG encoding for WebSocket GMCP delivery ----- */
+
+typedef struct {
+    unsigned char *data;
+    size_t size;
+    size_t capacity;
+} png_mem_buffer_t;
+
+static void png_mem_write_callback(png_structp png_ptr, png_bytep data, png_size_t length)
+{
+    png_mem_buffer_t *buf = (png_mem_buffer_t *)png_get_io_ptr(png_ptr);
+    size_t needed = buf->size + length;
+    if (needed > buf->capacity) {
+        size_t new_cap = buf->capacity * 2;
+        if (new_cap < needed) new_cap = needed;
+        unsigned char *tmp = realloc(buf->data, new_cap);
+        if (!tmp) {
+            png_error(png_ptr, "png_mem_write_callback: realloc failed");
+            return;
+        }
+        buf->data = tmp;
+        buf->capacity = new_cap;
+    }
+    memcpy(buf->data + buf->size, data, length);
+    buf->size += length;
+}
+
+static void png_mem_flush_callback(png_structp png_ptr)
+{
+    (void)png_ptr; /* no-op for memory buffers */
+}
+
+/*
+ * encode_qr_code_as_png_base64 — render QR code to an in-memory PNG,
+ * then base64-encode and return as a data URL string.
+ *
+ * Returns malloc'd string "data:image/png;base64,..." or NULL on failure.
+ * Caller must free() the result.
+ */
+char *encode_qr_code_as_png_base64(QRcode *qrcode, int scale)
+{
+    png_structp png_ptr;
+    png_infop info_ptr;
+    png_mem_buffer_t membuf = { NULL, 0, 0 };
+    png_bytep *row_pointers = NULL;
+    int width, y, x, sy, sx;
+    char *result = NULL;
+    static const char prefix[] = "data:image/png;base64,";
+
+    if (!qrcode || scale < 1)
+        return NULL;
+
+    width = qrcode->width * scale;
+
+    png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+    if (!png_ptr) return NULL;
+
+    info_ptr = png_create_info_struct(png_ptr);
+    if (!info_ptr) {
+        png_destroy_write_struct(&png_ptr, NULL);
+        return NULL;
+    }
+
+    if (setjmp(png_jmpbuf(png_ptr))) {
+        /* libpng error jump */
+        for (y = 0; row_pointers && y < width; y++)
+            free(row_pointers[y]);
+        free(row_pointers);
+        free(membuf.data);
+        png_destroy_write_struct(&png_ptr, &info_ptr);
+        return NULL;
+    }
+
+    /* Use memory buffer instead of file */
+    membuf.capacity = 4096;
+    membuf.data = malloc(membuf.capacity);
+    if (!membuf.data) {
+        png_destroy_write_struct(&png_ptr, &info_ptr);
+        return NULL;
+    }
+
+    png_set_write_fn(png_ptr, &membuf, png_mem_write_callback, png_mem_flush_callback);
+
+    png_set_IHDR(png_ptr, info_ptr, width, width, 8, PNG_COLOR_TYPE_RGB,
+                 PNG_INTERLACE_NONE, PNG_COMPRESSION_TYPE_DEFAULT,
+                 PNG_FILTER_TYPE_DEFAULT);
+    png_write_info(png_ptr, info_ptr);
+
+    /* Allocate and populate row data */
+    row_pointers = malloc(sizeof(png_bytep) * width);
+    if (!row_pointers) longjmp(png_jmpbuf(png_ptr), 1);
+
+    memset(row_pointers, 0, sizeof(png_bytep) * width);
+    for (y = 0; y < width; y++) {
+        row_pointers[y] = malloc(width * 3);
+        if (!row_pointers[y]) longjmp(png_jmpbuf(png_ptr), 1);
+    }
+
+    for (y = 0; y < qrcode->width; y++) {
+        for (x = 0; x < qrcode->width; x++) {
+            unsigned char val = (qrcode->data[y * qrcode->width + x] & 1) ? 0 : 255;
+            for (sy = 0; sy < scale; sy++) {
+                for (sx = 0; sx < scale; sx++) {
+                    int ry = y * scale + sy;
+                    int rx = x * scale + sx;
+                    row_pointers[ry][rx * 3]     = val;
+                    row_pointers[ry][rx * 3 + 1] = val;
+                    row_pointers[ry][rx * 3 + 2] = val;
+                }
+            }
+        }
+    }
+
+    png_write_image(png_ptr, row_pointers);
+    png_write_end(png_ptr, NULL);
+
+    /* Cleanup libpng resources */
+    for (y = 0; y < width; y++) free(row_pointers[y]);
+    free(row_pointers);
+    row_pointers = NULL;
+    png_destroy_write_struct(&png_ptr, &info_ptr);
+
+    /* Base64-encode the PNG buffer using OpenSSL BIO */
+    {
+        BIO *b64, *bio;
+        BUF_MEM *bptr;
+
+        b64 = BIO_new(BIO_f_base64());
+        bio = BIO_new(BIO_s_mem());
+        bio = BIO_push(b64, bio);
+        BIO_set_flags(bio, BIO_FLAGS_BASE64_NO_NL);
+        BIO_write(bio, membuf.data, (int)membuf.size);
+        BIO_flush(bio);
+        BIO_get_mem_ptr(bio, &bptr);
+
+        /* Build data URL: prefix + base64 + NUL */
+        result = malloc(strlen(prefix) + bptr->length + 1);
+        if (result) {
+            memcpy(result, prefix, strlen(prefix));
+            memcpy(result + strlen(prefix), bptr->data, bptr->length);
+            result[strlen(prefix) + bptr->length] = '\0';
+        }
+
+        BIO_free_all(bio);
+    }
+
+    free(membuf.data);
+    return result;
 }
 
 /*
@@ -400,7 +626,19 @@ bool setup_mfa_for_char(CHAR_DATA *ch, bool has_email)
         
         // Display QR code in the terminal first
         write_to_buffer(ch->desc, "{WQR Code:{x\n\r", 0);
-        display_qr_code(ch->desc, qr_url);
+        if (ch->desc->conn && ch->desc->conn->type == CONN_TYPE_WEBSOCKET_TLS) {
+            QRcode *qr = QRcode_encodeString(qr_url, 0, QR_ECLEVEL_L, QR_MODE_8, 1);
+            if (qr) {
+                char *data_url = encode_qr_code_as_png_base64(qr, 6);
+                if (data_url) {
+                    sentience_send_auth_qrcode(ch->desc, data_url, qr_url, 0);
+                    free(data_url);
+                }
+                QRcode_free(qr);
+            }
+        } else {
+            display_qr_code(ch->desc, qr_url);
+        }
         write_to_buffer(ch->desc, "\n\r", 0);
         
         // Now display the secret key after the QR code (plaintext for user setup)
@@ -456,7 +694,19 @@ bool setup_mfa_for_account(DESCRIPTOR_DATA *d, bool has_email)
     
     // First display QR code
     write_to_buffer(d, "{WQR Code:{x\n\r", 0);
-    display_qr_code(d, qr_url);
+    if (d->conn && d->conn->type == CONN_TYPE_WEBSOCKET_TLS) {
+        QRcode *qr = QRcode_encodeString(qr_url, 0, QR_ECLEVEL_L, QR_MODE_8, 1);
+        if (qr) {
+            char *data_url = encode_qr_code_as_png_base64(qr, 6);
+            if (data_url) {
+                sentience_send_auth_qrcode(d, data_url, qr_url, 0);
+                free(data_url);
+            }
+            QRcode_free(qr);
+        }
+    } else {
+        display_qr_code(d, qr_url);
+    }
     write_to_buffer(d, "\n\r", 0);
     
     // Then display the secret key after the QR code

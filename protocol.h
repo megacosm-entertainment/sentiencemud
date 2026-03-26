@@ -7,8 +7,12 @@
  purpose, without any conditions, unless such conditions are required by law.
  ******************************************************************************/
 #include <stdbool.h>
+#include <stdint.h>
 #ifndef PROTOCOL_H
 #define PROTOCOL_H
+
+#include "gmcp_sentience.h"
+#include "sentience_link.h"
 
 /******************************************************************************
  Set your MUD_NAME, and change descriptor_t if necessary.
@@ -63,6 +67,7 @@ typedef struct descriptor_data descriptor_t;
 #define SNIPPET_VERSION                8 /* Helpful for debugging */
 
 #define MAX_PROTOCOL_BUFFER            2048
+#define MAX_PROTOCOL_READ_BUFFER       65536 /* Must match WS frame_buffer size */
 #define MAX_VARIABLE_LENGTH            4096
 #define MAX_OUTPUT_BUFFER              127999
 #define MAX_MSSP_BUFFER                4096
@@ -308,6 +313,8 @@ typedef enum
    GMCP_CORE_SUPPORTS_REMOVE,
    GMCP_EXTERNAL_DISCORD_HELLO,
    GMCP_EXTERNAL_DISCORD_GET,
+   GMCP_SENTIENCE_CLIENT_PREFERENCES,
+   GMCP_SENTIENCE_CLIENT_LAYOUT,
    GMCP_RECEIVE_MAX
 } GMCP_RECEIVE;
 
@@ -317,6 +324,7 @@ typedef enum
    
    GMCP_SUPPORT_CHAR,
    GMCP_SUPPORT_ROOM,
+   GMCP_SUPPORT_SENTIENCE,
    GMCP_SUPPORT_MAX
 } GMCP_SUPPORT;
 
@@ -492,6 +500,9 @@ typedef struct
    bool	bGMCPSupport[GMCP_SUPPORT_MAX]; /* The client supports specific modules */
    bool	bGMCPUpdatePackage[GMCP_PACKAGE_MAX]; /* Send these packages to the client. */
    char	*GMCPVariable[GMCP_MAX]; /* The message for each variable */
+   uint32_t              sentience_dirty;     /* Sentience.* dirty bitmask */
+   sentience_gmcp_cache_t sentience_cache;    /* Cached values for dirty tracking */
+   sentience_link_queue_t sentience_link_queue;
    /*************** END GMCP ***************/
 
 } protocol_t;
@@ -840,6 +851,7 @@ extern const char GoAheadStr[];
 extern const char iac_sb_gmcp[];
 extern const char iac_se[];
 extern void SendUpdatedGMCP( descriptor_t *apDescriptor );
+extern void SendGMCPRaw( descriptor_t *apDescriptor, const char *package, const char *json_body );
 extern void UpdateGMCPString( descriptor_t *apDescriptor, GMCP_VARIABLE var, const char *string );
 extern void UpdateGMCPNumber( descriptor_t *apDescriptor, GMCP_VARIABLE var, const long long number );
 /*************** END GMCP ***************/

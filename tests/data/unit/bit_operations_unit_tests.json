@@ -1,0 +1,257 @@
+{
+  "type": "test_suite",
+  "test_suite": "bit_operations_unit_tests",
+  "description": "Unit tests for bitfield manipulation and flag string functions",
+  "version": "1.0",
+  "requires_mud_environment": false,
+  "test_level": "unit",
+  "tests": [
+    {
+      "name": "is_stat_checks",
+      "description": "Validate is_stat() correctly identifies stat vs flag tables",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "is_stat",
+        "test_cases": [
+          {
+            "table_name": "sex_flags",
+            "expected": true
+          },
+          {
+            "table_name": "position_flags",
+            "expected": true
+          },
+          {
+            "table_name": "size_flags",
+            "expected": true
+          },
+          {
+            "table_name": "type_flags",
+            "expected": true
+          },
+          {
+            "table_name": "room_flags",
+            "expected": false
+          },
+          {
+            "table_name": "exit_flags", 
+            "expected": false
+          },
+          {
+            "table_name": "null_table",
+            "expected": false
+          }
+        ]
+      },
+      "expected_output": {
+        "all_cases_pass": true
+      }
+    },
+    {
+      "name": "flag_value_parsing",
+      "description": "Validate flag_value() parses flag names to bit values correctly",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "flag_value",
+        "test_cases": [
+          {
+            "table_name": "type_flags",
+            "argument": "light",
+            "expected": 1
+          },
+          {
+            "table_name": "type_flags",
+            "argument": "scroll",
+            "expected": 2
+          },
+          {
+            "table_name": "type_flags", 
+            "argument": "wand",
+            "expected": 3
+          },
+          {
+            "table_name": "type_flags",
+            "argument": "staff",
+            "expected": 4
+          },
+          {
+            "table_name": "type_flags",
+            "argument": "weapon",
+            "expected": 5
+          },
+          {
+            "table_name": "room_flags",
+            "argument": "dark",
+            "expected": 1
+          },
+          {
+            "table_name": "room_flags",
+            "argument": "dark no_mob",
+            "expected": 5
+          },
+          {
+            "table_name": "type_flags",
+            "argument": "invalid_flag",
+            "expected": -99
+          },
+          {
+            "table_name": "type_flags",
+            "argument": "",
+            "expected": -99
+          },
+          {
+            "table_name": "null_table",
+            "argument": "anything",
+            "expected": -99
+          }
+        ]
+      },
+      "expected_output": {
+        "all_cases_pass": true
+      }
+    },
+    {
+      "name": "flag_string_conversion",
+      "description": "Validate flag_string() converts bit values to flag names correctly",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "flag_string",
+        "test_cases": [
+          {
+            "table_name": "type_flags",
+            "bits": 1,
+            "expected": "light"
+          },
+          {
+            "table_name": "type_flags",
+            "bits": 2,
+            "expected": "scroll"
+          },
+          {
+            "table_name": "type_flags",
+            "bits": 5,
+            "expected": "weapon"
+          },
+          {
+            "table_name": "room_flags",
+            "bits": 1,
+            "expected": "dark"
+          },
+          {
+            "table_name": "room_flags",
+            "bits": 5,
+            "expected": "dark no_mob"
+          },
+          {
+            "table_name": "type_flags",
+            "bits": 999,
+            "expected": "none"
+          },
+          {
+            "table_name": "type_flags",
+            "bits": 0,
+            "expected": "none"
+          },
+          {
+            "table_name": "null_table",
+            "bits": 1,
+            "expected": "none"
+          }
+        ]
+      },
+      "expected_output": {
+        "all_cases_pass": true
+      }
+    },
+    {
+      "name": "flag_string_commas_conversion",
+      "description": "Validate flag_string_commas() converts bit values with comma separators",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "flag_string_commas",
+        "test_cases": [
+          {
+            "table_name": "type_flags",
+            "bits": 1,
+            "expected": " light"
+          },
+          {
+            "table_name": "room_flags",
+            "bits": 5,
+            "expected": " dark, no_mob"
+          },
+          {
+            "table_name": "type_flags",
+            "bits": 0,
+            "expected": "none"
+          },
+          {
+            "table_name": "null_table",
+            "bits": 1,
+            "expected": "none"
+          }
+        ]
+      },
+      "expected_output": {
+        "all_cases_pass": true
+      }
+    },
+    {
+      "name": "affect_loc_name_conversion",
+      "description": "Validate affect_loc_name() converts APPLY_* constants to names",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "affect_loc_name",
+        "test_cases": [
+          {
+            "location": 0,
+            "expected": "none"
+          },
+          {
+            "location": 1,
+            "expected": "strength"
+          },
+          {
+            "location": 2,
+            "expected": "dexterity"
+          },
+          {
+            "location": 3,
+            "expected": "intelligence"
+          },
+          {
+            "location": 4,
+            "expected": "wisdom"
+          },
+          {
+            "location": 5,
+            "expected": "constitution"
+          },
+          {
+            "location": 13,
+            "expected": "hp"
+          },
+          {
+            "location": 18,
+            "expected": "hit roll"
+          },
+          {
+            "location": 19,
+            "expected": "damage roll"
+          },
+          {
+            "location": -1,
+            "expected": "(unknown)"
+          },
+          {
+            "location": 999,
+            "expected": "(unknown)"
+          }
+        ]
+      },
+      "expected_output": {
+        "all_cases_pass": true
+      }
+    }
+  ]
+}

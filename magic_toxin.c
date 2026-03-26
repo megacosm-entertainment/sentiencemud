@@ -17,6 +17,7 @@
 #include "tables.h"
 #include "wilds.h"
 #include "traits.h"
+#include "skill_data.h"
 
 
 SPELL_FUNC(spell_fatigue)
@@ -315,6 +316,7 @@ SPELL_FUNC(spell_toxin_neurotoxin)
     af.where = TO_AFFECTS;
     af.group = AFFGROUP_BIOLOGICAL;
     af.type = skill_resolve_gsn("neurotoxin");
+    af.skill = skill_find_uid(af.type);
     af.level = victim->bitten_level;
     af.duration = number_range(5, 10);
     af.location = APPLY_INT;
@@ -355,6 +357,7 @@ SPELL_FUNC(spell_toxin_paralysis)
     af.where = TO_AFFECTS;
     af.group = AFFGROUP_BIOLOGICAL;
     af.type = skill_lookup("paralysis");
+    af.skill = skill_find_uid(af.type);
     af.level = victim->bitten_level;
     af.duration = 0;
     af.location = APPLY_NONE;
@@ -399,6 +402,7 @@ SPELL_FUNC(spell_toxin_weakness)
         af.where = TO_AFFECTS;
         af.group = AFFGROUP_BIOLOGICAL;
         af.type = skill_resolve_gsn("fatigue");
+        af.skill = skill_find_uid(af.type);
         af.level = level;
         af.duration = URANGE(1, level / 2, 5);
         af.location = APPLY_MOVE;
@@ -415,6 +419,7 @@ SPELL_FUNC(spell_toxin_weakness)
         af.where = TO_AFFECTS;
         af.group = AFFGROUP_BIOLOGICAL;
         af.type = skill_resolve_gsn("weaken");
+        af.skill = skill_find_uid(af.type);
         af.level = level;
         af.duration = URANGE(1, level / 2, 5);
         af.location = APPLY_STR;
@@ -464,6 +469,7 @@ SPELL_FUNC(spell_toxin_venom)
     af.where = TO_AFFECTS;
     af.group = AFFGROUP_BIOLOGICAL;
     af.type = skill_resolve_gsn("sleep");
+    af.skill = skill_find_uid(af.type);
     af.level = level;
     af.duration = number_range(1, 5);
     af.location = APPLY_NONE;

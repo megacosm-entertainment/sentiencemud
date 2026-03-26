@@ -1,0 +1,105 @@
+{
+  "type": "test_suite",
+  "test_suite": "wilderness_system",
+  "description": "Integration tests for wilderness map loading, terrain resolution, and virtual link integrity",
+  "version": "1.0",
+  "requires_mud_environment": true,
+  "test_level": "integration",
+  "tests": [
+    {
+      "name": "wildsys_wilderness_data_loaded",
+      "description": "Validates that wilderness areas are loaded and contain basic data structures after boot",
+      "test_type": "wildsys_data_integrity",
+      "timeout_seconds": 30,
+      "input": {
+        "check_types": ["wilderness_areas_exist", "terrain_data_loaded", "maps_allocated"]
+      },
+      "expected_output": {
+        "success": true,
+        "wilderness_count": ">0",
+        "terrain_count": ">0",
+        "map_data_present": true
+      }
+    },
+    {
+      "name": "wildsys_terrain_type_validation",
+      "description": "Tests terrain type resolution and validates that all terrain tokens map to valid terrain objects",
+      "test_type": "wildsys_terrain_resolution",
+      "timeout_seconds": 30,
+      "input": {
+        "test_coordinate_ranges": true,
+        "validate_terrain_tokens": true,
+        "test_default_terrain": true
+      },
+      "expected_output": {
+        "success": true,
+        "valid_terrain_types": true,
+        "default_terrain_accessible": true
+      }
+    },
+    {
+      "name": "wildsys_coordinate_boundary_checks",
+      "description": "Tests coordinate handling at map boundaries and validates proper bounds checking",
+      "test_type": "wildsys_coordinate_handling",
+      "timeout_seconds": 30,
+      "input": {
+        "test_boundaries": true,
+        "test_negative_coords": true,
+        "test_oversized_coords": true
+      },
+      "expected_output": {
+        "success": true,
+        "boundary_handling_correct": true,
+        "no_out_of_bounds_access": true
+      }
+    },
+    {
+      "name": "wildsys_virtual_link_integrity",
+      "description": "Validates virtual links connect properly and resolve to correct destinations",
+      "test_type": "wildsys_vlink_resolution",
+      "timeout_seconds": 30,
+      "input": {
+        "test_vlink_destinations": true,
+        "test_bidirectional_links": true,
+        "test_link_flags": true
+      },
+      "expected_output": {
+        "success": true,
+        "vlinks_properly_connected": true,
+        "no_broken_vlinks": true
+      }
+    },
+    {
+      "name": "wildsys_map_dimensions_validation",
+      "description": "Tests that map dimensions are correctly stored and accessible",
+      "test_type": "wildsys_map_dimensions",
+      "timeout_seconds": 30,
+      "input": {
+        "validate_map_size_x": true,
+        "validate_map_size_y": true,
+        "test_map_allocation": true
+      },
+      "expected_output": {
+        "success": true,
+        "dimensions_valid": true,
+        "map_properly_allocated": true
+      }
+    },
+    {
+      "name": "wildsys_tile_resolution_consistency",
+      "description": "Tests that base, effective, and runtime tile resolution functions work consistently",
+      "test_type": "wildsys_tile_consistency",
+      "timeout_seconds": 30,
+      "input": {
+        "test_base_tiles": true,
+        "test_effective_tiles": true,
+        "test_runtime_modifications": true
+      },
+      "expected_output": {
+        "success": true,
+        "tile_resolution_consistent": true,
+        "runtime_modifications_work": true
+      }
+    }
+  ]
+}

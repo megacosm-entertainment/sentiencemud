@@ -168,6 +168,39 @@
         "success": true,
         "directories_accessible": true
       }
+    },
+    {
+      "name": "blueprint_data_integrity_comprehensive",
+      "description": "Test comprehensive blueprint data structure integrity and lookup functions",
+      "dependencies": [],
+      "test_type": "blueprint_data_integrity_test",
+      "input": {},
+      "expected_output": {
+        "success": true,
+        "blueprints_validated": true
+      }
+    },
+    {
+      "name": "dungeon_data_integrity_comprehensive", 
+      "description": "Test comprehensive dungeon data structure integrity and lookup functions",
+      "dependencies": [],
+      "test_type": "dungeon_data_integrity_test",
+      "input": {},
+      "expected_output": {
+        "success": true,
+        "dungeons_validated": true
+      }
+    },
+    {
+      "name": "blueprint_section_links_validation",
+      "description": "Test blueprint section links structure and get_section_link function",
+      "dependencies": [],
+      "test_type": "blueprint_section_links_test",
+      "input": {},
+      "expected_output": {
+        "success": true,
+        "links_validated": true
+      }
     }
   ]
 }

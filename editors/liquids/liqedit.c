@@ -699,7 +699,7 @@ LIQEDIT(liqedit_name)
     }
 
     changed = olc_cmd_string(ch, argument, "name", "name <new name>",
-        &liq->name, OLC_STR_DEFAULT, NULL, NULL);
+        &liq->name, OLC_STR_DEFAULT | OLC_STR_UTF8_RESTRICT, NULL, NULL);
     if (!changed)
         return false;
 

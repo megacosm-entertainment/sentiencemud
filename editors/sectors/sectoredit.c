@@ -361,7 +361,7 @@ SECTOREDIT(sectoredit_name)
 
     name = str_dup(sector_name(index));
     changed = olc_cmd_string(ch, argument, "name", "name <text>",
-        &name, OLC_STR_DEFAULT, NULL, NULL);
+        &name, OLC_STR_DEFAULT | OLC_STR_UTF8_RESTRICT, NULL, NULL);
     if (!changed) {
         free_string(name);
         return false;

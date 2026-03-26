@@ -220,12 +220,19 @@ WAYPOINT_DATA *clone_waypoint(WAYPOINT_DATA *waypoint);
 SHIP_ROUTE *new_ship_route();
 void free_ship_route(SHIP_ROUTE *route);
 
+SHIP_SCHEDULE_STOP *new_ship_schedule_stop(void);
+void free_ship_schedule_stop(SHIP_SCHEDULE_STOP *stop);
+
 SHIP_CREW_INDEX_DATA *new_ship_crew_index();
 void free_ship_crew_index(SHIP_CREW_INDEX_DATA *crew);
 
 MOB_REPUTATION_DATA *new_mob_reputation_data();
 MOB_REPUTATION_DATA *copy_mob_reputation_data(MOB_REPUTATION_DATA *src);
 void free_mob_reputation_data(MOB_REPUTATION_DATA *data);
+
+MOB_FACTION_DATA *new_mob_faction_data(void);
+MOB_FACTION_DATA *copy_mob_faction_data(MOB_FACTION_DATA *src);
+void free_mob_faction_data(MOB_FACTION_DATA *data);
 
 AURA_DATA *new_aura_data();
 void free_aura_data(AURA_DATA *aura);

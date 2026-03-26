@@ -12,6 +12,155 @@
 #include "merc.h"
 #include "interp.h"
 #include "traits.h"
+#include "skill_data.h"
+
+static CHAR_DATA *find_ranged_target_in_room(CHAR_DATA *viewer, ROOM_INDEX_DATA *room, char *argument)
+{
+    char arg[MAX_INPUT_LENGTH];
+    CHAR_DATA *rch;
+    int number;
+    int count;
+
+    if (room == NULL || argument == NULL || argument[0] == '\0')
+    return NULL;
+
+    number = number_argument(argument, arg);
+    count = 0;
+
+    for (rch = room->people; rch != NULL; rch = rch->next_in_room)
+    {
+    if (!is_name(arg, rch->name))
+        continue;
+
+    if (viewer != NULL && !can_see(viewer, rch))
+        continue;
+
+    if (++count == number)
+        return rch;
+    }
+
+    return NULL;
+}
+
+static bool projectile_step_room(ROOM_INDEX_DATA **room, int direction)
+{
+    EXIT_DATA *pexit;
+
+    if (room == NULL || *room == NULL)
+        return false;
+
+    if (direction < 0 || direction >= MAX_DIR)
+        return false;
+
+    pexit = (*room)->exit[direction];
+    if (pexit == NULL || IS_SET(pexit->exit_info, EX_CLOSED) || pexit->u1.to_room == NULL)
+        return false;
+
+    *room = pexit->u1.to_room;
+    return true;
+}
+
+typedef enum projectile_trace_result
+{
+    PROJECTILE_TRACE_REACHED = 0,
+    PROJECTILE_TRACE_FELL_SHORT,
+    PROJECTILE_TRACE_BLOCKED
+} PROJECTILE_TRACE_RESULT;
+
+static PROJECTILE_TRACE_RESULT projectile_trace_until_target(
+    CHAR_DATA *ch,
+    ROOM_INDEX_DATA *target_room,
+    int direction,
+    int step_success_chance,
+    const char *travel_echo,
+    ROOM_INDEX_DATA **final_room)
+{
+    ROOM_INDEX_DATA *room;
+
+    if (final_room != NULL)
+        *final_room = ch ? ch->in_room : NULL;
+
+    if (ch == NULL || ch->in_room == NULL || target_room == NULL)
+        return PROJECTILE_TRACE_BLOCKED;
+
+    room = ch->in_room;
+    if (!projectile_step_room(&room, direction))
+    {
+        if (final_room != NULL)
+            *final_room = ch->in_room;
+        return PROJECTILE_TRACE_BLOCKED;
+    }
+
+    while (room != target_room)
+    {
+        if (number_percent() > step_success_chance)
+        {
+            if (final_room != NULL)
+                *final_room = room;
+            return PROJECTILE_TRACE_FELL_SHORT;
+        }
+
+        if (travel_echo != NULL && travel_echo[0] != '\0')
+            room_echo(room, (char *)travel_echo);
+
+        if (!projectile_step_room(&room, direction))
+        {
+            if (final_room != NULL)
+                *final_room = room;
+            return PROJECTILE_TRACE_BLOCKED;
+        }
+    }
+
+    if (final_room != NULL)
+        *final_room = room;
+
+    return PROJECTILE_TRACE_REACHED;
+}
+
+static void projectile_settle_to_room(OBJ_DATA *obj, ROOM_INDEX_DATA *room)
+{
+    obj_from_char(obj);
+    obj_to_room(obj, room);
+}
+
+static void shoot_trace_failure_cleanup(
+    CHAR_DATA *ch,
+    OBJ_DATA *obj,
+    ROOM_INDEX_DATA *target_room,
+    int sn,
+    int beats,
+    bool decay_projectile)
+{
+    char buf[MAX_STRING_LENGTH];
+
+    projectile_settle_to_room(obj, target_room);
+
+    WAIT_STATE(ch,beats);
+
+    if (decay_projectile && --obj->condition <= 0)
+    {
+        sprintf(buf, "%s cracks and breaks into pieces.\n\r", obj->short_descr);
+        buf[0] = UPPER(buf[0]);
+        room_echo(target_room, buf);
+    }
+
+    check_improve(ch, sn, false, 1);
+    if (sn == skill_resolve_gsn("bow") || sn == skill_resolve_gsn("crossbow"))
+        check_improve(ch, skill_resolve_gsn("archery"), false, 1);
+
+    stop_ranged(ch, false);
+}
+
+static void throw_trace_failure_cleanup(
+    CHAR_DATA *ch,
+    OBJ_DATA *obj,
+    ROOM_INDEX_DATA *target_room,
+    ROOM_INDEX_DATA *in_room)
+{
+    projectile_settle_to_room(obj, target_room);
+    p_give_trigger(NULL, obj, NULL, ch, obj, TRIG_THROW);
+    p_give_trigger(NULL, NULL, in_room, ch, obj, TRIG_THROW);
+}
 
 
 void do_shoot( CHAR_DATA *ch, char *argument )
@@ -283,6 +432,7 @@ void ranged_end( CHAR_DATA *ch )
     int sn, beats;
     int dam;
     int dt;
+    PROJECTILE_TRACE_RESULT trace_result;
 
     bow = ch->projectile_weapon;
     obj = ch->projectile;
@@ -333,7 +483,7 @@ void ranged_end( CHAR_DATA *ch )
     case RANGED_WEAPON_BLOWGUN:		sn = skill_resolve_gsn("blowgun"); break;
     }
     skill = get_skill(ch, sn);
-    beats = skill_table[sn].beats;
+    { SKILL_DATA *_sk = skill_find_uid(sn); beats = _sk ? _sk->beats : 12; }
     // @@@NIB : 20070128 ----------
 
     sprintf( buf, "%s gets %d%% from skill, ", ch->name, skill );
@@ -452,58 +602,38 @@ void ranged_end( CHAR_DATA *ch )
     sprintf( buf, "{Y$n fires $p %swards.{x", dir_name[direction] );
     act( buf, ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
-    target_room = ch->in_room->exit[direction]->u1.to_room;
-
     sprintf( buf, "{W%s flies across the room %swards.{x\n\r",
         obj->short_descr,
     dir_name[direction] );
     buf[2] = UPPER( buf[2] );
 
     skill = UMIN(skill, 96);
-    /* send the arrow on its course
-       we know the victim is on the path since it was searched above
-       test skill in each room */
-    while (1)
-    {
-    if ( target_room == victim->in_room )
-        break;
+    trace_result = projectile_trace_until_target(
+        ch,
+        victim->in_room,
+        direction,
+        skill + get_curr_stat(ch, STAT_DEX) / 10,
+        buf,
+        &target_room);
 
-    // It fell down
-    if ( number_percent() > (skill + get_curr_stat(ch, STAT_DEX) / 10))
+    if (trace_result == PROJECTILE_TRACE_FELL_SHORT)
     {
         send_to_char( "Your shot fell short of its target.\n\r", ch );
         sprintf( buf, "{Y%s flies in from the %s and hits the ground.{x\n\r",
         obj->short_descr,
         dir_name[rev_dir[direction]] );
         buf[2] = UPPER( buf[2] );
-        obj_from_char( obj );
-        obj_to_room( obj, target_room );
         room_echo( target_room, buf );
 
-        // @@@NIB : 20070128 --------------
-        WAIT_STATE(ch,beats);
-        // @@@NIB : 20070128 --------------
-
-        // Decay arrows
-        if ( --obj->condition <= 0 )
-        {
-        sprintf( buf, "%s cracks and breaks into pieces.\n\r",
-            obj->short_descr );
-        buf[0] = UPPER( buf[0] );
-        room_echo( target_room, buf );
-        }
-
-        // @@@NIB : 20070128 --------------
-        check_improve( ch, sn, false, 1 );
-        if(sn == skill_resolve_gsn("bow") || sn == skill_resolve_gsn("crossbow"))
-        check_improve( ch, skill_resolve_gsn("archery"), false, 1 );
-        // @@@NIB : 20070128 --------------
-        stop_ranged( ch, false );
+        shoot_trace_failure_cleanup(ch, obj, target_room, sn, beats, true);
         return;
     }
 
-    room_echo( target_room, buf );
-    target_room = target_room->exit[direction]->u1.to_room;
+    if (trace_result == PROJECTILE_TRACE_BLOCKED)
+    {
+        send_to_char( "Your shot lost its path before reaching the target.\n\r", ch );
+        shoot_trace_failure_cleanup(ch, obj, target_room, sn, beats, false);
+        return;
     }
 
     // OK, arrow is in the victims room, generate messages.
@@ -564,7 +694,7 @@ void ranged_end( CHAR_DATA *ch )
     }
 
     // Does shield stop it?
-    if ( ( shield = get_eq_char(ch, WEAR_SHIELD)) == NULL
+    if ( ( shield = get_eq_char(victim, WEAR_SHIELD)) == NULL
     || !check_shield_block_projectile( ch, victim, obj->short_descr, obj ) )
     {
     damage( ch, victim, dam, skill_resolve_gsn("archery"), dt, true );
@@ -613,40 +743,26 @@ void ranged_end( CHAR_DATA *ch )
 CHAR_DATA *search_dir_name( CHAR_DATA *ch, char *argument, int direction, int range )
 {
     CHAR_DATA *victim = NULL;
-    ROOM_INDEX_DATA *in_room = ch->in_room;
     ROOM_INDEX_DATA *search_room = ch->in_room;
-    EXIT_DATA *pexit;
     int irange;
 
-    if ( direction < 0 || direction > 9 )
-    return NULL;
+    if ( direction < 0 || direction >= MAX_DIR )
+        return NULL;
 
     if ( argument == NULL || argument[0] == '\0' )
-    return NULL;
+        return NULL;
 
     for ( irange = 1; irange <= range; irange++ )
     {
-    if ( ( pexit = search_room->exit[direction] ) == NULL )
-        break;
+        if (!projectile_step_room(&search_room, direction))
+            break;
 
-    if ( ( search_room = pexit->u1.to_room ) == NULL )
-        break;
-
-    if ( IS_SET( pexit->exit_info, EX_CLOSED ) )
-        break;
-
-    char_from_room( ch );
-    char_to_room( ch, search_room );
-
-    if ( ( victim = get_char_room( ch, NULL, argument ) ) != NULL )
-        break;
+        if ( ( victim = find_ranged_target_in_room( ch, search_room, argument ) ) != NULL )
+            break;
     }
 
-    char_from_room( ch );
-    char_to_room( ch, in_room );
-
     if (victim != NULL && victim->position == POS_FEIGN)
-    return NULL;
+        return NULL;
 
     return victim;
 }
@@ -659,12 +775,10 @@ CHAR_DATA *search_dir_name( CHAR_DATA *ch, char *argument, int direction, int ra
 int get_distance( CHAR_DATA *ch, char *argument, int direction, int range )
 {
     CHAR_DATA *victim = NULL;
-    ROOM_INDEX_DATA *in_room = ch->in_room;
     ROOM_INDEX_DATA *search_room = ch->in_room;
-    EXIT_DATA *pexit;
     int irange;
 
-    if ( direction < 0 || direction > 5 )
+    if ( direction < 0 || direction >= MAX_DIR )
     return 0;
 
     if ( argument == NULL || argument[0] == '\0' )
@@ -672,24 +786,12 @@ int get_distance( CHAR_DATA *ch, char *argument, int direction, int range )
 
     for ( irange = 1; irange <= range; irange++ )
     {
-    if ( ( pexit = search_room->exit[direction] ) == NULL )
-        break;
+        if (!projectile_step_room(&search_room, direction))
+            break;
 
-    if ( ( search_room = pexit->u1.to_room ) == NULL )
-        break;
-
-    if ( IS_SET( pexit->exit_info, EX_CLOSED ) )
-        break;
-
-    char_from_room( ch );
-    char_to_room( ch, search_room );
-
-    if ( ( victim = get_char_room( ch, NULL, argument ) ) != NULL )
-        break;
+        if ( ( victim = find_ranged_target_in_room( ch, search_room, argument ) ) != NULL )
+            break;
     }
-
-    char_from_room( ch );
-    char_to_room( ch, in_room );
     return irange;
 }
 
@@ -711,6 +813,7 @@ void do_throw( CHAR_DATA *ch, char *argument )
     int dam;
     int ii;
     bool found = false;
+    PROJECTILE_TRACE_RESULT trace_result;
 
     argument = one_argument( argument, arg1 );
     argument = one_argument( argument, arg2 );
@@ -719,83 +822,83 @@ void do_throw( CHAR_DATA *ch, char *argument )
     if ( IS_SET(ch->in_room->room_flag[0], ROOM_SAFE ) )
     {
         send_to_char("You cannot use ranged weapons from safe rooms.\n\r", ch );
-    return;
+        return;
     }
 
     if ( arg1[0] == '\0' )
     {
-    send_to_char("Syntax: throw <weapon> <target> [direction]\n\r"
-             "        throw <smoke bomb>\n\r", ch );
-    return;
+        send_to_char("Syntax: throw <weapon> <target> [direction]\n\r"
+                 "        throw <smoke bomb>\n\r", ch );
+        return;
     }
 
     obj = get_obj_carry( ch, arg1, ch );
 
     if ( obj == NULL )
     {
-    send_to_char("You don't see that in your inventory.\n\r", ch );
-    return;
+        send_to_char("You don't see that in your inventory.\n\r", ch );
+        return;
     }
 
     if ( obj->item_type != ITEM_WEAPON
     && obj->item_type != ITEM_SMOKE_BOMB )
     {
-    send_to_char("That doesn't look too throwable.\n\r" , ch );
-    return;
+        send_to_char("That doesn't look too throwable.\n\r" , ch );
+        return;
     }
 
     if (!can_drop_obj(ch, obj, true) || IS_SET(obj->extra[1], ITEM_KEPT)) {
-    send_to_char("You can't let go of it.\n\r", ch);
-    return;
+        send_to_char("You can't let go of it.\n\r", ch);
+        return;
     }
 
     if ( arg2[0] == '\0' )
     {
-    if ( obj != NULL && obj->item_type == ITEM_SMOKE_BOMB )
-    {
-        act("{YYou throw down $p and it explodes into a cloud of noxious "
-        "smoke!{x", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL );
-        act("{Y$n throws $p down and it explodes into a cloud of noxious "
-        "smoke!{x", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM, NULL, NULL );
-        act("{YYou choke and gag as the fumes begin to take effect!",
-        ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ALL, NULL, NULL );
+        if ( obj != NULL && obj->item_type == ITEM_SMOKE_BOMB )
+        {
+            act("{YYou throw down $p and it explodes into a cloud of noxious "
+            "smoke!{x", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL );
+            act("{Y$n throws $p down and it explodes into a cloud of noxious "
+            "smoke!{x", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM, NULL, NULL );
+            act("{YYou choke and gag as the fumes begin to take effect!",
+            ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ALL, NULL, NULL );
 
-    if ( get_reserved_obj_index("obj_cloud_stinking") == NULL )
-        {
-        pbugf(LOG_ERROR, "stinking cloud had null index!\n\r");
-        return;
-        }
+            if ( get_reserved_obj_index("obj_cloud_stinking") == NULL )
+            {
+                pbugf(LOG_ERROR, "stinking cloud had null index!\n\r");
+                return;
+            }
 
-        for ( cloud = ch->in_room->contents; cloud != NULL;
-              cloud = cloud->next_content )
-        {
-        if ( cloud->item_type == ITEM_STINKING_CLOUD )
-        {
-            found = true;
-            break;
-        }
-        }
+            for ( cloud = ch->in_room->contents; cloud != NULL;
+                  cloud = cloud->next_content )
+            {
+                if ( cloud->item_type == ITEM_STINKING_CLOUD )
+                {
+                    found = true;
+                    break;
+                }
+            }
 
-        if ( !found )
-        {
-        cloud = create_object( get_reserved_obj_index("obj_cloud_stinking"),
-            0, true );
-        cloud->timer = 4;
-        obj_to_room( cloud, ch->in_room );
+            if ( !found )
+            {
+                cloud = create_object( get_reserved_obj_index("obj_cloud_stinking"),
+                    0, true );
+                cloud->timer = 4;
+                obj_to_room( cloud, ch->in_room );
+            }
+            else
+                cloud->timer += 4;
+
+            cloud->level = obj->level;
+            extract_obj( obj );
+
+            check_improve( ch, skill_resolve_gsn("throw"), true, 1 );
         }
         else
-        cloud->timer += 4;
-
-        cloud->level = obj->level;
-        extract_obj( obj );
-
-        check_improve( ch, skill_resolve_gsn("throw"), true, 1 );
-    }
-    else
-    {
-        send_to_char("Syntax: throw <weapon> <target>\n\r"
-                 "        throw <smoke bomb>", ch );
-    }
+        {
+            send_to_char("Syntax: throw <weapon> <target>\n\r"
+                     "        throw <smoke bomb>", ch );
+        }
 
         return;
     }
@@ -836,7 +939,9 @@ void do_throw( CHAR_DATA *ch, char *argument )
     if ( is_safe( ch, victim, true ) )
     return;
 
-    WAIT_STATE( ch, skill_table[skill_resolve_gsn("throw")].beats );
+    { SKILL_DATA *_sk = skill_find("throw");
+    WAIT_STATE( ch, (_sk ? _sk->beats : 12) );
+    }
 
     /* we have a victim and a dir.  start the missile off. */
     skill = get_skill(ch, skill_resolve_gsn("throw"));
@@ -894,35 +999,33 @@ void do_throw( CHAR_DATA *ch, char *argument )
     sprintf( buf, "{Y$n throw $s $p{Y %swards.{x", dir_name[dir] );
     act( buf, ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
-    target_room = ch->in_room->exit[dir]->u1.to_room;
-
     sprintf( buf, "{W$p flies across the room %swards.{x\n\r", dir_name[dir] );
 
-    /* send the obj on it's course */
-    /* we know the victim is on the path since it was searched above */
-    /* test skill in each room */
-    while ( 1 )
-    {
-        if ( target_room == victim->in_room )
-        break;
+    trace_result = projectile_trace_until_target(
+        ch,
+        victim->in_room,
+        dir,
+        skill + get_curr_stat( ch, STAT_DEX )/5,
+        buf,
+        &target_room);
 
-        if ( number_percent() > (skill + get_curr_stat( ch, STAT_DEX )/5) )
-        {
+    if (trace_result == PROJECTILE_TRACE_FELL_SHORT)
+    {
         send_to_char( "Your throw fell short of its target.\n\r", ch );
         act( "{W$p flies in from the $T and skitters along the ground.{x",
             ch, NULL, NULL, obj, NULL, NULL, dir_name[rev_dir[dir]], TO_ROOM, NULL, NULL);
 
-        obj_from_char( obj );
-        obj_to_room( obj, target_room );
-
-            p_give_trigger( NULL, obj, NULL, ch, obj, TRIG_THROW );
-            p_give_trigger( NULL, NULL, in_room, ch, obj, TRIG_THROW );
+        throw_trace_failure_cleanup(ch, obj, target_room, in_room);
 
         return;
-        }
+    }
 
-        target_room = ch->in_room->exit[dir]->u1.to_room;
-        room_echo( target_room, buf );
+    if (trace_result == PROJECTILE_TRACE_BLOCKED)
+    {
+        send_to_char( "Your throw lost its path before reaching the target.\n\r", ch );
+        throw_trace_failure_cleanup(ch, obj, target_room, in_room);
+
+        return;
     }
 
     if ( str_cmp( dir_name[rev_dir[dir]], "up" )

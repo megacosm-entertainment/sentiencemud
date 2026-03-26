@@ -62,6 +62,8 @@
 #include "traits.h"
 #include "class_data.h"
 #include "io/json/json_olc.h"
+#include "connection.h"
+#include "skill_data.h"
 
 extern void persist_save(void);
 extern char *token_index_getvaluename(TOKEN_INDEX_DATA *token, int v);
@@ -153,7 +155,8 @@ static void wiz_append_room_location_link(CHAR_DATA *ch, BUFFER *buffer, ROOM_IN
         return;
     }
 
-    mxp_room_link(ch->desc, buffer, room, widevnum_string_room(room, NULL));
+    mxp_room_link(ch->desc, buffer, room,
+        formatf("%s %s", widevnum_string_room(room, NULL), room->name));
 }
 
 static const char *quest_runtime_status_name(int status)
@@ -1549,7 +1552,7 @@ void do_wiznet(CHAR_DATA *ch, char *argument)
  * @param flag_skip  Wiznet flag that blocks receiving message
  * @param min_level  Minimum staff rank required to see message
  */
-void wiznet(char *string, CHAR_DATA *ch, OBJ_DATA *obj,
+void wiznet(const char *string, CHAR_DATA *ch, OBJ_DATA *obj,
         long flag, long flag_skip, int min_level)
 {
     DESCRIPTOR_DATA *d;
@@ -1598,6 +1601,46 @@ void wiznet(char *string, CHAR_DATA *ch, OBJ_DATA *obj,
             act_new(string,d->character,ch,NULL,NULL,NULL,obj,NULL,NULL,NULL,TO_CHAR,POS_DEAD,NULL);
         }
     }
+}
+
+static void emit_staff_wiz_event(const char *plain_message,
+                                 const char *staff_message,
+                                 CHAR_DATA *actor,
+                                 OBJ_DATA *wiz_obj,
+                                 long wiz_flag,
+                                 long wiz_skip,
+                                 int wiz_min_rank,
+                                 const char *action,
+                                 const char *category)
+{
+    log_context_t ctx = {0};
+    const log_context_t *ctx_ptr = NULL;
+
+    if (actor) {
+        ctx.actor_type = IS_NPC(actor) ? "npc" : "player";
+        ctx.actor_name = IS_NPC(actor) ? actor->short_descr : actor->name;
+        ctx.actor_uid[0] = actor->id[0];
+        ctx.actor_uid[1] = actor->id[1];
+        ctx.actor_wnum = (IS_NPC(actor) && actor->pIndexData)
+                       ? widevnum_string_mobile(actor->pIndexData, NULL) : NULL;
+        ctx.action = action;
+        ctx_ptr = &ctx;
+    }
+
+    log_event_t ev = {
+        .severity = EVENT_SEV_INFO,
+        .category = category ? category : LOG_ADMIN,
+        .plain_message = plain_message ? plain_message : "staff_wiznet_event",
+        .staff_message = staff_message,
+        .wiznet_flag = wiz_flag,
+        .wiznet_skip_flag = wiz_skip,
+        .wiznet_min_rank = wiz_min_rank,
+        .wiznet_obj = wiz_obj,
+        .context = ctx_ptr,
+        .source_file = __FILE__, .source_line = __LINE__, .source_func = __func__,
+    };
+
+    log_emit_event(&ev, actor);
 }
 
 
@@ -1650,7 +1693,8 @@ void do_zot(CHAR_DATA *ch, char *argument)
         sprintf(buf, "%s zotted %s!",
             ch->name,
             IS_NPC(victim) ? victim->short_descr : victim->name);
-        wiznet(buf, NULL, NULL, WIZ_IMMLOG, 0, 0);
+        emit_staff_wiz_event(buf, buf, NULL, NULL, WIZ_IMMLOG, 0, 0,
+                     "zot", LOG_ADMIN);
 
         plog(LOG_ADMIN, buf);
         }
@@ -1695,7 +1739,8 @@ void do_zot(CHAR_DATA *ch, char *argument)
     sprintf(buf, "%s zotted %s!",
         ch->name,
     IS_NPC(victim) ? victim->short_descr : victim->name);
-    wiznet(buf, NULL, NULL, WIZ_IMMLOG, 0, 0);
+    emit_staff_wiz_event(buf, buf, NULL, NULL, WIZ_IMMLOG, 0, 0,
+                         "zot", LOG_ADMIN);
 
     plog(LOG_ADMIN, buf);
 }
@@ -1742,7 +1787,8 @@ void do_nochannels(CHAR_DATA *ch, char *argument)
               victim);
         send_to_char("NOCHANNELS removed.\n\r", ch);
     sprintf(buf,"$N restores channels to %s",victim->name);
-    wiznet(buf,ch,NULL,WIZ_PENALTIES,WIZ_SECURE,0);
+    emit_staff_wiz_event(buf, buf, ch, NULL, WIZ_PENALTIES, WIZ_SECURE, 0,
+                         "nochannels", LOG_SECURITY);
     }
     else
     {
@@ -1751,7 +1797,8 @@ void do_nochannels(CHAR_DATA *ch, char *argument)
                victim);
         send_to_char("NOCHANNELS set.\n\r", ch);
     sprintf(buf,"$N revokes %s's channels.",victim->name);
-    wiznet(buf,ch,NULL,WIZ_PENALTIES,WIZ_SECURE,0);
+    emit_staff_wiz_event(buf, buf, ch, NULL, WIZ_PENALTIES, WIZ_SECURE, 0,
+                         "nochannels", LOG_SECURITY);
     }
 }
 
@@ -1876,7 +1923,8 @@ void do_deny(CHAR_DATA *ch, char *argument)
     SET_BIT(victim->act[0], PLR_DENY);
     send_to_char("You are denied access!\n\r", victim);
     sprintf(buf,"$N denies access to %s",victim->name);
-    wiznet(buf,ch,NULL,WIZ_PENALTIES,WIZ_SECURE,0);
+    emit_staff_wiz_event(buf, buf, ch, NULL, WIZ_PENALTIES, WIZ_SECURE, 0,
+                         "deny", LOG_SECURITY);
     act("Denied access to $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
     save_char_obj(victim);
     stop_fighting(victim,true);
@@ -4157,6 +4205,40 @@ void do_mstat(CHAR_DATA *ch, char *argument)
         send_to_char(buf, ch);
     }
 
+    if (!IS_NPC(victim) && victim->desc != NULL)
+    {
+        protocol_t *proto = victim->desc->pProtocol;
+        const char *conn_type = victim->desc->conn
+            ? connection_get_protocol_name(victim->desc->conn)
+            : "telnet";
+
+        sprintf(buf,
+            "{BProtocol:{x %s  "
+            "{BUTF-8:{x %s  "
+            "{BANSI:{x %s  "
+            "{B256-color:{x %s  "
+            "{BGMCP:{x %s  "
+            "{BMSDP:{x %s  "
+            "{BMCCP:{x %s  "
+            "{BCHARSET:{x %s\n\r",
+            conn_type,
+            (proto && proto->pVariables[eMSDP_UTF_8]->ValueInt)       ? "{Gyes{x" : "{Rno{x",
+            (proto && proto->pVariables[eMSDP_ANSI_COLORS]->ValueInt) ? "{Gyes{x" : "{Rno{x",
+            (proto && proto->pVariables[eMSDP_XTERM_256_COLORS]->ValueInt) ? "{Gyes{x" : "{Rno{x",
+            (proto && proto->bGMCP)    ? "{Gyes{x" : "{Rno{x",
+            (proto && proto->bMSDP)    ? "{Gyes{x" : "{Rno{x",
+            (proto && proto->bMCCP)    ? "{Gyes{x" : "{Rno{x",
+            (proto && proto->bCHARSET) ? "{Gyes{x" : "{Rno{x");
+        send_to_char(buf, ch);
+
+        if (proto && proto->bNAWS)
+        {
+            sprintf(buf, "{BScreen:{x %dx%d (NAWS)\n\r",
+                proto->ScreenWidth, proto->ScreenHeight);
+            send_to_char(buf, ch);
+        }
+    }
+
     if (IS_NPC(victim))
     {
         sprintf(buf, "{BShort description:{x %s\n\r{BLong description:{x %s",
@@ -4206,7 +4288,7 @@ void do_mstat(CHAR_DATA *ch, char *argument)
     {
         sprintf(buf, "{C* {BLevel {W%3d {Baffect {x%-20.20s{B modifies {x%-12s{B by {x%2d{B for {x%2d{B hours with bits {x%s{B on slot {x%s\n\r",
                      paf->level,
-                     skill_table[(int) paf->type].name,
+                     skill_name(skill_find_uid(paf->type)),
                      affect_loc_name(paf->location),
                      paf->modifier,
                      paf->duration,
@@ -5807,8 +5889,10 @@ void do_snoop(CHAR_DATA *ch, char *argument)
     if (victim == ch)
     {
     send_to_char("Cancelling all snoops.\n\r", ch);
-    wiznet("$N stops being such a snoop.",
-        ch,NULL,WIZ_SNOOPS,WIZ_SECURE,get_staff_rank(ch));
+    emit_staff_wiz_event("$N stops being such a snoop.",
+                         "$N stops being such a snoop.",
+                         ch, NULL, WIZ_SNOOPS, WIZ_SECURE, get_staff_rank(ch),
+                         "snoop", LOG_ADMIN);
     for (d = descriptor_list; d != NULL; d = d->next)
     {
         if (d->snoop_by == ch->desc)
@@ -5851,7 +5935,8 @@ void do_snoop(CHAR_DATA *ch, char *argument)
     victim->desc->snoop_by = ch->desc;
     sprintf(buf,"$N starts snooping on %s",
     (IS_NPC(ch) ? victim->short_descr : victim->name));
-    wiznet(buf,ch,NULL,WIZ_SNOOPS,WIZ_SECURE,get_staff_rank(ch));
+    emit_staff_wiz_event(buf, buf, ch, NULL, WIZ_SNOOPS, WIZ_SECURE,
+                         get_staff_rank(ch), "snoop", LOG_ADMIN);
     act("Now snooping $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 }
 
@@ -5926,7 +6011,8 @@ void do_switch(CHAR_DATA *ch, char *argument)
     }
 
     sprintf(buf,"$N switches into %s",victim->short_descr);
-    wiznet(buf,ch,NULL,WIZ_SWITCHES,WIZ_SECURE,get_staff_rank(ch));
+    emit_staff_wiz_event(buf, buf, ch, NULL, WIZ_SWITCHES, WIZ_SECURE,
+                         get_staff_rank(ch), "switch", LOG_ADMIN);
 
     ch->desc->character = victim;
     ch->desc->original  = ch;
@@ -5980,7 +6066,10 @@ void do_return(CHAR_DATA *ch, char *argument)
     if (IS_IMMORTAL(ch))
     {
         sprintf(buf,"$N returns from %s.",ch->short_descr);
-        wiznet(buf,ch->desc->original,0,WIZ_SWITCHES,WIZ_SECURE,get_staff_rank(ch->desc->original));
+        emit_staff_wiz_event(buf, buf, ch->desc->original, NULL,
+                     WIZ_SWITCHES, WIZ_SECURE,
+                     get_staff_rank(ch->desc->original),
+                     "return", LOG_ADMIN);
     }
 
     REMOVE_BIT(ch->act[0], PLR_COLOUR);
@@ -6092,7 +6181,9 @@ void do_clone(CHAR_DATA *ch, char *argument)
 
         act("$n has created $p.", ch, NULL, NULL, clone, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
         act("You clone $p.", ch, NULL, NULL, clone, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-        wiznet("$N clones $p.", ch, clone, WIZ_LOAD, WIZ_SECURE, get_staff_rank(ch));
+        emit_staff_wiz_event("$N clones $p.", "$N clones $p.", ch, clone,
+                     WIZ_LOAD, WIZ_SECURE, get_staff_rank(ch),
+                     "clone", LOG_ADMIN);
         return;
     }
     else if (mob != NULL)
@@ -6126,7 +6217,8 @@ void do_clone(CHAR_DATA *ch, char *argument)
         act("$n has created $N.", ch, clone, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
         act("You clone $N.", ch, clone, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
         sprintf(buf, "$N clones %s.", clone->short_descr);
-        wiznet(buf, ch, NULL, WIZ_LOAD, WIZ_SECURE, get_staff_rank(ch));
+        emit_staff_wiz_event(buf, buf, ch, NULL, WIZ_LOAD, WIZ_SECURE,
+                     get_staff_rank(ch), "clone", LOG_ADMIN);
         return;
     }
 }
@@ -6283,7 +6375,8 @@ void do_mload(CHAR_DATA *ch, char *argument)
         act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
         act("$n has created $N!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
         sprintf(buf,"$N loads %s.", victim->short_descr);
-        wiznet(buf, ch, NULL, WIZ_LOAD, WIZ_SECURE, get_staff_rank(ch));
+        emit_staff_wiz_event(buf, buf, ch, NULL, WIZ_LOAD, WIZ_SECURE,
+                     get_staff_rank(ch), "mload", LOG_ADMIN);
     }
     else
     {
@@ -6309,7 +6402,8 @@ void do_mload(CHAR_DATA *ch, char *argument)
 
         sprintf(buf, "{Y({G%d{Y){x $N loads %s.",
             amt, pMobIndex->short_descr);
-        wiznet(buf, ch, NULL, WIZ_LOAD, WIZ_SECURE, get_staff_rank(ch));
+        emit_staff_wiz_event(buf, buf, ch, NULL, WIZ_LOAD, WIZ_SECURE,
+                     get_staff_rank(ch), "mload", LOG_ADMIN);
     }
 }
 
@@ -6420,7 +6514,9 @@ void do_oload(CHAR_DATA *ch, char *argument)
         act("$n has created $p!", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
         sprintf(buf, "Loaded $p (%s)", widevnum_string_object(obj->pIndexData, NULL));
         act(buf, ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-        wiznet("$N loads $p.",ch,obj,WIZ_LOAD,WIZ_SECURE,get_staff_rank(ch));
+        emit_staff_wiz_event("$N loads $p.", "$N loads $p.", ch, obj,
+                     WIZ_LOAD, WIZ_SECURE, get_staff_rank(ch),
+                     "oload", LOG_ADMIN);
 
         obj->loaded_by = str_dup(ch->name);
 
@@ -6454,7 +6550,8 @@ void do_oload(CHAR_DATA *ch, char *argument)
             amt, pObjIndex->short_descr, widevnum_string_object(pObjIndex, NULL));
         act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
         sprintf(buf, "{Y({G%d{Y){x $N loads %s.", amt, pObjIndex->short_descr);
-        wiznet(buf, ch, NULL, WIZ_LOAD, WIZ_SECURE, get_staff_rank(ch));
+        emit_staff_wiz_event(buf, buf, ch, NULL, WIZ_LOAD, WIZ_SECURE,
+                     get_staff_rank(ch), "oload", LOG_ADMIN);
     }
 }
 
@@ -6967,7 +7064,8 @@ void do_restore(CHAR_DATA *ch, char *argument)
 
 
         sprintf(buf, "$N restored room %s.", widevnum_string_room(ch->in_room, NULL));
-        wiznet(buf, ch, NULL, WIZ_RESTORE, WIZ_SECURE, get_staff_rank(ch));
+        emit_staff_wiz_event(buf, buf, ch, NULL, WIZ_RESTORE, WIZ_SECURE,
+                     get_staff_rank(ch), "restore", LOG_ADMIN);
 
         send_to_char("Room restored.\n\r",ch);
         return;
@@ -7000,7 +7098,8 @@ void do_restore(CHAR_DATA *ch, char *argument)
     act("Restored $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 
     sprintf(buf, "$N restored %s.", IS_NPC(victim) ? victim->short_descr : victim->name);
-    wiznet(buf,ch,NULL,WIZ_RESTORE,WIZ_SECURE,get_staff_rank(ch));
+    emit_staff_wiz_event(buf, buf, ch, NULL, WIZ_RESTORE, WIZ_SECURE,
+                         get_staff_rank(ch), "restore", LOG_ADMIN);
 
 
 }
@@ -7052,7 +7151,8 @@ void do_freeze(CHAR_DATA *ch, char *argument)
     send_to_char("You can play again.\n\r", victim);
     send_to_char("FREEZE removed.\n\r", ch);
     sprintf(buf,"$N thaws %s.",victim->name);
-    wiznet(buf,ch,NULL,WIZ_PENALTIES,WIZ_SECURE,0);
+    emit_staff_wiz_event(buf, buf, ch, NULL, WIZ_PENALTIES, WIZ_SECURE, 0,
+                         "freeze", LOG_SECURITY);
     }
     else
     {
@@ -7060,7 +7160,8 @@ void do_freeze(CHAR_DATA *ch, char *argument)
     send_to_char("You can't do ANYthing!\n\r", victim);
     send_to_char("FREEZE set.\n\r", ch);
     sprintf(buf,"$N puts %s in the deep freeze.",victim->name);
-    wiznet(buf,ch,NULL,WIZ_PENALTIES,WIZ_SECURE,0);
+    emit_staff_wiz_event(buf, buf, ch, NULL, WIZ_PENALTIES, WIZ_SECURE, 0,
+                         "freeze", LOG_SECURITY);
     }
 
     save_char_obj(victim);
@@ -7186,7 +7287,8 @@ void do_notell(CHAR_DATA *ch, char *argument)
     send_to_char("You can tell again.\n\r", victim);
     send_to_char("NOTELL removed.\n\r", ch);
     sprintf(buf,"$N restores tells to %s.",victim->name);
-    wiznet(buf,ch,NULL,WIZ_PENALTIES,WIZ_SECURE,0);
+    emit_staff_wiz_event(buf, buf, ch, NULL, WIZ_PENALTIES, WIZ_SECURE, 0,
+                         "notell", LOG_SECURITY);
     }
     else
     {
@@ -7194,7 +7296,8 @@ void do_notell(CHAR_DATA *ch, char *argument)
     send_to_char("You can't tell!\n\r", victim);
     send_to_char("NOTELL set.\n\r", ch);
     sprintf(buf,"$N revokes %s's tells.",victim->name);
-    wiznet(buf,ch,NULL,WIZ_PENALTIES,WIZ_SECURE,0);
+    emit_staff_wiz_event(buf, buf, ch, NULL, WIZ_PENALTIES, WIZ_SECURE, 0,
+                         "notell", LOG_SECURITY);
     }
 }
 
@@ -7244,13 +7347,17 @@ void do_wizlock(CHAR_DATA *ch, char *argument)
     {
         if (!game_settings.wizlock)
         {
-            wiznet("$N has wizlocked the game.",ch,NULL,0,0,0);
+            emit_staff_wiz_event("$N has wizlocked the game.",
+                                 "$N has wizlocked the game.",
+                                 ch, NULL, 0, 0, 0, "wizlock", LOG_ADMIN);
             send_to_char("Game wizlocked.\n\r", ch);
             game_settings.wizlock = true;
         }
         else
         {
-            wiznet("$N removes wizlock.",ch,NULL,0,0,0);
+            emit_staff_wiz_event("$N removes wizlock.",
+                                 "$N removes wizlock.",
+                                 ch, NULL, 0, 0, 0, "wizlock", LOG_ADMIN);
             send_to_char("Game un-wizlocked.\n\r", ch);
             game_settings.wizlock = false;
         }
@@ -7270,7 +7377,9 @@ void do_wizlock(CHAR_DATA *ch, char *argument)
             free_string(game_settings.wizlock_msg);
         }
         game_settings.wizlock_msg = str_dup(argument);
-        wiznet("$N sets wizlock message.",ch,NULL,0,0,0);
+        emit_staff_wiz_event("$N sets wizlock message.",
+                     "$N sets wizlock message.",
+                     ch, NULL, 0, 0, 0, "wizlock", LOG_ADMIN);
         send_to_char("Wizlock message set.\n\r", ch);
     }
 
@@ -7311,13 +7420,19 @@ void do_newlock(CHAR_DATA *ch, char *argument)
             {
                 if (!game_settings.new_char_lock)
                 {
-                    wiznet("$N locks out new characters.",ch,NULL,0,0,0);
+                    emit_staff_wiz_event("$N locks out new characters.",
+                                         "$N locks out new characters.",
+                                         ch, NULL, 0, 0, 0,
+                                         "new_char_lock", LOG_ADMIN);
                     send_to_char("New characters have been locked out.\n\r", ch);
                     game_settings.new_char_lock = true;
                 }
                 else
                 {
-                    wiznet("$N allows new characters back in.",ch,NULL,0,0,0);
+                    emit_staff_wiz_event("$N allows new characters back in.",
+                                         "$N allows new characters back in.",
+                                         ch, NULL, 0, 0, 0,
+                                         "new_char_lock", LOG_ADMIN);
                     send_to_char("New characters are no longer locked out.\n\r", ch);
                     game_settings.new_char_lock = false;
                 }
@@ -7337,7 +7452,10 @@ void do_newlock(CHAR_DATA *ch, char *argument)
                     free_string(game_settings.new_char_lock_msg);
                 }
                 game_settings.new_char_lock_msg = str_dup(argument);
-                wiznet("$N sets new character message.",ch,NULL,0,0,0);
+                emit_staff_wiz_event("$N sets new character message.",
+                                     "$N sets new character message.",
+                                     ch, NULL, 0, 0, 0,
+                                     "new_char_lock", LOG_ADMIN);
                 send_to_char("New character message set.\n\r", ch);
             }
         }
@@ -7347,13 +7465,19 @@ void do_newlock(CHAR_DATA *ch, char *argument)
             {
                 if (!game_settings.new_acct_lock)
                 {
-                    wiznet("$N locks out new accounts.",ch,NULL,0,0,0);
+                    emit_staff_wiz_event("$N locks out new accounts.",
+                                         "$N locks out new accounts.",
+                                         ch, NULL, 0, 0, 0,
+                                         "new_acct_lock", LOG_ADMIN);
                     send_to_char("New accounts have been locked out.\n\r", ch);
                     game_settings.new_acct_lock = true;
                 }
                 else
                 {
-                    wiznet("$N allows new accounts back in.",ch,NULL,0,0,0);
+                    emit_staff_wiz_event("$N allows new accounts back in.",
+                                         "$N allows new accounts back in.",
+                                         ch, NULL, 0, 0, 0,
+                                         "new_acct_lock", LOG_ADMIN);
                     send_to_char("New accounts are no longer locked out.\n\r", ch);
                     game_settings.new_acct_lock = false;
                 }
@@ -7373,7 +7497,10 @@ void do_newlock(CHAR_DATA *ch, char *argument)
                     free_string(game_settings.new_acct_lock_msg);
                 }
                 game_settings.new_acct_lock_msg = str_dup(argument);
-                wiznet("$N sets new account message.",ch,NULL,0,0,0);
+                emit_staff_wiz_event("$N sets new account message.",
+                                     "$N sets new account message.",
+                                     ch, NULL, 0, 0, 0,
+                                     "new_acct_lock", LOG_ADMIN);
                 send_to_char("New account message set.\n\r", ch);
             }
         }
@@ -7396,12 +7523,16 @@ void do_testport(CHAR_DATA *ch, char *argument)
 
     if (!game_settings.testport)
     {
-        wiznet("$N enables Test Port Mode.",ch,NULL,0,0,0);
+        emit_staff_wiz_event("$N enables Test Port Mode.",
+                     "$N enables Test Port Mode.",
+                     ch, NULL, 0, 0, 0, "testport", LOG_ADMIN);
         send_to_char("Test Port Mode enabled.\n\r", ch);
     }
     else
     {
-        wiznet("$N disables Test Port Mode.",ch,NULL,0,0,0);
+        emit_staff_wiz_event("$N disables Test Port Mode.",
+                     "$N disables Test Port Mode.",
+                     ch, NULL, 0, 0, 0, "testport", LOG_ADMIN);
         send_to_char("Test Port Mode disabled.\n\r", ch);
     }
     game_settings_write();
@@ -8214,13 +8345,14 @@ void do_accset(CHAR_DATA *ch, char *argument)
     else if (!str_prefix(arg2, "flag")) {
         char flag_buf[MAX_INPUT_LENGTH];
         char *flag_name;
+        char *saveptr;
         bool found_flag = false;
 
         // Make a copy of arg3 to tokenize
         strncpy(flag_buf, arg3, sizeof(flag_buf));
         flag_buf[sizeof(flag_buf)-1] = '\0';
 
-        flag_name = strtok(flag_buf, " ");
+        flag_name = strtok_r(flag_buf, " ", &saveptr);
         while (flag_name != NULL) {
             long flagval;
             if ((flagval = flag_value(acct_flags, flag_name)) == NO_FLAG) {
@@ -8232,7 +8364,7 @@ void do_accset(CHAR_DATA *ch, char *argument)
                 TOGGLE_BIT(account->acct_flags, flagval);
                 found_flag = true;
             }
-            flag_name = strtok(NULL, " ");
+            flag_name = strtok_r(NULL, " ", &saveptr);
         }
 
         if (found_flag)
@@ -8432,15 +8564,16 @@ void do_sset(CHAR_DATA *ch, char *argument)
         {
             SKILL_ENTRY *entry;
 
-            if (skill_table[sn].name != NULL && str_cmp(skill_table[sn].name, "none")) {
+            SKILL_DATA *sk = skill_find_uid(sn);
+            if (sk && sk->name != NULL && str_cmp(sk->name, "none")) {
                 if( value == 0 ) {
-                    if( skill_table[sn].spell_fun == spell_null )
+                    if( sk->spell_fun == spell_null )
                         skill_entry_removeskill(victim,sn, NULL);
                     else
                         skill_entry_removespell(victim,sn, NULL);
                 } else {
                     if( skill_entry_findsn( victim->sorted_skills, sn) == NULL) {
-                        if( skill_table[sn].spell_fun == spell_null ) {
+                        if( sk->spell_fun == spell_null ) {
                             skill_entry_addskill(victim, sn, NULL, SKILLSRC_NORMAL, SKILL_AUTOMATIC);
                         } else {
                             skill_entry_addspell(victim, sn, NULL, SKILLSRC_NORMAL, SKILL_AUTOMATIC);
@@ -8458,14 +8591,15 @@ void do_sset(CHAR_DATA *ch, char *argument)
     else {
         SKILL_ENTRY *entry;
 
+        SKILL_DATA *sk = skill_find_uid(sn);
         if( value == 0 ) {
-            if( skill_table[sn].spell_fun == spell_null )
+            if( sk && sk->spell_fun == spell_null )
                 skill_entry_removeskill(victim,sn, NULL);
             else
                 skill_entry_removespell(victim,sn, NULL);
         } else {
             if( skill_entry_findsn( victim->sorted_skills, sn) == NULL) {
-                if( skill_table[sn].spell_fun == spell_null ) {
+                if( sk && sk->spell_fun == spell_null ) {
                     skill_entry_addskill(victim, sn, NULL, SKILLSRC_NORMAL, SKILL_AUTOMATIC);
                 } else {
                     skill_entry_addspell(victim, sn, NULL, SKILLSRC_NORMAL, SKILL_AUTOMATIC);
@@ -8480,7 +8614,7 @@ void do_sset(CHAR_DATA *ch, char *argument)
     }
 
     if (!fAll)
-    sprintf(buf, "Set %s's %s skill to %d%%\n\r", victim->name, skill_table[sn].name, value);
+    sprintf(buf, "Set %s's %s skill to %d%%\n\r", victim->name, skill_name(skill_find_uid(sn)), value);
     else
     sprintf(buf, "Set all of %s's skills to %d%%\n\r", victim->name, value);
 
@@ -9041,7 +9175,7 @@ void do_mset(CHAR_DATA *ch, char *argument)
         return;
     }
 
-    if (victim->tot_level < LEVEL_IMMORTAL)
+    if (!IS_IMMORTAL(victim))
     {
         send_to_char("Imm title is for imms only!\n\r", ch);
         return;
@@ -10583,281 +10717,6 @@ void do_immortalise(CHAR_DATA *ch, char *argument)
     }
 
     remort_player(victim);
-
-#if 0
-    sprintf(argument, "%s", sub_class_table[i].name[0]);
-
-    i = 0;
-    victim->race = get_remort_race(victim);
-    sprintf(buf2, "%s", victim->race ? victim->race->name : "Unknown");
-    while (buf2[i] != '\0')
-    {
-    buf2[i] = UPPER(buf2[i]);
-    i++;
-    }
-
-    if (victim->alignment < 0)
-    {
-        sprintf(buf, "{RHoly statues cry tears of blood and the sillhouettes "
-              "of winged horrors appear in the sky.{X\n\r{RA new %s has been born!{x\n\r", buf2);
-
-    victim->alignment = -1000;
-
-    send_to_char("Your mortal essence crumbles as you embrace your fate.\n\r", victim);
-    send_to_char("You welcome the dark power as it flows through your divine veins.\n\r", victim);
-    send_to_char("A dark influence clouds all that you once knew; your lifeless body\n\r", victim);
-    send_to_char("lies slouched in front of you as part of you is torn into the Abyss.\n\r", victim);
-    send_to_char("You feel complete, and wielding unfathomable power, you know you can\n\r", victim);
-    send_to_char("manipulate it to suit your darkest desires.\n\r", victim);
-    }
-    else if (victim->alignment > 0)
-    {
-    sprintf(buf, "{WBrilliant white light radiates down from the heavens and thunder rolls through the valleys.\n\r"
-                 "{WA new %s has been born!{x\n\r", buf2);
-
-    victim->alignment = 1000;
-
-     send_to_char("Your mortal essence shines brightly, blinding your eyes.\n\r", victim);
-    send_to_char("Images flash before you: sadness, grief, terror and hatred.\n\r", victim);
-    send_to_char("Your life is played to you, from the beginning to the present.\n\r", victim);
-    send_to_char("Your veins flow with the divine influence as you stand before your\n\r", victim);
-    send_to_char("lifeless mortal vessel. It becomes clear to you that you have been\n\r", victim);
-    send_to_char("reborn a divine power.\n\r", victim);
-    }
-    else
-    {
-    sprintf(buf, "{CThe cosmic energies of the world shift and the clouds speed overhead.{x\n\r"
-                 "{CA new %s has been born!{x\n\r", buf2);
-
-    victim->alignment = 0;
-    }
-
-    gecho(buf);
-
-    /* take off equipment*/
-    for (obj = victim->carrying; obj != NULL; obj = obj->next_content)
-    {
-        if (obj->wear_loc != WEAR_NONE)
-            unequip_char(victim, obj, false);
-    }
-
-    /* take off remaining affects*/
-    while (victim->affected)
-        affect_remove(victim, victim->affected);
-
-    /* lower their stats significantly*/
-    for (i = 0; i < MAX_STATS; i++) {
-        int val = victim->perm_stat[i] - number_range(4,6);
-        set_perm_stat(victim, i, UMAX(val, 13));
-    }
-
-    victim->affected_by_perm[0] = victim->race ? victim->race->aff[0] : 0;
-    victim->affected_by_perm[1] = victim->race ? victim->race->aff[1] : 0;
-    victim->imm_flags_perm = victim->race ? victim->race->imm : 0;
-    victim->res_flags_perm = victim->race ? victim->race->res : 0;
-    victim->vuln_flags_perm = victim->race ? victim->race->vuln : 0;
-
-    victim->form        = victim->race ? victim->race->form : 0;
-    victim->parts       = victim->race ? victim->race->parts : 0;
-    victim->lostparts	= 0;	// Restore anything lost
-
-    /* add skills for remort race*/
-    if (victim->race && victim->race->skills) {
-        ITERATOR it;
-        char *skill;
-        iterator_start(&it, victim->race->skills);
-        while ((skill = (char *)iterator_nextdata(&it)))
-            group_add(victim, skill, false);
-        iterator_stop(&it);
-    }
-
-    victim->pcdata->hit_before  = victim->pcdata->perm_hit;
-    victim->pcdata->mana_before = victim->pcdata->perm_mana;
-    victim->pcdata->move_before = victim->pcdata->perm_move;
-
-    victim->pcdata->perm_hit  = 20;
-    victim->pcdata->perm_mana = 20;
-    victim->pcdata->perm_move = 20;
-
-    victim->max_hit  = 20;
-    victim->max_mana = 20;
-    victim->max_move = 20;
-
-    victim->hit  = 20;
-    victim->mana = 20;
-    victim->move = 20;
-
-    victim->tot_level = 1;
-    victim->level = 1;
-
-    // Reset base affects - will reset affected_by, affected_by2, imm_flags, res_flags and vuln_flags
-    affect_fix_char(victim);
-
-    char_from_room(victim);
-    {
-        ROOM_INDEX_DATA *school_room = get_reserved_room_index("room_begin_new_character");
-        if (!school_room)
-            school_room = get_reserved_room_index("room_limbo");
-        if (!school_room) {
-            send_to_char("School/limbo room is not reserved.\n\r", ch);
-            return;
-        }
-        char_to_room(victim, school_room);
-    }
-
-    /* mages*/
-    if (!str_cmp("archmage", argument)
-    ||  !str_cmp("geomancer", argument)
-    ||  !str_cmp("illusionist", argument))
-    {
-    victim->pcdata->class_current = CLASS_MAGE;
-    victim->pcdata->second_class_mage = CLASS_MAGE;
-
-    if (!str_cmp("archmage", argument))
-    {
-        victim->pcdata->sub_class_current = CLASS_MAGE_ARCHMAGE;
-        victim->pcdata->second_sub_class_mage = CLASS_MAGE_ARCHMAGE;
-    }
-
-    if (!str_cmp("geomancer", argument))
-    {
-        victim->pcdata->sub_class_current = CLASS_MAGE_GEOMANCER;
-        victim->pcdata->second_sub_class_mage = CLASS_MAGE_GEOMANCER;
-    }
-
-    if (!str_cmp("illusionist", argument))
-    {
-        victim->pcdata->sub_class_current = CLASS_MAGE_ILLUSIONIST;
-        victim->pcdata->second_sub_class_mage = CLASS_MAGE_ILLUSIONIST;
-    }
-    }
-
-    /* clerics*/
-    if (!str_cmp("alchemist", argument)
-    ||  !str_cmp("ranger", argument)
-    ||  !str_cmp("adept", argument))
-    {
-    victim->pcdata->class_current = CLASS_CLERIC;
-    victim->pcdata->second_class_cleric = CLASS_CLERIC;
-
-    if (!str_cmp("alchemist", argument))
-    {
-        victim->pcdata->sub_class_current = CLASS_CLERIC_ALCHEMIST;
-        victim->pcdata->second_sub_class_cleric = CLASS_CLERIC_ALCHEMIST;
-    }
-
-    if (!str_cmp("ranger", argument))
-    {
-        victim->pcdata->sub_class_current = CLASS_CLERIC_RANGER;
-        victim->pcdata->second_sub_class_cleric = CLASS_CLERIC_RANGER;
-    }
-
-    if (!str_cmp("adept", argument))
-    {
-        victim->pcdata->sub_class_current = CLASS_CLERIC_ADEPT;
-        victim->pcdata->second_sub_class_cleric = CLASS_CLERIC_ADEPT;
-    }
-    }
-
-    /* thieves*/
-    if (!str_cmp("highwayman", argument)
-    ||  !str_cmp("ninja", argument)
-    ||  !str_cmp("sage", argument))
-    {
-    victim->pcdata->class_current = CLASS_THIEF;
-    victim->pcdata->second_class_thief = CLASS_THIEF;
-
-    if (!str_cmp("highwayman", argument))
-    {
-        victim->pcdata->sub_class_current = CLASS_THIEF_HIGHWAYMAN;
-        victim->pcdata->second_sub_class_thief = CLASS_THIEF_HIGHWAYMAN;
-    }
-
-    if (!str_cmp("ninja", argument))
-    {
-        victim->pcdata->sub_class_current = CLASS_THIEF_NINJA;
-        victim->pcdata->second_sub_class_thief = CLASS_THIEF_NINJA;
-    }
-
-    if (!str_cmp("sage", argument))
-    {
-        victim->pcdata->sub_class_current = CLASS_THIEF_SAGE;
-        victim->pcdata->second_sub_class_thief = CLASS_THIEF_SAGE;
-    }
-    }
-
-    /* warriors*/
-    if (!str_cmp("warlord", argument)
-    || !str_cmp("destroyer", argument)
-    || !str_cmp("crusader", argument))
-    {
-    victim->pcdata->class_current = CLASS_WARRIOR;
-    victim->pcdata->second_class_warrior = CLASS_WARRIOR;
-
-    if (!str_cmp("warlord", argument))
-    {
-        victim->pcdata->sub_class_current = CLASS_WARRIOR_WARLORD;
-        victim->pcdata->second_sub_class_warrior = CLASS_WARRIOR_WARLORD;
-    }
-
-    if (!str_cmp("destroyer", argument))
-    {
-        victim->pcdata->sub_class_current = CLASS_WARRIOR_DESTROYER;
-        victim->pcdata->second_sub_class_warrior = CLASS_WARRIOR_DESTROYER;
-    }
-
-    if (!str_cmp("crusader", argument))
-    {
-        victim->pcdata->sub_class_current = CLASS_WARRIOR_CRUSADER;
-        victim->pcdata->second_sub_class_warrior = CLASS_WARRIOR_CRUSADER;
-    }
-    }
-
-    {
-        CLASS_DATA *fr_base = class_from_legacy(victim->pcdata->class_current, -1);
-        CLASS_DATA *fr_sub = class_from_legacy(0, victim->pcdata->sub_class_current);
-
-        if (fr_base) {
-            ITERATOR git;
-            SKILL_GROUP *sg;
-            iterator_start(&git, fr_base->groups);
-            while ((sg = (SKILL_GROUP *)iterator_nextdata(&git)))
-                group_add(victim, sg->name, true);
-            iterator_stop(&git);
-        } else {
-            pbugf(LOG_INIT,
-                "forceremort: unable to map legacy base class %d for %s",
-                victim->pcdata->class_current,
-                victim->name ? victim->name : "(unknown)");
-        }
-
-        if (fr_sub) {
-            ITERATOR git;
-            SKILL_GROUP *sg;
-            iterator_start(&git, fr_sub->groups);
-            while ((sg = (SKILL_GROUP *)iterator_nextdata(&git)))
-                group_add(victim, sg->name, true);
-            iterator_stop(&git);
-        } else {
-            pbugf(LOG_INIT,
-                "forceremort: unable to map legacy subclass %d for %s",
-                victim->pcdata->sub_class_current,
-                victim->name ? victim->name : "(unknown)");
-        }
-    }
-    victim->exp = 0;
-
-    {
-        CLASS_DATA *fr_class = get_current_class(victim);
-        sprintf(buf2, "%s", fr_class ? class_display_ch(fr_class, victim) : "Adventurer");
-    }
-    buf2[0] = UPPER(buf2[0]);
-    sprintf(buf, "All congratulate %s, who is now a%s %s!",
-        victim->name, (buf2[0] == 'A' || buf2[0] == 'I' || buf2[0] == 'E' || buf2[0] == 'U'
-        || buf2[0] == 'O') ? "n" : "", buf2);
-    crier_announce(buf);
-    double_xp(victim);
-#endif
 }
 
 
@@ -11084,81 +10943,15 @@ void do_arealinks(CHAR_DATA *ch, char *argument)
 /**
  * do_sload - Load an NPC ship (DISABLED)
  *
- * Was intended to load an NPC ship by vnum into a specified room.
- * Currently disabled via #if 0 preprocessor block. Would have supported
- * loading ships including special handling for airships.
+ * Superseded by 'ships load' which auto-detects NPC templates via
+ * the SHIP_AUTONOMOUS_NPC flag and performs full NPC setup.
  *
  * @param ch        Staff member using the command
- * @param argument  "shipvnum roomvnum"
- *
- * Triggers: None (ship loading - disabled)
+ * @param argument  Unused
  */
 void do_sload(CHAR_DATA *ch, char *argument)
 {
-#if 0
-/*
-    char arg1[MAX_INPUT_LENGTH] ,arg2[MAX_INPUT_LENGTH];
-    ROOM_INDEX_DATA *pRoom;
-    NPC_SHIP_INDEX_DATA *pShip;
-    NPC_SHIP_DATA *pNpcShip;
-    long room_vnum;
-    long ship_vnum;
-
-    argument = one_argument(argument, arg1);
-    one_argument(argument, arg2);
-
-    if (arg1[0] == '\0' || !is_number(arg1))
-    {
-    send_to_char("Syntax: load ship <vnum> <room vnum>.\n\r", ch);
-    return;
-    }
-
-    ship_vnum = atol(arg1);
-
-    if (arg2[0] != '\0')
-    {
-    if (!is_number(arg2))
-        {
-      send_to_char("Syntax: sload <vnum> <room vnum>.\n\r", ch);
-      return;
-    }
-        room_vnum = atol(arg2);
-        if ((pRoom = get_room_index(room_vnum)) == NULL)
-    {
-      send_to_char("Could not find room vnum.\n\r",ch);
-        return;
-    }
-    }
-    else {
-      send_to_char("Syntax: sload <vnum> <room vnum>.\n\r", ch);
-      return;
-    }
-
-    if ((pShip = get_npc_ship_index(ship_vnum)) == NULL)
-    {
-    send_to_char("No ship has that vnum.\n\r", ch);
-    return;
-    }
-
-    pNpcShip = create_npc_sailing_boat(ship_vnum);
-
-     If the npc airship then set airship
-    if (pShip->npc_type == NPC_SHIP_AIR_SHIP)
-    {
-        plith_airship = pNpcShip;
-    }
-
-    obj_to_room(pNpcShip->ship->ship, pRoom);
-
-    if (pNpcShip->ship->ship->in_room == NULL)
-    {
-        gecho("NULL already");
-    }
-
-    send_to_char("Ship created.\n\r", ch);
-    return;
-*/
-#endif
+    send_to_char("Use 'ships load <vnum>' instead. NPC ships are auto-detected from the template.\n\r", ch);
 }
 
 
@@ -12378,29 +12171,31 @@ void do_token(CHAR_DATA *ch, char *argument)
 /**
  * do_aload - Load an area file into memory at runtime
  *
- * Loads an area from an .are file without requiring a server reboot.
- * Uses the same loading function as boot_db. Useful for importing areas
- * built on testport to the live server. Currently only supports loading
+ * Loads an area from a JSON file without requiring a server reboot.
+ * Uses json_area_load(), the same loader as boot_db. Useful for importing
+ * areas built on testport to the live server. Currently only supports loading
  * new areas; replacing existing areas is not yet implemented.
  * WARNING: Can cause significant performance impact during load.
  *
  * @param ch        Staff member using the command
- * @param argument  Filename of the area to load
+ * @param argument  Stem name of the area to load (e.g., "limbo")
  *
  * Triggers: None (area loading utility)
  */
 void do_aload(CHAR_DATA *ch, char *argument)
 {
     char arg[MSL];
-    FILE *fp;
     AREA_DATA *area;
     LLIST_AREA_DATA *link;
 
     argument = one_argument(argument, arg);
 
-    /* Check to see if the area is loaded in already. If it is, free it
-       from memory and reload it. Make sure to update all object and mob
-       pIndexData pointers and room area pointers. */
+    if (arg[0] == '\0') {
+        send_to_char("Syntax: aload <area stem name>\n\r", ch);
+        return;
+    }
+
+    /* Check to see if the area is loaded in already. */
     for (area = area_first; area != NULL; area = area->next) {
     if (!str_cmp(area->file_name, argument))
         break;
@@ -12408,13 +12203,17 @@ void do_aload(CHAR_DATA *ch, char *argument)
 
     /* The simpler case - the area is not a current area. */
     if (area == NULL) {
-    if ((fp = fopen(arg, "r")) == NULL) {
-        send_to_char("Area file not found.\n\r", ch);
+    char json_filename[MSL + 10];
+    snprintf(json_filename, sizeof(json_filename), "%s.json", arg);
+
+    area = json_area_load(json_filename);
+    if (!area) {
+        send_to_char("Failed to load area from JSON file.\n\r", ch);
         return;
     }
 
     link = (LLIST_AREA_DATA *)alloc_mem(sizeof(LLIST_AREA_DATA));
-    if( list_appendlink(loaded_areas, link) && (area = read_area_new(fp))) {
+    if (list_appendlink(loaded_areas, link)) {
         area->next = NULL;
 
         area_last->next = area;
@@ -12425,9 +12224,9 @@ void do_aload(CHAR_DATA *ch, char *argument)
         link->uid = area->uid;
 
         act("Loaded area $T.", ch, NULL, NULL, NULL, NULL, NULL, area->name, TO_CHAR, NULL, NULL);
-    } else
-        free_mem( link, sizeof(LLIST_AREA_DATA));
-    fclose(fp);
+    } else {
+        free_mem(link, sizeof(LLIST_AREA_DATA));
+    }
     } else {
     /* Syn - will add in replacement of current area when I have time. */
     send_to_char("Area already exists.\n\r", ch);
@@ -12817,7 +12616,7 @@ void print_live_obj_values(OBJ_DATA *obj, BUFFER *buffer)
         (herb_immunity == obj->pIndexData->value[4]) ? "B" : "Y", flag_string(imm_flags, herb_immunity),
         (herb_resistance == obj->pIndexData->value[5]) ? "B" : "Y", flag_string(res_flags, herb_resistance),
         (herb_vulnerability == obj->pIndexData->value[6]) ? "B" : "Y", flag_string(vuln_flags, herb_vulnerability),
-        (herb_spell == obj->pIndexData->value[7]) ? "B" : "Y", skill_table[herb_spell].name);
+        (herb_spell == obj->pIndexData->value[7]) ? "B" : "Y", skill_name(skill_find_uid(herb_spell)));
 
         add_buf(buffer, buf);
         break;

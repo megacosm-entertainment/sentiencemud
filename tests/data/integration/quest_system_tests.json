@@ -1,0 +1,141 @@
+{
+  "type": "test_suite",
+  "test_suite": "quest_system",
+  "description": "Quest system validation - data loading, lookup functions, state management, and data integrity",
+  "version": "1.0", 
+  "requires_mud_environment": true,
+  "dependencies": ["area_loading"],
+  "timeout_seconds": 60,
+  "tests": [
+    {
+      "name": "quest_data_loading_basic",
+      "description": "Verify quest data is loaded after boot",
+      "dependencies": [],
+      "test_type": "qsys_data_loading_basic",
+      "input": {},
+      "expected_output": {
+        "data_structures_initialized": true
+      }
+    },
+    {
+      "name": "quest_v2_registry_populated",
+      "description": "Verify quest v2 registry contains quest definitions",
+      "dependencies": ["quest_data_loading_basic"],
+      "test_type": "qsys_data_v2_registry_populated",
+      "input": {},
+      "expected_output": {
+        "registry_valid": true
+      }
+    },
+    {
+      "name": "quest_v1_registry_check",
+      "description": "Check quest v1 registry state",
+      "dependencies": ["quest_data_loading_basic"],
+      "test_type": "qsys_data_v1_registry_check",
+      "input": {},
+      "expected_output": {
+        "registry_valid": true
+      }
+    },
+    {
+      "name": "quest_v2_lookup_by_vnum",
+      "description": "Test get_quest_index_v2() lookup by vnum",
+      "dependencies": ["quest_v2_registry_populated"],
+      "test_type": "qsys_lookup_v2_by_vnum",
+      "input": {},
+      "expected_output": {
+        "lookup_success": true
+      }
+    },
+    {
+      "name": "quest_v2_lookup_by_wnum", 
+      "description": "Test get_quest_index_v2_wnum() lookup by wnum",
+      "dependencies": ["quest_v2_registry_populated"],
+      "test_type": "qsys_lookup_v2_by_wnum",
+      "input": {},
+      "expected_output": {
+        "lookup_success": true
+      }
+    },
+    {
+      "name": "quest_v1_lookup_functions",
+      "description": "Test get_quest_index() and get_quest_index_wnum() functions",
+      "dependencies": ["quest_v1_registry_check"],
+      "test_type": "qsys_lookup_v1_functions",
+      "input": {},
+      "expected_output": {
+        "lookup_success": true
+      }
+    },
+    {
+      "name": "quest_stage_and_objective_lookup",
+      "description": "Test quest_index_v2_get_stage() and objective lookup functions",
+      "dependencies": ["quest_v2_lookup_by_vnum"],
+      "test_type": "qsys_lookup_stage_and_objectives",
+      "input": {},
+      "expected_output": {
+        "lookup_success": true
+      }
+    },
+    {
+      "name": "quest_stage_validation",
+      "description": "Test quest stage ID validation and transitions",
+      "dependencies": ["quest_stage_and_objective_lookup"],
+      "test_type": "qsys_state_stage_validation",
+      "input": {},
+      "expected_output": {
+        "validation_success": true
+      }
+    },
+    {
+      "name": "quest_objective_validation",
+      "description": "Test quest objective ID validation and state management",
+      "dependencies": ["quest_stage_and_objective_lookup"],
+      "test_type": "qsys_state_objective_validation",
+      "input": {},
+      "expected_output": {
+        "validation_success": true
+      }
+    },
+    {
+      "name": "quest_runtime_validation",
+      "description": "Test quest runtime state consistency checks",
+      "dependencies": ["quest_v2_lookup_by_vnum"],
+      "test_type": "qsys_state_runtime_validation",
+      "input": {},
+      "expected_output": {
+        "validation_success": true
+      }
+    },
+    {
+      "name": "quest_v2_structure_integrity",
+      "description": "Validate quest v2 data structure integrity",
+      "dependencies": ["quest_v2_registry_populated"],
+      "test_type": "qsys_integrity_v2_structure",
+      "input": {},
+      "expected_output": {
+        "integrity_valid": true
+      }
+    },
+    {
+      "name": "quest_stage_linkage_integrity",
+      "description": "Validate quest stage and objective linkage integrity", 
+      "dependencies": ["quest_v2_structure_integrity"],
+      "test_type": "qsys_integrity_stage_linkage",
+      "input": {},
+      "expected_output": {
+        "linkage_valid": true
+      }
+    },
+    {
+      "name": "quest_area_reference_integrity",
+      "description": "Validate quest area references and WNUM consistency",
+      "dependencies": ["quest_v2_structure_integrity"],
+      "test_type": "qsys_integrity_area_references",
+      "input": {},
+      "expected_output": {
+        "references_valid": true
+      }
+    }
+  ]
+}

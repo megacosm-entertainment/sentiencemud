@@ -394,6 +394,8 @@ static test_result_t test_area_existence_check(test_case_t *test) {
     
     json_t *input = json_object_get(test->config, "input");
     json_t *required_areas = json_object_get(input, "required_areas");
+    json_t *required_rooms = json_object_get(input, "required_rooms");
+    json_t *required_mobiles = json_object_get(input, "required_mobiles");
     
     if (!json_is_array(required_areas)) {
         log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS, "Invalid area existence test: no required_areas array");
@@ -492,6 +494,150 @@ static test_result_t test_area_existence_check(test_case_t *test) {
         }
         
         log_message_f(LOG_LEVEL_DEBUG, LOG_UNIT_TESTS, "Area found: %s (UID: %ld)", area_name, area->uid);
+    }
+
+    if (required_rooms) {
+        if (!json_is_array(required_rooms)) {
+            log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS, "Invalid area existence test: required_rooms must be an array");
+            return TEST_ERROR;
+        }
+
+        size_t room_index;
+        json_t *room_spec;
+        json_array_foreach(required_rooms, room_index, room_spec) {
+            const char *area_name = test_json_get_string(room_spec, "area_name");
+            long room_vnum = test_json_get_int(room_spec, "vnum");
+            bool required = true;
+            bool should_exist = true;
+
+            if (json_object_get(room_spec, "required")) {
+                required = test_json_get_bool(room_spec, "required");
+            }
+            if (json_object_get(room_spec, "should_exist")) {
+                should_exist = test_json_get_bool(room_spec, "should_exist");
+            }
+
+            if (!area_name || room_vnum <= 0) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                              "Invalid room spec at index %zu: expected area_name and positive vnum",
+                              room_index);
+                return TEST_ERROR;
+            }
+
+            AREA_DATA *area = find_area((char *)area_name);
+            if (!area) {
+                if (!required) {
+                    log_message_f(LOG_LEVEL_DEBUG, LOG_UNIT_TESTS,
+                                  "Optional room spec skipped: area '%s' missing",
+                                  area_name);
+                    continue;
+                }
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                              "Room lookup failed: area '%s' not found for room %ld",
+                              area_name,
+                              room_vnum);
+                return TEST_FAILURE;
+            }
+
+            ROOM_INDEX_DATA *room = get_room_index(area, room_vnum);
+            if (!should_exist) {
+                if (room) {
+                    log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                                  "Room lookup mismatch for '%s' #%ld: expected exists=false, actual exists=true",
+                                  area_name,
+                                  room_vnum);
+                    return TEST_FAILURE;
+                }
+                continue;
+            }
+
+            if (!room) {
+                if (!required) {
+                    log_message_f(LOG_LEVEL_DEBUG, LOG_UNIT_TESTS,
+                                  "Optional room missing (allowed): '%s' #%ld",
+                                  area_name,
+                                  room_vnum);
+                    continue;
+                }
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                              "Room lookup mismatch for '%s' #%ld: expected exists=true, actual exists=false",
+                              area_name,
+                              room_vnum);
+                return TEST_FAILURE;
+            }
+        }
+    }
+
+    if (required_mobiles) {
+        if (!json_is_array(required_mobiles)) {
+            log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS, "Invalid area existence test: required_mobiles must be an array");
+            return TEST_ERROR;
+        }
+
+        size_t mob_index;
+        json_t *mob_spec;
+        json_array_foreach(required_mobiles, mob_index, mob_spec) {
+            const char *area_name = test_json_get_string(mob_spec, "area_name");
+            long mob_vnum = test_json_get_int(mob_spec, "vnum");
+            bool required = true;
+            bool should_exist = true;
+
+            if (json_object_get(mob_spec, "required")) {
+                required = test_json_get_bool(mob_spec, "required");
+            }
+            if (json_object_get(mob_spec, "should_exist")) {
+                should_exist = test_json_get_bool(mob_spec, "should_exist");
+            }
+
+            if (!area_name || mob_vnum <= 0) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                              "Invalid mobile spec at index %zu: expected area_name and positive vnum",
+                              mob_index);
+                return TEST_ERROR;
+            }
+
+            AREA_DATA *area = find_area((char *)area_name);
+            if (!area) {
+                if (!required) {
+                    log_message_f(LOG_LEVEL_DEBUG, LOG_UNIT_TESTS,
+                                  "Optional mobile spec skipped: area '%s' missing",
+                                  area_name);
+                    continue;
+                }
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                              "Mobile lookup failed: area '%s' not found for mob %ld",
+                              area_name,
+                              mob_vnum);
+                return TEST_FAILURE;
+            }
+
+            MOB_INDEX_DATA *mob = get_mob_index(area, mob_vnum);
+            if (!should_exist) {
+                if (mob) {
+                    log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                                  "Mobile lookup mismatch for '%s' #%ld: expected exists=false, actual exists=true",
+                                  area_name,
+                                  mob_vnum);
+                    return TEST_FAILURE;
+                }
+                continue;
+            }
+
+            if (!mob) {
+                if (!required) {
+                    log_message_f(LOG_LEVEL_DEBUG, LOG_UNIT_TESTS,
+                                  "Optional mobile missing (allowed): '%s' #%ld",
+                                  area_name,
+                                  mob_vnum);
+                    continue;
+                }
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                              "Mobile lookup mismatch for '%s' #%ld: expected exists=true, actual exists=false",
+                              area_name,
+                              mob_vnum);
+                return TEST_FAILURE;
+            }
+        }
     }
     
     return TEST_SUCCESS;

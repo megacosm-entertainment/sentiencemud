@@ -56,6 +56,8 @@
 #include "skill_data.h"
 #include "class_data.h"
 #include "utils/tablefmt.h"
+#include "protocol.h"
+#include "account/preferences.h"
 
 
 bool can_see_imm(CHAR_DATA *ch, CHAR_DATA *victim);
@@ -358,6 +360,8 @@ int get_squares_to_show_y(ROOM_INDEX_DATA *pRoom, int bonus_view);
 */
 char determine_room_type(ROOM_INDEX_DATA *room);
 void convert_map_char(char *buf, char ch);
+bool render_area_map_to_buffer(CHAR_DATA *ch, ROOM_INDEX_DATA *room,
+                               BUFFER **out_buf, int *out_width, int *out_height);
 void show_equipment(CHAR_DATA *ch, CHAR_DATA *victim);
 
 
@@ -415,28 +419,37 @@ char *format_obj_to_char(OBJ_DATA * obj, CHAR_DATA * ch, bool fShort)
         strcat(buf, "{y(Buried){w ");
     if (fShort)
     {
-    if (obj->short_descr != NULL)
-        strcat(buf, obj->short_descr);
-    strcat(buf, " ");
+        if (obj->short_descr != NULL)
+            strcat(buf, obj->short_descr);
+        if (obj->item_type == ITEM_WEAPON)
+        {
+            if (obj->condition == 0)
+                strcat(buf, " {y(Broken){x");
+        }
+        else
+        {
+            strcat(buf, object_damage_table[URANGE
+                (0, 9 - (int) (((float) obj->condition)/10),9)].name);
+        }
 
-    if (obj->item_type == ITEM_WEAPON)
-    {
-        if (obj->condition == 0)
-        strcat(buf, "{y(Broken){x");
-    }
-    else
-    {
-        strcat(buf, object_damage_table[URANGE
-            (0, 9 - (int) (((float) obj->condition)/10),9)].name);
-    }
+        /* Show trade class if a commodity */
+        if (obj->item_type == ITEM_TRADE_TYPE && TRADE(obj)->trade_type != -1)
+        {
+            strcat(buf, " {Y(");
+            strcat(buf, trade_table[ TRADE(obj)->trade_type ].name);
+            strcat(buf, "){x");
+        }
 
-    /* Show trade class if a commodity */
-    if (obj->item_type == ITEM_TRADE_TYPE && TRADE(obj)->trade_type != -1)
-    {
-        strcat(buf, "{Y(");
-        strcat(buf, trade_table[ TRADE(obj)->trade_type ].name);
-        strcat(buf, "){x");
-    }
+        if (!IS_NPC(ch) && IS_SET(ch->act[1], PLR_SHOW_RESTRINGS))
+        {
+            // If either is changed, show it.
+            if (obj->old_name != NULL || obj->old_short_descr != NULL)
+            {
+                strcat(buf, " {W(");
+                strcat(buf, obj->name);
+                strcat(buf, "){x");
+            }
+        }
     }
     else
     {
@@ -760,66 +773,66 @@ void show_list_to_char(OBJ_DATA *list, CHAR_DATA *ch, bool fShort,
     }
     }
 
-    if (!append_ok)
-    goto show_list_cleanup;
-
+    if (append_ok)
+    {
     /*
      * Output the formatted list.
      */
     for (iShow = 0; iShow < nShow; iShow++)
     {
-    if (prgpstrShow[iShow][0] == '\0') {
+        if (prgpstrShow[iShow][0] == '\0') {
         free_string(prgpstrShow[iShow]);
         continue;
-    }
+        }
 
-    if (prgnShow[iShow] != 1) {
+        if (prgnShow[iShow] != 1) {
         sprintf(buf, "{Y({G%2d{Y) {x", prgnShow[iShow]);
         if (!add_buf(output, buf))
         {
-        perrf(LOG_ERROR, "Addbuf, combine failed");
-        append_ok = false;
-        break;
+            perrf(LOG_ERROR, "Addbuf, combine failed");
+            append_ok = false;
+            break;
         }
-    } else {
+        } else {
         if (!add_buf(output, "     "))
         {
-        perrf(LOG_ERROR, "Addbuf, combine failed");
-        append_ok = false;
-        break;
+            perrf(LOG_ERROR, "Addbuf, combine failed");
+            append_ok = false;
+            break;
         }
-    }
+        }
 
-    if (!add_buf(output, "{x")
-    ||  !add_buf(output, prgpstrShow[iShow])
-    ||  !add_buf(output, "\n\r{x"))
-    {
+        if (!add_buf(output, "{x")
+        ||  !add_buf(output, prgpstrShow[iShow])
+        ||  !add_buf(output, "\n\r{x"))
+        {
         perrf(LOG_ERROR, "Addbuf, item line failed");
         append_ok = false;
         break;
+        }
+        free_string(prgpstrShow[iShow]);
+        prgpstrShow[iShow] = NULL;
     }
-    free_string(prgpstrShow[iShow]);
-    prgpstrShow[iShow] = NULL;
     }
 
     if (!append_ok)
     {
     send_to_char("Object list output exceeded buffer limits.\n\r", ch);
-    goto show_list_cleanup;
     }
-
+    else
+    {
     if (fShowNothing && nShow == 0)
     {
-    /* if (IS_NPC(ch) || IS_SET(ch->comm, COMM_COMBINE)) */
-    send_to_char("     ", ch);
-    send_to_char("Nothing.\n\r", ch);
+        /* if (IS_NPC(ch) || IS_SET(ch->comm, COMM_COMBINE)) */
+        send_to_char("     ", ch);
+        send_to_char("Nothing.\n\r", ch);
     }
     page_to_char(buf_string(output), ch);
+    }
 
     /*
      * Clean up.
      */
-show_list_cleanup:
     for (iShow = 0; iShow < nShow; iShow++)
     {
     if (prgpstrShow[iShow] != NULL)
@@ -1138,6 +1151,10 @@ static void append_victim_position_text(char *buf, char *message, CHAR_DATA *vic
 
 static void append_victim_aura_text(char *buf, char *buf2, CHAR_DATA *victim, CHAR_DATA *ch)
 {
+    int aura_count = 0;
+    ITERATOR aurait;
+    AURA_DATA *aura;
+
     if (!IS_NPC(victim)
     && ((!IS_MORPHED(victim) && !IS_SHIFTED(victim)) ||
     (victim->position != POS_STANDING || MOUNTED(victim) || can_see_shift(ch, victim))))
@@ -1162,6 +1179,32 @@ static void append_victim_aura_text(char *buf, char *buf2, CHAR_DATA *victim, CH
         buf2[4] = UPPER(buf2[4]);
         strcat(buf, buf2);
     }
+
+    if (victim->auras != NULL)
+    {
+        iterator_start(&aurait, victim->auras);
+        while ((aura = (AURA_DATA *)iterator_nextdata(&aurait)) != NULL)
+        {
+            size_t len;
+
+            if (aura_count >= MAX_AURAS_SHOWN)
+                break;
+
+            if (IS_NULLSTR(aura->long_descr))
+                continue;
+
+            snprintf(buf2, MAX_STRING_LENGTH, "\n\r%s",
+                string_replace_static(aura->long_descr, "%s", pers(victim, ch)));
+
+            len = strlen(buf2);
+            if (len < 2 || strcmp(buf2 + len - 2, "\n\r"))
+                strcat(buf2, "\n\r");
+
+            strcat(buf, buf2);
+            aura_count++;
+        }
+        iterator_stop(&aurait);
+    }
     }
     else
     {
@@ -1184,6 +1227,32 @@ static void append_victim_aura_text(char *buf, char *buf2, CHAR_DATA *victim, CH
         sprintf(buf2, "{W%s is surrounded with an aura of sanctuary.{x\n\r", pers(victim, ch));
         buf2[2] = UPPER(buf2[2]);
         strcat(buf, buf2);
+    }
+
+    if (victim->auras != NULL)
+    {
+        iterator_start(&aurait, victim->auras);
+        while ((aura = (AURA_DATA *)iterator_nextdata(&aurait)) != NULL)
+        {
+            size_t len;
+
+            if (aura_count >= MAX_AURAS_SHOWN)
+                break;
+
+            if (IS_NULLSTR(aura->long_descr))
+                continue;
+
+            snprintf(buf2, MAX_STRING_LENGTH, "%s",
+                string_replace_static(aura->long_descr, "%s", pers(victim, ch)));
+
+            len = strlen(buf2);
+            if (len < 2 || strcmp(buf2 + len - 2, "\n\r"))
+                strcat(buf2, "\n\r");
+
+            strcat(buf, buf2);
+            aura_count++;
+        }
+        iterator_stop(&aurait);
     }
     }
 }
@@ -2533,9 +2602,10 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
             }
 
 #if 1
-            if (!IS_SET(ch->comm, COMM_NOMAP) && /*!ON_SHIP(ch) &&*/
+            if (!IS_SET(ch->comm, COMM_NOMAP) &&
                 !IS_SET(room->room_flag[0], ROOM_NOMAP) &&
-                !IS_SET(room->area->area_flags, AREA_NOMAP))
+                !IS_SET(room->area->area_flags, AREA_NOMAP) &&
+                !pref_gmcp_suppress_minimap(ch))
                 show_map_and_description(ch, room);
             else {
 #endif
@@ -2557,7 +2627,8 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
         IS_SET(room->room_flag[1], ROOM_VIRTUAL_ROOM) &&
         !IS_SET(ch->comm, COMM_BRIEF)))) ||
         (!automatic && !IS_NPC(ch) &&
-        IS_SET(room->room_flag[1], ROOM_VIRTUAL_ROOM)))) {
+        IS_SET(room->room_flag[1], ROOM_VIRTUAL_ROOM))) &&
+        !pref_gmcp_suppress_minimap(ch)) {
         int vp_x, vp_y;
 
         vp_x = get_squares_to_show_x(ch->wildview_bonus_x);
@@ -2683,6 +2754,15 @@ void do_look(CHAR_DATA * ch, char *argument)
     if (arg1[0] == '\0')
     {
         show_room(ch,ch->in_room,false,false,false);
+
+        /* Invalidate GMCP room cache so the next pulse resends Room.Info,
+         * Room.Map, and Room.Contents for the current room. */
+        if (ch->desc && ch->desc->pProtocol) {
+            ch->desc->pProtocol->sentience_cache.room_id0 = -1;
+            ch->desc->pProtocol->sentience_cache.room_id1 = -1;
+            ch->desc->pProtocol->sentience_cache.contents_room_id[0] = -1;
+            ch->desc->pProtocol->sentience_cache.contents_room_id[1] = -1;
+        }
         return;
     }
 
@@ -4444,7 +4524,7 @@ void do_affects(CHAR_DATA * ch, char *argument)
                 sprintf(buf, "                           ");
             else
                 sprintf(buf, "{BSpell: {G%-20s{x",
-            paf->type == skill_resolve_gsn("improved invisibility") ? "improved invis" : skill_table[paf->type].name);
+            paf->type == skill_resolve_gsn("improved invisibility") ? "improved invis" : skill_name(skill_find_uid(paf->type)));
 
             send_to_char(buf, ch);
 
@@ -5221,6 +5301,17 @@ iterator_stop(&it);
     else {
         CLASS_DATA *who_class = get_current_class(wch);
         strcpy(classstr, who_class ? class_who_ch(who_class, wch) : "Adventurer");
+    }
+
+    {
+        int vis = strlen_no_colours(classstr);
+        if (vis < 12) {
+            size_t raw = strlen(classstr);
+            int pad = 12 - vis;
+            for (int i = 0; i < pad; i++)
+                classstr[raw + i] = ' ';
+            classstr[raw + pad] = '\0';
+        }
     }
 
     if (!wch->race || !wch->race->who_name || !wch->race->who_name[0])
@@ -7588,6 +7679,51 @@ int show_map(CHAR_DATA * ch, char *buf, char *map, int counter, int line)
     }
 
     return counter;
+}
+
+bool render_area_map_to_buffer(CHAR_DATA *ch, ROOM_INDEX_DATA *room,
+                               BUFFER **out_buf, int *out_width, int *out_height)
+{
+    char map[101];
+    char cell[4];
+    int line, count;
+    BUFFER *buf;
+
+    if (!ch || !room || !out_buf)
+        return false;
+
+    if (IS_SET(ch->comm, COMM_NOMAP) ||
+        IS_SET(room->room_flag[0], ROOM_NOMAP) ||
+        IS_SET(room->area->area_flags, AREA_NOMAP))
+        return false;
+
+    if (room->wilds)
+        return false;
+
+    create_map(ch, room, map);
+
+    buf = new_buf();
+
+    for (line = 1; line <= 7; line++) {
+        if (line == 1 || line == 7) {
+            add_buf(buf, "{B+{b----------{B+{x");
+        } else {
+            add_buf(buf, "{b|");
+            for (count = ((line - 1) * 10); count < (line * 10); count++) {
+                convert_map_char(cell, map[count]);
+                cell[3] = '\0';
+                add_buf(buf, cell);
+            }
+            add_buf(buf, "{b|{x");
+        }
+        if (line < 7)
+            add_buf(buf, "\n\r");
+    }
+
+    *out_buf = buf;
+    if (out_width)  *out_width = 21;
+    if (out_height) *out_height = 7;
+    return true;
 }
 
 

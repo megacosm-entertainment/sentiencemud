@@ -119,6 +119,23 @@
         ]
       },
       "expected_output": { "all_cases_pass": true }
+    },
+    {
+      "name": "one_argument_norm_core_cases",
+      "description": "Validates token extraction without case conversion",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "one_argument_norm",
+        "test_cases": [
+          { "argument": "Look North", "expected_first": "Look", "expected_rest": "North" },
+          { "argument": "   cast   'Magic Missile'  target", "expected_first": "cast", "expected_rest": "'Magic Missile'  target" },
+          { "argument": "'Two Words' remainder text", "expected_first": "Two Words", "expected_rest": "remainder text" },
+          { "argument": "\"Quoted Value\" after", "expected_first": "Quoted Value", "expected_rest": "after" },
+          { "argument": "SAY", "expected_first": "SAY", "expected_rest": "" },
+          { "argument": "   ", "expected_first": "", "expected_rest": "" }
+        ]
+      },
+      "expected_output": { "all_cases_pass": true }
     }
   ]
 }

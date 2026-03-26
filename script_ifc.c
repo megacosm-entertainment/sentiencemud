@@ -13,6 +13,7 @@
 #include "song_data.h"
 #include "traits.h"
 #include "event_types.h"
+#include "skill_data.h"
 #include <math.h>
 
 extern bool wiznet_script;
@@ -347,6 +348,13 @@ DECL_IFC_FUN(ifc_affectedname)
 DECL_IFC_FUN(ifc_affectedspell)
 {
     *ret = (ISARG_MOB(0) && ISARG_STR(1) && is_affected(ARG_MOB(0), skill_lookup(ARG_STR(1))));
+    return true;
+}
+
+// Checks if the mobile has a generic aura by aura name key
+DECL_IFC_FUN(ifc_aura)
+{
+    *ret = (ISARG_MOB(0) && ISARG_STR(1) && find_aura_char(ARG_MOB(0), ARG_STR(1)) != NULL);
     return true;
 }
 
@@ -2801,7 +2809,7 @@ DECL_IFC_FUN(ifc_bodytypevalue)
 
     if (ISARG_MOB(0)) {
         target_mob = ARG_MOB(0);
-        if (argc < 2 || !ISARG_NUM(1)) return false;
+        if (!target_mob || argc < 2 || !ISARG_NUM(1)) return false;
         *ret = (target_mob->body_type == (body_type_t)ARG_NUM(1));
     } else if (ISARG_NUM(0)) {
         if (!target_mob) return false;
@@ -4747,7 +4755,8 @@ DECL_IFC_FUN(ifc_isspell)
         else
             return false;
 
-        *ret = sn >= 0 && sn < MAX_SKILL && skill_table[sn].spell_fun && skill_table[sn].spell_fun != spell_null;
+        SKILL_DATA *ifc_sk = skill_find_uid(sn);
+        *ret = sn >= 0 && sn < MAX_SKILL && ifc_sk && ifc_sk->spell_fun && ifc_sk->spell_fun != spell_null;
     }
 
     return true;

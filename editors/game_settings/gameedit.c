@@ -282,6 +282,24 @@ if (match_count == 1) {
             case SETTING_TYPE_FLOAT:
                 snprintf(formatted_value, sizeof(formatted_value), "{Y%.4f{x", *(float *)setting->ptr);
                 break;
+            case SETTING_TYPE_INT_ARRAY: {
+                char *joined = join_int_array(*((ARRAY **)setting->ptr));
+                snprintf(formatted_value, sizeof(formatted_value), "{Y%s{x", joined);
+                free(joined);
+                break;
+            }
+            case SETTING_TYPE_FLOAT_ARRAY: {
+                char *joined = join_float_array(*((ARRAY **)setting->ptr));
+                snprintf(formatted_value, sizeof(formatted_value), "{Y%s{x", joined);
+                free(joined);
+                break;
+            }
+            case SETTING_TYPE_STRING_ARRAY: {
+                char *joined = join_string_array(*((ARRAY **)setting->ptr));
+                snprintf(formatted_value, sizeof(formatted_value), "{Y%s{x", joined);
+                free(joined);
+                break;
+            }
             default:
                 snprintf(formatted_value, sizeof(formatted_value), "{D(unknown type){x");
                 break;
@@ -361,6 +379,15 @@ if (match_count == 1) {
                 break;
             case SETTING_TYPE_FLOAT:
                 snprintf(usage, sizeof(usage), "Usage: {Wgameedit set %s <number.decimal>{x", setting->name);
+                break;
+            case SETTING_TYPE_INT_ARRAY:
+                snprintf(usage, sizeof(usage), "Usage: {Wgameedit set %s [<number>,...]{x", setting->name);
+                break;
+            case SETTING_TYPE_FLOAT_ARRAY:
+                snprintf(usage, sizeof(usage), "Usage: {Wgameedit set %s [<number,decimal,NaN,+/-Inf>,...]{x", setting->name);
+                break;
+            case SETTING_TYPE_STRING_ARRAY:
+                snprintf(usage, sizeof(usage), "Usage: {Wgameedit set %s [<string,NULL>,...]{x", setting->name);
                 break;
             default:
                 snprintf(usage, sizeof(usage), "Usage: {Wgameedit set %s <value>{x", setting->name);
@@ -571,10 +598,28 @@ GAMEEDIT(gameedit_confirm)
             case SETTING_TYPE_FLOAT:
                 *(float *)change->setting->ptr = atof(change->value);
                 break;
+
+            case SETTING_TYPE_INT_ARRAY:
+                free_array(*((ARRAY **)(change->setting->ptr)));
+                *((ARRAY **)(change->setting->ptr)) = split_int_array(change->value);
+                break;
+
+            case SETTING_TYPE_FLOAT_ARRAY:
+                free_array(*((ARRAY **)(change->setting->ptr)));
+                *((ARRAY **)(change->setting->ptr)) = split_float_array(change->value);
+                break;
+
+            case SETTING_TYPE_STRING_ARRAY:
+                free_array(*((ARRAY **)(change->setting->ptr)));
+                *((ARRAY **)(change->setting->ptr)) = split_string_array(change->value);
+                break;
         }
         
         if (change->setting->requires_reboot)
             reboot_needed = true;
+        // If the settings doesn't require a reboot, see if it has an on_change
+        else if (change->setting->on_change)
+            (*change->setting->on_change)();
     }
     iterator_stop(&it);
     
@@ -697,6 +742,24 @@ void gameedit_display_setting(BUFFER *buffer, CHAR_DATA *ch, const struct game_s
             case SETTING_TYPE_FLOAT:
                 sprintf(value_str, "{Y%.4f{x", *(float *)setting->ptr);
                 break;
+            case SETTING_TYPE_INT_ARRAY: {
+                char *joined = join_int_array(*((ARRAY **)setting->ptr));
+                sprintf(value_str, "{Y%s{x", joined);
+                free(joined);
+                break;
+            }
+            case SETTING_TYPE_FLOAT_ARRAY: {
+                char *joined = join_float_array(*((ARRAY **)setting->ptr));
+                sprintf(value_str, "{Y%s{x", joined);
+                free(joined);
+                break;
+            }
+            case SETTING_TYPE_STRING_ARRAY: {
+                char *joined = join_string_array(*((ARRAY **)setting->ptr));
+                sprintf(value_str, "{Y%s{x", joined);
+                free(joined);
+                break;
+            }
             default:
                 strcpy(value_str, "{D(unknown){x");
                 break;
@@ -730,12 +793,15 @@ bool is_env_override = json_setting_is_env_override(setting->name);
 // Format type column with modifiers
 const char *type_name = "";
 switch (setting->type) {
-    case SETTING_TYPE_BOOL:   type_name = "Boolean"; break;
-    case SETTING_TYPE_INT:    type_name = "Integer"; break;
-    case SETTING_TYPE_STRING: type_name = "String";  break;
-    case SETTING_TYPE_EXTSTR: type_name = "ExtStr"; break;
-    case SETTING_TYPE_FLOAT:  type_name = "Float";   break;
-    default:                  type_name = "Unknown"; break;
+    case SETTING_TYPE_BOOL:         type_name = "Boolean"; break;
+    case SETTING_TYPE_INT:          type_name = "Integer"; break;
+    case SETTING_TYPE_STRING:       type_name = "String";  break;
+    case SETTING_TYPE_EXTSTR:       type_name = "ExtStr"; break;
+    case SETTING_TYPE_FLOAT:        type_name = "Float";   break;
+    case SETTING_TYPE_INT_ARRAY:    type_name = "Int[]"; break;
+    case SETTING_TYPE_FLOAT_ARRAY:  type_name = "Float[]"; break;
+    case SETTING_TYPE_STRING_ARRAY: type_name = "String[]"; break;
+    default:                        type_name = "Unknown"; break;
 }
 char modifiers[32] = "";
 if (is_env_override) strcat(modifiers, "{CE{x");  // Cyan E for Environment
@@ -829,6 +895,7 @@ bool gameedit_set_value(CHAR_DATA *ch, const struct game_setting_type *setting, 
 {
     GAME_SETTING_CHANGE *change;
     ITERATOR it;
+    ARRAY *arr;
     extern bool json_setting_is_env_override(const char *setting_name);
 
     /* Warn if setting is overridden by environment variable */
@@ -909,6 +976,55 @@ bool gameedit_set_value(CHAR_DATA *ch, const struct game_setting_type *setting, 
         case SETTING_TYPE_STRING:
             /* No validation needed for string types */
             break;
+
+        case SETTING_TYPE_INT_ARRAY:
+            if (!setting->olc_settable) {
+                send_to_char("This setting cannot be changed through OLC.\n\r", ch);
+                return false;
+            }
+
+            arr = split_int_array(value);
+            if (!arr)
+            {
+                send_to_char("This setting requires an integer array.\n\rExample: [1, 3, 7, 1]\n\r", ch);
+                return false;
+            }
+            free_array(arr);
+            break;
+
+        case SETTING_TYPE_FLOAT_ARRAY:
+            if (!setting->olc_settable) {
+                send_to_char("This setting cannot be changed through OLC.\n\r", ch);
+                return false;
+            }
+
+            arr = split_float_array(value);
+            if (!arr)
+            {
+                send_to_char("This setting requires a floating point array.\n\rExample: [1.3,7.4,89.0,1e-30,NaN,-Inf]\n\r", ch);
+                return false;
+            }
+            free_array(arr);
+            break;
+        
+        case SETTING_TYPE_STRING_ARRAY:
+                if (!setting->olc_settable) {
+                send_to_char("This setting cannot be changed through OLC.\n\r", ch);
+                return false;
+            }
+
+            arr = split_string_array(value);
+            if (!arr)
+            {
+                send_to_char("This setting requires a string array.\n\rExample: [\"string1\", NULL, \"string3\"]\n\r", ch);
+                return false;
+            }
+            free_array(arr);
+            break;
+
+        default:
+            send_to_char("This setting cannot be changed through OLC.\n\r", ch);
+            return false;
     }
     
     /* Initialize pending changes list if needed */
@@ -921,7 +1037,7 @@ bool gameedit_set_value(CHAR_DATA *ch, const struct game_setting_type *setting, 
         send_to_char("Extended string settings must be edited with 'gameedit set <setting> edit'.\n\r", ch);
         return false;
     }
-    
+ 
     /* Check if we already have a pending change for this setting */
     iterator_start(&it, pending_changes);
     while ((change = (GAME_SETTING_CHANGE *)iterator_nextdata(&it))) {
@@ -1302,6 +1418,24 @@ GAMEEDIT(gameedit_pending)
                     else
                         strcpy(current_value_str, "{D(empty){x");
                     break;
+                case SETTING_TYPE_INT_ARRAY: {
+                    char *joined = join_int_array(*((ARRAY **)setting->ptr));
+                    snprintf(current_value_str, sizeof(current_value_str), "{Y%s{x", joined);
+                    free(joined);
+                    break;
+                }
+                case SETTING_TYPE_FLOAT_ARRAY: {
+                    char *joined = join_float_array(*((ARRAY **)setting->ptr));
+                    snprintf(current_value_str, sizeof(current_value_str), "{Y%s{x", joined);
+                    free(joined);
+                    break;
+                }
+                case SETTING_TYPE_STRING_ARRAY: {
+                    char *joined = join_string_array(*((ARRAY **)setting->ptr));
+                    snprintf(current_value_str, sizeof(current_value_str), "{Y%s{x", joined);
+                    free(joined);
+                    break;
+                }
                 default:
                     strcpy(current_value_str, "{D(unknown){x");
                     break;
@@ -1327,6 +1461,15 @@ GAMEEDIT(gameedit_pending)
                         sprintf(pending_value_str, "{W%s{x", change->value);
                     else
                         strcpy(pending_value_str, "{D(empty){x");
+                    break;
+                case SETTING_TYPE_INT_ARRAY:
+                    sprintf(pending_value_str, "{Y%s{x", change->value);
+                    break;
+                case SETTING_TYPE_FLOAT_ARRAY:
+                    sprintf(pending_value_str, "{Y%s{x", change->value);
+                    break;
+                case SETTING_TYPE_STRING_ARRAY:
+                    sprintf(pending_value_str, "{Y%s{x", change->value);
                     break;
                 default:
                      sprintf(pending_value_str, "{M%s{x", change->value);
@@ -1477,6 +1620,39 @@ GAMEEDIT(gameedit_rollback)
                 free_string(*(char **)history->setting->ptr);
                 *(char **)history->setting->ptr = str_dup(history->old_value);
                 break;
+
+            case SETTING_TYPE_INT_ARRAY: {
+                ARRAY **parr = (ARRAY **)history->setting->ptr;
+                ARRAY *arr = split_int_array(history->old_value);
+                if (arr)
+                {
+                    free_array(*parr);
+                    *parr = arr;
+                }
+                break;
+            }
+
+            case SETTING_TYPE_FLOAT_ARRAY: {
+                ARRAY **parr = (ARRAY **)history->setting->ptr;
+                ARRAY *arr = split_float_array(history->old_value);
+                if (arr)
+                {
+                    free_array(*parr);
+                    *parr = arr;
+                }
+                break;
+            }
+
+            case SETTING_TYPE_STRING_ARRAY: {
+                ARRAY **parr = (ARRAY **)history->setting->ptr;
+                ARRAY *arr = split_string_array(history->old_value);
+                if (arr)
+                {
+                    free_array(*parr);
+                    *parr = arr;
+                }
+                break;
+            }
         }
         
         if (history->setting->requires_reboot)
@@ -1484,61 +1660,67 @@ GAMEEDIT(gameedit_rollback)
     }
     iterator_stop(&it);
     
-/* Create a new changeset for the rollback */
-if (!pending_changes)
-    pending_changes = list_create(false);
+    /* Create a new changeset for the rollback */
+    if (!pending_changes)
+        pending_changes = list_create(false);
 
-/* Add each change to the pending changes list */
-iterator_start(&it, changeset->changes);
-GAME_SETTING_CHANGE *change;
-while ((history = (GAME_SETTING_CHANGE_HISTORY *)iterator_nextdata(&it))) {
-    change = alloc_mem(sizeof(GAME_SETTING_CHANGE));
-    change->setting = history->setting;
-    
-    // Store the current value as we're rolling back FROM this value TO the old value
-    switch (history->setting->type) {
-        case SETTING_TYPE_BOOL: {
-//            bool current = *(bool *)history->setting->ptr;
-            // We're rolling back TO the old_value
-            change->value = str_dup(history->old_value);
-            break;
+    /* Add each change to the pending changes list */
+    iterator_start(&it, changeset->changes);
+    GAME_SETTING_CHANGE *change;
+    while ((history = (GAME_SETTING_CHANGE_HISTORY *)iterator_nextdata(&it))) {
+        change = alloc_mem(sizeof(GAME_SETTING_CHANGE));
+        change->setting = history->setting;
+        
+        // Store the current value as we're rolling back FROM this value TO the old value
+        switch (history->setting->type) {
+            case SETTING_TYPE_BOOL: {
+    //            bool current = *(bool *)history->setting->ptr;
+                // We're rolling back TO the old_value
+                change->value = str_dup(history->old_value);
+                break;
+            }
+            
+            case SETTING_TYPE_INT: {
+    //            int current = *(int *)history->setting->ptr;
+                // We're rolling back TO the old_value
+                change->value = str_dup(history->old_value);
+                break;
+            }
+            
+            case SETTING_TYPE_STRING:
+                // We're rolling back TO the old_value
+                change->value = str_dup(history->old_value);
+                break;
+
+            case SETTING_TYPE_INT_ARRAY:
+            case SETTING_TYPE_FLOAT_ARRAY:
+            case SETTING_TYPE_STRING_ARRAY:
+                change->value = str_dup(history->old_value);
+                break;
         }
         
-        case SETTING_TYPE_INT: {
-//            int current = *(int *)history->setting->ptr;
-            // We're rolling back TO the old_value
-            change->value = str_dup(history->old_value);
-            break;
-        }
-        
-        case SETTING_TYPE_STRING:
-            // We're rolling back TO the old_value
-            change->value = str_dup(history->old_value);
-            break;
+        list_appendlink(pending_changes, change);
     }
-    
-    list_appendlink(pending_changes, change);
-}
-iterator_stop(&it);
+    iterator_stop(&it);
 
-/* Create the rollback changeset and save */
-char comment[MAX_STRING_LENGTH];
-sprintf(comment, "Rollback to changeset #%d", changeset->id);
-create_changeset(ch, comment);
+    /* Create the rollback changeset and save */
+    char comment[MAX_STRING_LENGTH];
+    sprintf(comment, "Rollback to changeset #%d", changeset->id);
+    create_changeset(ch, comment);
 
-/* Clear the pending changes AFTER saving the changeset */
-iterator_start(&it, pending_changes);
-while ((change = (GAME_SETTING_CHANGE *)iterator_nextdata(&it))) {
-    if (change->value)
-        free_string(change->value);
-    free_mem(change, sizeof(GAME_SETTING_CHANGE));
-}
-iterator_stop(&it);
-list_clear(pending_changes);
+    /* Clear the pending changes AFTER saving the changeset */
+    iterator_start(&it, pending_changes);
+    while ((change = (GAME_SETTING_CHANGE *)iterator_nextdata(&it))) {
+        if (change->value)
+            free_string(change->value);
+        free_mem(change, sizeof(GAME_SETTING_CHANGE));
+    }
+    iterator_stop(&it);
+    list_clear(pending_changes);
 
-/* Save the settings and changesets */
-game_settings_write();
-save_changesets();
+    /* Save the settings and changesets */
+    game_settings_write();
+    save_changesets();
     
     send_to_char(formatf("Rolled back %d settings to changeset #%d.\n\r", count, changeset->id), ch);
     send_to_char("Game settings saved.\n\r", ch);
@@ -1580,38 +1762,50 @@ void create_changeset(CHAR_DATA *ch, char *comment)
         history = alloc_mem(sizeof(GAME_SETTING_CHANGE_HISTORY));
         history->setting = change->setting;
         
-// In the create_changeset function:
-/* Store the old value */
-    switch (change->setting->type) {
-        case SETTING_TYPE_BOOL: {
-            bool current_value = *(bool *)change->setting->ptr;
-            history->old_value = str_dup(current_value ? "true" : "false");
-            break;
+        // In the create_changeset function:
+        /* Store the old value */
+        switch (change->setting->type) {
+            case SETTING_TYPE_BOOL: {
+                bool current_value = *(bool *)change->setting->ptr;
+                history->old_value = str_dup(current_value ? "true" : "false");
+                break;
+            }
+            
+            case SETTING_TYPE_INT: {
+                int current_value = *(int *)change->setting->ptr;
+                char temp_buf[MAX_STRING_LENGTH];
+                sprintf(temp_buf, "%d", current_value);
+                history->old_value = str_dup(temp_buf);
+                break;
+            }
+            
+            case SETTING_TYPE_STRING:
+            case SETTING_TYPE_EXTSTR: {
+                char *current_value = *(char **)change->setting->ptr;
+                history->old_value = str_dup(current_value ? current_value : "");
+                break;
+            }
+            
+            case SETTING_TYPE_FLOAT: {
+                float current_value = *(float *)change->setting->ptr;
+                char temp_buf[MAX_STRING_LENGTH];
+                sprintf(temp_buf, "%.4f", current_value);
+                history->old_value = str_dup(temp_buf);
+                break;
+            }
+
+            case SETTING_TYPE_INT_ARRAY:
+                history->old_value = join_int_array(*((ARRAY **)change->setting->ptr));
+                break;
+
+            case SETTING_TYPE_FLOAT_ARRAY:
+                history->old_value = join_float_array(*((ARRAY **)change->setting->ptr));
+                break;
+
+            case SETTING_TYPE_STRING_ARRAY:
+                history->old_value = join_string_array(*((ARRAY **)change->setting->ptr));
+                break;
         }
-        
-        case SETTING_TYPE_INT: {
-            int current_value = *(int *)change->setting->ptr;
-            char temp_buf[MAX_STRING_LENGTH];
-            sprintf(temp_buf, "%d", current_value);
-            history->old_value = str_dup(temp_buf);
-            break;
-        }
-        
-        case SETTING_TYPE_STRING:
-        case SETTING_TYPE_EXTSTR: {
-            char *current_value = *(char **)change->setting->ptr;
-            history->old_value = str_dup(current_value ? current_value : "");
-            break;
-        }
-        
-        case SETTING_TYPE_FLOAT: {
-            float current_value = *(float *)change->setting->ptr;
-            char temp_buf[MAX_STRING_LENGTH];
-            sprintf(temp_buf, "%.4f", current_value);
-            history->old_value = str_dup(temp_buf);
-            break;
-        }
-    }
         
         /* Store the new value */
         history->new_value = str_dup(change->value);

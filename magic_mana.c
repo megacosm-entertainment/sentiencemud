@@ -107,10 +107,11 @@ SPELL_FUNC(spell_counter_spell)
         act("{YYour magic fizzles and backfires!{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
         act("{Y$n's magic fizzles and backfires!{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
-        mana = skill_table[sn].min_mana;
+        SKILL_DATA *counter_skill = skill_find_uid(sn);
+        mana = counter_skill ? counter_skill->min_mana : 0;
 
         target = TARGET_NONE;
-        switch (skill_table[sn].target) {
+        switch (counter_skill ? counter_skill->target : TAR_IGNORE) {
         default:
             pbugf(LOG_ERROR, "Do_cast: bad target for sn %d.", sn);
             return true;
@@ -149,7 +150,8 @@ SPELL_FUNC(spell_counter_spell)
 
         victim->mana -= mana/3;
         ch->mana -= (mana * 2)/3;
-        (*skill_table[sn].spell_fun)(skill_find_uid(sn), 3 * ch->tot_level/4, victim, vo, target, WEAR_NONE, INVOC_CAST);
+        if (counter_skill && counter_skill->spell_fun)
+            (*counter_skill->spell_fun)(counter_skill, 3 * ch->tot_level/4, victim, vo, target, WEAR_NONE, INVOC_CAST);
     } else
         stop_casting(victim, true);
 
@@ -257,7 +259,9 @@ SPELL_FUNC(spell_dispel_room)
     rev_pRoom = ch->in_room;
 
     // Dispel current room
-    for (obj = ch->in_room->contents; obj != NULL; obj = obj->next_content) {
+    OBJ_DATA *obj_next;
+    for (obj = ch->in_room->contents; obj != NULL; obj = obj_next) {
+        obj_next = obj->next_content;
         exists = false;
 
         if (obj->item_type == ITEM_ROOM_FLAME) {
@@ -297,7 +301,8 @@ SPELL_FUNC(spell_dispel_room)
         pexit = ch->in_room->exit[ index ];
         if (pexit && ((pRoom = pexit->u1.to_room)) &&
             !IS_SET(pexit->exit_info, EX_CLOSED)) {
-            for (obj = pRoom->contents; obj; obj = obj->next_content)  {
+            for (obj = pRoom->contents; obj; obj = obj_next)  {
+                obj_next = obj->next_content;
                 exists = false;
                 if (obj->item_type == ITEM_ROOM_FLAME) {
                     sprintf(buf, "{DThe flames die down and disappear.{x\n\r");
@@ -331,6 +336,7 @@ SPELL_FUNC(spell_dispel_room)
                 if (exists && !saves_dispel(ch, NULL, obj->level)) {
                     room_echo(rev_pRoom, buf2);
                     room_echo(pRoom, buf);
+                    obj_from_room(obj);
                     extract_obj(obj);
                 }
             }

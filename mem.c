@@ -13,6 +13,7 @@
 #include <string.h>
 #include <time.h>
 #include "merc.h"
+#include "gmcp_sentience.h"
 #include "recycle.h"
 #include "interp.h"
 #include "scripts.h"
@@ -91,6 +92,7 @@ QUEST_INDEX_DATA *quest_index_free;
 QUEST_INDEX_PART_DATA *quest_index_part_free;
 QUEST_LIST *quest_list_free;
 MOB_REPUTATION_DATA *mob_reputation_free;
+MOB_FACTION_DATA *mob_faction_free;
 AURA_DATA *aura_data_free;
 QUEST_PART_DATA *quest_part_free;
 RESET_DATA *reset_free;
@@ -112,6 +114,10 @@ SKILL_ENTRY *skill_entry_free;
 OLC_POINT_BOOST *olc_point_boost_free;
 SHIP_INDEX_DATA *ship_index_free;
 SHIP_DATA *ship_free;
+SHIP_HARDPOINT_DEF *ship_hardpoint_def_free;
+SHIP_CREW_DEF *ship_crew_def_free;
+SHIP_MODULE *ship_module_free;
+SHIP_SCHEDULE_STOP *ship_schedule_stop_free;
 CHURCH_LOG_ENTRY *church_log_entry_free;
 
 
@@ -149,6 +155,26 @@ LLIST *new_waypoints_list()
 static void delete_ship_route(void *ptr)
 {
     free_ship_route((SHIP_ROUTE *)ptr);
+}
+
+static void delete_ship_module(void *ptr)
+{
+    free_ship_module((SHIP_MODULE *)ptr);
+}
+
+static void delete_ship_hardpoint_def(void *ptr)
+{
+    free_ship_hardpoint_def((SHIP_HARDPOINT_DEF *)ptr);
+}
+
+static void delete_ship_crew_def(void *ptr)
+{
+    free_ship_crew_def((SHIP_CREW_DEF *)ptr);
+}
+
+static void delete_ship_schedule_stop(void *ptr)
+{
+    free_ship_schedule_stop((SHIP_SCHEDULE_STOP *)ptr);
 }
 
 
@@ -816,6 +842,7 @@ CHAR_DATA *new_char( void )
     ch->lgroup			= list_create(false);
     ch->auras                   = list_createx(false, NULL, delete_aura_data);
     ch->lstache			= list_create(false);
+    ch->factions		= list_create(false);
 
     ch->deathsight_vision = 0;
     ch->in_damage_function = false;
@@ -988,6 +1015,10 @@ void free_char( CHAR_DATA *ch )
     ch->auras = NULL;
     list_destroy(ch->lstache);
     ch->lstache = NULL;
+    list_destroy(ch->reputations);
+    ch->reputations = NULL;
+    list_destroy(ch->factions);
+    ch->factions = NULL;
 
     variable_clearfield(VAR_MOBILE, ch);
     script_clear_mobile(ch);
@@ -1223,6 +1254,10 @@ void free_pcdata(PC_DATA *pcdata)
     list_destroy(pcdata->unlocked_areas);
     list_destroy(pcdata->unlocked_dungeons);
     list_destroy(pcdata->ships);
+
+    /* Free web client layouts */
+    if (pcdata->web_client_layouts)
+        layout_free_all(&pcdata->web_client_layouts);
 
     INVALIDATE(pcdata);
     pcdata->next = pcdata_free;
@@ -1821,6 +1856,8 @@ AREA_DATA *new_area( void )
     pArea->notes    = &str_empty[0];
 
     pArea->points		= NULL;
+    pArea->dependencies      = NULL;
+    pArea->dependency_count  = 0;
 
     pArea->progs	    	=   new_prog_data();
     pArea->progs->progs	    =	NULL;
@@ -1868,6 +1905,7 @@ void free_area( AREA_DATA *pArea )
     free_string( pArea->map);
     free_string( pArea->comments);
     free_string( pArea->description);
+    area_dependency_clear(pArea);
     list_destroy(pArea->room_list);
     list_destroy(pArea->regions);
 
@@ -2537,6 +2575,16 @@ void free_mob_index( MOB_INDEX_DATA *pMob )
     free_mob_reputation_data(rep);
     }
     pMob->mob_reputations = NULL;
+
+    {
+        MOB_FACTION_DATA *fac, *fac_next;
+        for (fac = pMob->factions; fac != NULL; fac = fac_next)
+        {
+            fac_next = fac->next;
+            free_mob_faction_data(fac);
+        }
+        pMob->factions = NULL;
+    }
 
     free_questor_data( pMob->pQuestor );
     free_trainer_data( pMob->pTrainer );
@@ -3221,6 +3269,17 @@ SHIP_INDEX_DATA *new_ship_index()
 
     ship->special_keys = list_create(false);
 
+    ship->hardpoints = list_createx(false, NULL, delete_ship_hardpoint_def);
+
+    ship->crew_defs = list_createx(false, NULL, delete_ship_crew_def);
+    ship->captain = NULL;
+    ship->npc_type = NPC_SHIP_COAST_GUARD;
+    ship->faction = NULL;
+    ship->faction_rank = 0;
+
+    ship->schedule_stops = list_createx(false, NULL, delete_ship_schedule_stop);
+    ship->schedule_loop = true;
+
     return ship;
 }
 
@@ -3230,6 +3289,9 @@ void free_ship_index(SHIP_INDEX_DATA *ship)
     free_string(ship->description);
 
     list_destroy(ship->special_keys);
+    list_destroy(ship->hardpoints);
+    list_destroy(ship->crew_defs);
+    list_destroy(ship->schedule_stops);
 
     ship->next = ship_index_free;
     ship_index_free = ship;
@@ -3264,6 +3326,7 @@ SHIP_DATA *new_ship()
     ship->waypoints = new_waypoints_list();
     ship->route_waypoints = list_createx(false, NULL, delete_waypoint);
     ship->routes = list_createx(false, NULL, delete_ship_route);
+    ship->modules = list_createx(false, NULL, delete_ship_module);
 
     VALIDATE(ship);
     return ship;
@@ -3283,6 +3346,7 @@ void free_ship(SHIP_DATA *ship)
     iterator_stop(&ship->route_it);
     list_destroy(ship->route_waypoints);
     list_destroy(ship->routes);
+    list_destroy(ship->modules);
 
     variable_clearfield(VAR_SHIP, ship);
 
@@ -3329,6 +3393,73 @@ void free_npc_ship_index( NPC_SHIP_INDEX_DATA *npc_ship )
     npc_ship->next     =   npc_ship_index_free;
     npc_ship_index_free =   npc_ship;
     return;
+}
+
+/**
+ * new_npc_ship_data - Allocate a runtime NPC ship data struct
+ *
+ * @return  New NPC_SHIP_DATA with zeroed fields
+ */
+NPC_SHIP_DATA *new_npc_ship_data( void )
+{
+    NPC_SHIP_DATA *npc;
+
+    npc = alloc_mem(sizeof(NPC_SHIP_DATA));
+    memset(npc, 0, sizeof(NPC_SHIP_DATA));
+    npc->state = NPC_SHIP_STATE_STOPPED;
+
+    return npc;
+}
+
+/**
+ * free_npc_ship_data - Free a runtime NPC ship data struct
+ *
+ * @param npc  NPC ship data to free
+ */
+void free_npc_ship_data( NPC_SHIP_DATA *npc )
+{
+    if (!npc) return;
+    free_mem(npc, sizeof(NPC_SHIP_DATA));
+}
+
+/**
+ * new_ship_crew_def - Allocate a new crew mob definition
+ *
+ * @return  New SHIP_CREW_DEF with defaults
+ */
+SHIP_CREW_DEF *new_ship_crew_def( void )
+{
+    SHIP_CREW_DEF *cd;
+
+    if (ship_crew_def_free)
+    {
+        cd = ship_crew_def_free;
+        ship_crew_def_free = ship_crew_def_free->next;
+    }
+    else
+    {
+        cd = alloc_perm(sizeof(SHIP_CREW_DEF));
+    }
+
+    memset(cd, 0, sizeof(SHIP_CREW_DEF));
+    cd->count = 1;
+
+    VALIDATE(cd);
+    return cd;
+}
+
+/**
+ * free_ship_crew_def - Free a crew mob definition
+ *
+ * @param cd  Crew definition to free
+ */
+void free_ship_crew_def( SHIP_CREW_DEF *cd )
+{
+    if (!IS_VALID(cd)) return;
+
+    INVALIDATE(cd);
+    cd->next = ship_crew_def_free;
+    ship_crew_def_free = cd;
 }
 
 
@@ -3422,6 +3553,101 @@ void free_ship_crew( SHIP_CREW_DATA *crew )
     crew->next = ship_crew_free;
     ship_crew_free = crew;
     return;
+}
+
+
+/**
+ * new_ship_hardpoint_def - Allocate a new hardpoint slot definition
+ *
+ * @return  New SHIP_HARDPOINT_DEF with defaults
+ */
+SHIP_HARDPOINT_DEF *new_ship_hardpoint_def( void )
+{
+    SHIP_HARDPOINT_DEF *hp;
+
+    if( ship_hardpoint_def_free )
+    {
+        hp = ship_hardpoint_def_free;
+        ship_hardpoint_def_free = ship_hardpoint_def_free->next;
+    }
+    else
+    {
+        hp = alloc_perm(sizeof(SHIP_HARDPOINT_DEF));
+    }
+
+    memset(hp, 0, sizeof(SHIP_HARDPOINT_DEF));
+
+    hp->name = &str_empty[0];
+    hp->slot_id = 0;
+    hp->type = HARDPOINT_WEAPON;
+    hp->size = HARDPOINT_SIZE_SMALL;
+    hp->domain_flags = DOMAIN_ALL;
+
+    VALIDATE(hp);
+    return hp;
+}
+
+/**
+ * free_ship_hardpoint_def - Free a hardpoint slot definition
+ *
+ * @param hp  Hardpoint definition to free
+ */
+void free_ship_hardpoint_def( SHIP_HARDPOINT_DEF *hp )
+{
+    if( !IS_VALID(hp) ) return;
+
+    free_string(hp->name);
+
+    INVALIDATE(hp);
+    hp->next = ship_hardpoint_def_free;
+    ship_hardpoint_def_free = hp;
+}
+
+/**
+ * new_ship_module - Allocate a new installed module instance
+ *
+ * @return  New SHIP_MODULE with defaults
+ */
+SHIP_MODULE *new_ship_module( void )
+{
+    SHIP_MODULE *mod;
+
+    if( ship_module_free )
+    {
+        mod = ship_module_free;
+        ship_module_free = ship_module_free->next;
+    }
+    else
+    {
+        mod = alloc_mem(sizeof(SHIP_MODULE));
+    }
+
+    memset(mod, 0, sizeof(SHIP_MODULE));
+
+    mod->condition = 100;
+    mod->max_condition = 100;
+    mod->active = true;
+    mod->operational = false;
+    mod->assigned_crew = list_create(false);
+
+    VALIDATE(mod);
+    return mod;
+}
+
+/**
+ * free_ship_module - Free an installed module instance
+ *
+ * @param mod  Module instance to free
+ */
+void free_ship_module( SHIP_MODULE *mod )
+{
+    if( !IS_VALID(mod) ) return;
+
+    list_destroy(mod->assigned_crew);
+
+    INVALIDATE(mod);
+    mod->next = ship_module_free;
+    ship_module_free = mod;
 }
 
 
@@ -3929,6 +4155,53 @@ void free_mob_reputation_data(MOB_REPUTATION_DATA *data)
     INVALIDATE(data);
     data->next = mob_reputation_free;
     mob_reputation_free = data;
+}
+
+MOB_FACTION_DATA *new_mob_faction_data(void)
+{
+    MOB_FACTION_DATA *data;
+
+    if (!mob_faction_free)
+    {
+        data = alloc_perm(sizeof(*data));
+    }
+    else
+    {
+        data = mob_faction_free;
+        mob_faction_free = mob_faction_free->next;
+    }
+
+    memset(data, 0, sizeof(*data));
+    VALIDATE(data);
+    return data;
+}
+
+MOB_FACTION_DATA *copy_mob_faction_data(MOB_FACTION_DATA *src)
+{
+    MOB_FACTION_DATA *data;
+
+    if (!IS_VALID(src))
+        return NULL;
+
+    data = new_mob_faction_data();
+    if (!data)
+        return NULL;
+
+    data->faction = src->faction;
+    data->faction_load = src->faction_load;
+    data->next = NULL;
+
+    return data;
+}
+
+void free_mob_faction_data(MOB_FACTION_DATA *data)
+{
+    if (!IS_VALID(data))
+        return;
+
+    INVALIDATE(data);
+    data->next = mob_faction_free;
+    mob_faction_free = data;
 }
 
 
@@ -5872,6 +6145,47 @@ void free_ship_route(SHIP_ROUTE *route)
     INVALIDATE(route);
     route->next = ship_route_free;
     ship_route_free = route;
+}
+
+SHIP_SCHEDULE_STOP *new_ship_schedule_stop(void)
+{
+    SHIP_SCHEDULE_STOP *stop;
+
+    if (ship_schedule_stop_free) {
+        stop = ship_schedule_stop_free;
+        ship_schedule_stop_free = ship_schedule_stop_free->next;
+    } else {
+        stop = alloc_mem(sizeof(SHIP_SCHEDULE_STOP));
+    }
+
+    memset(stop, 0, sizeof(SHIP_SCHEDULE_STOP));
+
+    stop->name          = &str_empty[0];
+    stop->stop_id       = 0;
+    stop->location_type = STOP_LOC_WILDERNESS;
+    stop->wilds_uid     = 0;
+    stop->loc_x         = 0;
+    stop->loc_y         = 0;
+    stop->dock_room     = NULL;
+    stop->arrive_hour   = -1;
+    stop->depart_hour   = -1;
+    stop->dwell_ticks   = SHIP_SCHEDULE_DWELL_DEFAULT;
+    stop->dock_exit_dir = -1;
+    stop->dock_exit_type = DOCK_EXIT_NONE;
+
+    VALIDATE(stop);
+    return stop;
+}
+
+void free_ship_schedule_stop(SHIP_SCHEDULE_STOP *stop)
+{
+    if (!IS_VALID(stop)) return;
+
+    free_string(stop->name);
+
+    INVALIDATE(stop);
+    stop->next = ship_schedule_stop_free;
+    ship_schedule_stop_free = stop;
 }
 
 SHIP_CREW_INDEX_DATA *ship_crew_index_free;

@@ -439,6 +439,14 @@ void do_wedit(CHAR_DATA *ch, char *argument)
             pWilds->staticmap = calloc(sizeof(char), lMapsize);
             pWilds->map = calloc(sizeof(char), lMapsize);
 
+            if (!pWilds->staticmap || !pWilds->map) {
+                send_to_char("Wedit: memory allocation failed.\n\r", ch);
+                free(pWilds->staticmap);
+                free(pWilds->map);
+                free_wilds(pWilds);
+                return;
+            }
+
             pMap = pWilds->map;
             pStaticMap = pWilds->staticmap;
 
@@ -521,6 +529,15 @@ WEDIT ( wedit_create )
     lMapsize = pWilds->map_size_x * pWilds->map_size_y;
     pWilds->staticmap = calloc(sizeof(char), lMapsize);
     pWilds->map = calloc(sizeof(char), lMapsize);
+
+    if (!pWilds->staticmap || !pWilds->map) {
+        send_to_char("Wedit: memory allocation failed.\n\r", ch);
+        free(pWilds->staticmap);
+        free(pWilds->map);
+        free_wilds(pWilds);
+        return false;
+    }
+
     pWilds->uid = ++gconfig.next_wilds_uid;
     gconfig_write();
 
@@ -645,6 +662,7 @@ static void wedit_show_general_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEd
         UMAX(1, pWilds->wildgen_grid_rows), UMAX(1, pWilds->wildgen_grid_cols));
     olc_display_infof(ctx, theme, "Grid tile size:", "%d x %d (0x0=auto)",
         UMAX(0, pWilds->wildgen_tile_width), UMAX(0, pWilds->wildgen_tile_height));
+    olc_display_number(ctx, theme, "Default elevation:", NULL, pWilds->default_elevation);
 }
 
 /**
@@ -902,7 +920,7 @@ WEDIT (wedit_name)
     EDIT_WILDS (ch, pWilds);
 
     return olc_cmd_string(ch, argument, "Name", "name <string>",
-                          &pWilds->name, OLC_STR_DEFAULT, NULL, NULL);
+                          &pWilds->name, OLC_STR_DEFAULT | OLC_STR_UTF8_RESTRICT, NULL, NULL);
 }
 
 static bool wedit_region_same_group(WILDS_REGION *a, WILDS_REGION *b)
@@ -2107,10 +2125,12 @@ WEDIT (wedit_region)
     send_to_char("        region <name|idx|uid> name <new name>\n\r", ch);
     send_to_char("        region <name|idx|uid> region <region>\n\r", ch);
     send_to_char("        region <name|idx|uid> placetype <placetype|none>\n\r", ch);
-    send_to_char("        region <name|idx|uid> spawnmob <wnum|none> [chance] [cap]\n\r", ch);
-    send_to_char("        region <name|idx|uid> spawnmobreq <requirements|none>\n\r", ch);
-    send_to_char("        region <name|idx|uid> spawnobj <wnum|none> [chance] [cap]\n\r", ch);
-    send_to_char("        region <name|idx|uid> spawnobjreq <requirements|none>\n\r", ch);
+    send_to_char("        region <name|idx|uid> spawnmob list\n\r", ch);
+    send_to_char("        region <name|idx|uid> spawnmob add <wnum> [chance] [cap] [req]\n\r", ch);
+    send_to_char("        region <name|idx|uid> spawnmob <idx> <show|remove|wnum|chance|cap|req> [value]\n\r", ch);
+    send_to_char("        region <name|idx|uid> spawnobj list\n\r", ch);
+    send_to_char("        region <name|idx|uid> spawnobj add <wnum> [chance] [cap] [req]\n\r", ch);
+    send_to_char("        region <name|idx|uid> spawnobj <idx> <show|remove|wnum|chance|cap|req> [value]\n\r", ch);
     send_to_char("        region <name|idx|uid> coords add <startx> <starty> <endx> <endy>\n\r", ch);
     send_to_char("        region <name|idx|uid> coords delete <box#>\n\r", ch);
     send_to_char("        region <name|idx|uid> add show\n\r", ch);
@@ -2821,12 +2841,14 @@ WEDIT (wedit_wildgen)
         send_to_char("        wildgen bake\n\r", ch);
         send_to_char("        wildgen export static <png_filename.png>\n\r", ch);
         send_to_char("        wildgen export effective <png_filename.png>\n\r", ch);
+        send_to_char("        wildgen export elevation <png_filename.png>\n\r", ch);
         send_to_char("Syntax: wildgen import [png_filename.png]\n\r", ch);
         send_to_char("        wildgen importgrid <terrain_base> <rows> <cols> [elevation_base]\n\r", ch);
         send_to_char("        wildgen config show\n\r", ch);
         send_to_char("        wildgen config base <terrain_base|none> [elevation_base|none]\n\r", ch);
         send_to_char("        wildgen config grid <rows> <cols>\n\r", ch);
         send_to_char("        wildgen config tilesize <tile_width> <tile_height>\n\r", ch);
+        send_to_char("        wildgen config elevation <value>\n\r", ch);
         send_to_char("        (imports from data/world/wilderness_state/<uid>_<name>/images/)\n\r", ch);
         send_to_char("        (grid naming: base_row_col.png / base_row.png / base_col.png / base.png)\n\r", ch);
         send_to_char("        wildgen status\n\r", ch);
@@ -2909,6 +2931,7 @@ WEDIT (wedit_wildgen)
         {
             send_to_char("Syntax: wildgen export static <png_filename.png>\n\r", ch);
             send_to_char("        wildgen export effective <png_filename.png>\n\r", ch);
+            send_to_char("        wildgen export elevation <png_filename.png>\n\r", ch);
             return false;
         }
 
@@ -2948,8 +2971,27 @@ WEDIT (wedit_wildgen)
             return true;
         }
 
+        if (!str_prefix(arg2, "elevation"))
+        {
+            if (IS_NULLSTR(arg3))
+            {
+                send_to_char("Syntax: wildgen export elevation <png_filename.png>\n\r", ch);
+                return false;
+            }
+
+            if (!wilds_wildgen_export_elevation(pWilds, arg3, status_buf, sizeof(status_buf)))
+            {
+                printf_to_char(ch, "Wildgen elevation export failed: %s\n\r", status_buf[0] ? status_buf : "unknown error");
+                return false;
+            }
+
+            printf_to_char(ch, "%s\n\r", status_buf);
+            return true;
+        }
+
         send_to_char("Syntax: wildgen export static <png_filename.png>\n\r", ch);
         send_to_char("        wildgen export effective <png_filename.png>\n\r", ch);
+        send_to_char("        wildgen export elevation <png_filename.png>\n\r", ch);
         return false;
     }
 
@@ -3026,6 +3068,7 @@ WEDIT (wedit_wildgen)
             printf_to_char(ch, "  grid: %d x %d\n\r", UMAX(1, pWilds->wildgen_grid_rows), UMAX(1, pWilds->wildgen_grid_cols));
             printf_to_char(ch, "  grid tile size: %d x %d (0x0 = auto from map/grid)\n\r",
                 UMAX(0, pWilds->wildgen_tile_width), UMAX(0, pWilds->wildgen_tile_height));
+            printf_to_char(ch, "  default elevation: %d\n\r", pWilds->default_elevation);
             return false;
         }
 
@@ -3092,10 +3135,26 @@ WEDIT (wedit_wildgen)
             return true;
         }
 
+        if (!str_prefix(arg2, "elevation"))
+        {
+            argument = one_argument(argument, arg3);
+            if (IS_NULLSTR(arg3) || !is_number(arg3))
+            {
+                send_to_char("Syntax: wildgen config elevation <value>\n\r", ch);
+                send_to_char("Sets the default (sea level) elevation for this wilderness.\n\r", ch);
+                return false;
+            }
+
+            pWilds->default_elevation = atoi(arg3);
+            printf_to_char(ch, "Default elevation set to %d.\n\r", pWilds->default_elevation);
+            return true;
+        }
+
         send_to_char("Syntax: wildgen config show\n\r", ch);
         send_to_char("        wildgen config base <terrain_base|none> [elevation_base|none]\n\r", ch);
         send_to_char("        wildgen config grid <rows> <cols>\n\r", ch);
         send_to_char("        wildgen config tilesize <tile_width> <tile_height>\n\r", ch);
+        send_to_char("        wildgen config elevation <value>\n\r", ch);
         return false;
     }
 
@@ -3103,6 +3162,7 @@ WEDIT (wedit_wildgen)
     send_to_char("        wildgen bake\n\r", ch);
     send_to_char("        wildgen export static <png_filename.png>\n\r", ch);
     send_to_char("        wildgen export effective <png_filename.png>\n\r", ch);
+    send_to_char("        wildgen export elevation <png_filename.png>\n\r", ch);
     send_to_char("        wildgen import [png_filename.png]\n\r", ch);
     send_to_char("        wildgen importgrid <terrain_base> <rows> <cols> [elevation_base]\n\r", ch);
     send_to_char("        wildgen config show\n\r", ch);

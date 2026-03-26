@@ -334,7 +334,7 @@ SKEDIT(skedit_name)
     SKILL_DATA *skill;
     EDIT_SKILL(ch, skill);
     return olc_cmd_string(ch, argument, "Name", NULL, &skill->name,
-        OLC_STR_DEFAULT, skill, skedit_record_cb);
+        OLC_STR_DEFAULT | OLC_STR_UTF8_RESTRICT, skill, skedit_record_cb);
 }
 
 SKEDIT(skedit_display)

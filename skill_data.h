@@ -54,6 +54,7 @@ SKILL_DATA *    skill_find_uid(int16_t uid);            /* By UID (for deseriali
 
 /* Convenience */
 const char *    skill_name(SKILL_DATA *skill);          /* Returns name, or "none" if NULL */
+const char *    skill_name_by_uid(int16_t uid);         /* Returns name by UID, or "" if not found */
 
 /* Global iteration */
 SKILL_DATA *    skill_first(void);                      /* First in alphabetical global list */
@@ -83,7 +84,7 @@ const char *    spell_fun_name(SPELL_FUN *fun);
  * Boot / Persistence                                                      *
  ***************************************************************************/
 
-/* Load all skills from JSON files (or bootstrap from skill_table on first run) */
+/* Load all skills from JSON files */
 void            load_skill_data(void);
 
 /* Save a single skill to its JSON file */

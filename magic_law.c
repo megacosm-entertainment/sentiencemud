@@ -17,6 +17,7 @@
 #include "tables.h"
 #include "wilds.h"
 #include "requirements.h"
+#include "skill_data.h"
 
 
 SPELL_FUNC(spell_armour)
@@ -452,8 +453,9 @@ SPELL_FUNC(spell_identify)
     }
 
     for (spell = obj->spells; spell; spell = spell->next) {
+        SKILL_DATA *spell_sk = skill_find_uid(spell->sn);
         sprintf(buf, "{MLevel {W%d {Mspell of {W%s{M.{x\n\r",
-            spell->level, skill_table[spell->sn].name);
+            spell->level, spell_sk ? spell_sk->name : "unknown");
         add_buf(buffer, buf);
     }
 
@@ -492,7 +494,7 @@ SPELL_FUNC(spell_identify)
                 }
 
                 sprintf(buf, "{MAffected by {x%s{M, level {x%d{M, %sfor {x%d{M hours.{x\n\r",
-                    skill_table[af->type].name, af->level,
+                    (skill_find_uid(af->type) ? skill_find_uid(af->type)->name : "unknown"), af->level,
                     buf2[0] == '\0' ? "" : buf2, af->duration);
                 add_buf(buffer, buf);
             }

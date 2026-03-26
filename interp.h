@@ -4,6 +4,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "utils/utf8.h"     // For unichar_t
+
 #ifndef args
 #define args(list) list
 #endif
@@ -100,6 +102,24 @@ struct	cmd_type
 };
 
 /*
+ * Enumeration for string validation for keywords. 
+ */
+typedef enum name_validate_enum {
+    NV_OK = 0,          // String can be used as a name.
+    NV_BAD_STRING,      // String contains erroneous UTF-8 codes.
+    NV_INVALID_CODE,    // String contains an invalid UTF-8 code for name.
+    NV_MAX
+} NAME_VALIDATION_ENUM;
+
+typedef struct name_validation_result {
+    NAME_VALIDATION_ENUM result;            // Whether the name validated
+    const char *str;                        // Pointer in the string that has the problem.
+    size_t bad_ch;                          // Which byte was bad in the string
+    unichar_t bad_code;                     // What UTF-8 code was bad.
+} NAME_VALIDATION_RESULT;
+
+
+/*
  * Command functions.
  * Defined in act_*.c (mostly).
  */
@@ -114,6 +134,7 @@ DECLARE_DO_FUN( do_event        );
 DECLARE_DO_FUN( do_events       );
 DECLARE_DO_FUN( do_aload	);
 DECLARE_DO_FUN( do_aedit	);
+DECLARE_DO_FUN( do_ashow	);
 DECLARE_DO_FUN( do_affects	);
 DECLARE_DO_FUN( do_affstat	);
 DECLARE_DO_FUN( do_afk		);
@@ -128,7 +149,7 @@ DECLARE_DO_FUN( do_announcements);
 DECLARE_DO_FUN( do_arealinks    );
 DECLARE_DO_FUN(	do_areas	);
 DECLARE_DO_FUN( do_areset 	);
-DECLARE_DO_FUN( do_astat	);
+DECLARE_DO_FUN( do_astat	); // Stat area
 DECLARE_DO_FUN( do_asave	);
 DECLARE_DO_FUN( do_asave_new	);
 DECLARE_DO_FUN( do_asearch	);
@@ -589,7 +610,7 @@ DECLARE_DO_FUN(	do_wimpy	);
 DECLARE_DO_FUN(	do_wizhelp	);
 DECLARE_DO_FUN( do_wizlist	);
 DECLARE_DO_FUN(	do_wizlock	);
-DECLARE_DO_FUN(	do_migratefiles	);
+
 DECLARE_DO_FUN( do_wiznet	);
 DECLARE_DO_FUN( do_wlist	);		// Wilderness List
 DECLARE_DO_FUN( do_worth	);
@@ -699,5 +720,9 @@ DECLARE_DO_FUN( do_prefs );
 DECLARE_DO_FUN( do_raceunlock );
 
 bool dispatch_dynamic_channel_command(CHAR_DATA *ch, const char *command, char *argument);
+bool channel_command_has_exact_match(const char *input);
+
+bool can_be_name(const char *str, NAME_VALIDATION_RESULT *nvr);
+
 
 #endif /* __INTERP_H__ */

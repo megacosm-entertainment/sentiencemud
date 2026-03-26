@@ -2,8 +2,7 @@
  *  Skill Data System - Implementation                                     *
  *                                                                         *
  *  Data-driven skill/spell backend. Loads skill definitions from JSON     *
- *  files in data/skills/, or bootstraps from the legacy skill_table[]     *
- *  on first run.                                                          *
+ *  files in data/skills/.                                                 *
  *                                                                         *
  *  Provides O(1) hash table lookup by name and UID index for fast access. *
  ***************************************************************************/
@@ -16,6 +15,7 @@
 #include <sys/stat.h>
 #include <time.h>
 #include <jansson.h>
+#include "io/json/json_common.h"
 #include "merc.h"
 #include "magic.h"
 #include "skill_data.h"
@@ -271,6 +271,7 @@ SKILL_DATA *new_skill_data(void)
     skill->valid = true;
     skill->uid = -1;
     skill->difficulty = 1;
+    skill->spell_fun = spell_null;
 
     /* Initialize legacy class arrays to "not available" */
     for (int i = 0; i < MAX_CLASS; i++) {
@@ -347,6 +348,18 @@ SKILL_DATA *skill_find_uid(int16_t uid)
 const char *skill_name(SKILL_DATA *skill)
 {
     return skill ? skill->name : "none";
+}
+
+/**
+ * skill_name_by_uid - Get a skill name by UID, or "" if not found
+ *
+ * Used by the SKILL_NAME() macro for backward compatibility with code
+ * that references skills by numeric index.
+ */
+const char *skill_name_by_uid(int16_t uid)
+{
+    SKILL_DATA *sk = skill_find_uid(uid);
+    return sk ? sk->name : "";
 }
 
 /**
@@ -475,7 +488,7 @@ static SKILL_DATA *skill_load_json(const char *filename)
     }
 
     /* Validate format */
-    str = json_string_value(json_object_get(root, "_format"));
+    str = json_get_string(root, "_format", "");
     if (!str || str_cmp(str, "skill_data")) {
         log_stringf("skill_load_json: Invalid format in %s", filename);
         json_decref(root);
@@ -485,28 +498,28 @@ static SKILL_DATA *skill_load_json(const char *filename)
     skill = new_skill_data();
 
     /* Identity */
-    str = json_string_value(json_object_get(root, "name"));
+    str = json_get_string(root, "name", "");
     skill->name = str_dup(str ? str : "unknown");
 
     val = json_object_get(root, "uid");
     skill->uid = val ? (int16_t)json_integer_value(val) : -1;
 
-    str = json_string_value(json_object_get(root, "type"));
+    str = json_get_string(root, "type", "");
     skill->isspell = (str && !str_cmp(str, "spell"));
 
-    str = json_string_value(json_object_get(root, "display"));
+    str = json_get_string(root, "display", "");
     skill->display = str_dup(str ? str : skill->name);
 
-    str = json_string_value(json_object_get(root, "summary"));
+    str = json_get_string(root, "summary", "");
     skill->summary = str ? str_dup(str) : NULL;
 
-    str = json_string_value(json_object_get(root, "description"));
+    str = json_get_string(root, "description", "");
     skill->description = str ? str_dup(str) : NULL;
 
-    str = json_string_value(json_object_get(root, "comments"));
+    str = json_get_string(root, "comments", "");
     skill->comments = str ? str_dup(str) : NULL;
 
-    str = json_string_value(json_object_get(root, "help_keyword"));
+    str = json_get_string(root, "help_keyword", "");
     skill->help_keyword = str ? str_dup(str) : NULL;
 
     /* Flags */
@@ -525,7 +538,7 @@ static SKILL_DATA *skill_load_json(const char *filename)
     }
 
     /* Invocation */
-    str = json_string_value(json_object_get(root, "spell_function"));
+    str = json_get_string(root, "spell_function", "");
     if (str && str[0]) {
         skill->spell_fun_name = str_dup(str);
         skill->spell_fun = spell_fun_lookup(str);
@@ -535,7 +548,7 @@ static SKILL_DATA *skill_load_json(const char *filename)
     }
 
     /* Target type */
-    str = json_string_value(json_object_get(root, "target"));
+    str = json_get_string(root, "target", "");
     if (str) {
         if (!str_cmp(str, "ignore"))              skill->target = TAR_IGNORE;
         else if (!str_cmp(str, "offensive"))      skill->target = TAR_CHAR_OFFENSIVE;
@@ -547,7 +560,7 @@ static SKILL_DATA *skill_load_json(const char *filename)
     }
 
     /* Position */
-    str = json_string_value(json_object_get(root, "minimum_position"));
+    str = json_get_string(root, "minimum_position", "");
     if (str) {
         if (!str_cmp(str, "dead"))           skill->minimum_position = POS_DEAD;
         else if (!str_cmp(str, "mortal"))    skill->minimum_position = POS_MORTAL;
@@ -569,20 +582,20 @@ static SKILL_DATA *skill_load_json(const char *filename)
     skill->beats = val ? (int16_t)json_integer_value(val) : 0;
 
     /* Messages */
-    str = json_string_value(json_object_get(root, "noun_damage"));
+    str = json_get_string(root, "noun_damage", "");
     skill->noun_damage = str_dup(str ? str : "");
 
-    str = json_string_value(json_object_get(root, "msg_off"));
+    str = json_get_string(root, "msg_off", "");
     skill->msg_off = str_dup(str ? str : "");
 
-    str = json_string_value(json_object_get(root, "msg_obj"));
+    str = json_get_string(root, "msg_obj", "");
     skill->msg_obj = str_dup(str ? str : "");
 
-    str = json_string_value(json_object_get(root, "msg_disp"));
+    str = json_get_string(root, "msg_disp", "");
     skill->msg_disp = str_dup(str ? str : "");
 
     /* Race restriction */
-    str = json_string_value(json_object_get(root, "race"));
+    str = json_get_string(root, "race", "");
     if (str && str[0]) {
         skill->race_name = str_dup(str);
         skill->race = race_lookup(str);
@@ -814,113 +827,14 @@ void save_all_skill_data(void)
 }
 
 /***************************************************************************
- * Bootstrap from Legacy skill_table[]                                     *
- ***************************************************************************/
-
-/**
- * bootstrap_skills_from_table - One-time migration from const.c skill_table
- *
- * Reads the existing skill_table[] array and creates SKILL_DATA entries
- * with UIDs matching the original array indices (so saved sn values
- * continue to work). Then saves all skills to JSON files.
- */
-static void bootstrap_skills_from_table(void)
-{
-    int sn;
-    int count = 0;
-
-    log_string("Bootstrapping skill data from legacy skill_table[]...");
-
-    for (sn = 0; sn < MAX_SKILL; sn++) {
-        if (skill_table[sn].name == NULL || skill_table[sn].name[0] == '\0')
-            break;
-
-        /* Skip "reserved" entry */
-        if (sn == 0 && !str_cmp(skill_table[sn].name, "reserved"))
-            continue;
-
-        SKILL_DATA *skill = new_skill_data();
-
-        skill->name = str_dup(skill_table[sn].name);
-        skill->display = str_dup(skill_table[sn].name);
-        skill->uid = (int16_t)sn;
-
-        /* Determine if spell or skill */
-        skill->isspell = (skill_table[sn].spell_fun != NULL
-                       && skill_table[sn].spell_fun != spell_null);
-
-        /* Copy class levels (legacy arrays) */
-        for (int c = 0; c < MAX_CLASS; c++) {
-            skill->skill_level[c] = skill_table[sn].skill_level[c];
-            skill->rating[c] = skill_table[sn].rating[c];
-        }
-
-        /* Spell function */
-        skill->spell_fun = skill_table[sn].spell_fun;
-        if (skill->spell_fun && skill->spell_fun != spell_null) {
-            const char *fname = spell_fun_name(skill->spell_fun);
-            if (fname)
-                skill->spell_fun_name = str_dup(fname);
-            else
-                log_stringf("bootstrap: No function name for spell '%s' (sn=%d)", skill->name, sn);
-        }
-
-        /* Copy remaining fields */
-        skill->target = skill_table[sn].target;
-        skill->minimum_position = skill_table[sn].minimum_position;
-        skill->min_mana = skill_table[sn].min_mana;
-        skill->beats = skill_table[sn].beats;
-        skill->noun_damage = str_dup(skill_table[sn].noun_damage ? skill_table[sn].noun_damage : "");
-        skill->msg_off = str_dup(skill_table[sn].msg_off ? skill_table[sn].msg_off : "");
-        skill->msg_obj = str_dup(skill_table[sn].msg_obj ? skill_table[sn].msg_obj : "");
-        skill->msg_disp = str_dup(skill_table[sn].msg_disp ? skill_table[sn].msg_disp : "");
-
-        /* Race restriction */
-        if (skill_table[sn].race >= 0) {
-            SET_BIT(skill->flags, SKILLFLAG_RACIAL);
-            /* We'll resolve the race pointer during post-boot */
-        }
-
-        /* Inks */
-        for (int i = 0; i < 3; i++) {
-            skill->inks[i][0] = skill_table[sn].inks[i][0];
-            skill->inks[i][1] = skill_table[sn].inks[i][1];
-        }
-
-        /* Insert into sorted list */
-        skill_insert_sorted(skill);
-        count++;
-    }
-
-    skill_total = count;
-    log_stringf("Bootstrapped %d skills from legacy skill_table.", count);
-
-    /* Build hash table and UID index */
-    max_skill_uid = MAX_SKILL;  /* Use MAX_SKILL as upper bound */
-    skill_uid_index = (SKILL_DATA **)alloc_perm(sizeof(SKILL_DATA *) * (max_skill_uid + 1));
-    memset(skill_uid_index, 0, sizeof(SKILL_DATA *) * (max_skill_uid + 1));
-
-    for (SKILL_DATA *sk = skill_list; sk; sk = sk->next) {
-        skill_hash_insert(sk);
-        if (sk->uid >= 0 && sk->uid <= max_skill_uid)
-            skill_uid_index[sk->uid] = sk;
-
-    }
-
-    /* Save all to JSON for subsequent boots */
-    save_all_skill_data();
-}
-
-/***************************************************************************
  * Boot Loading                                                            *
  ***************************************************************************/
 
 /**
- * load_skill_data - Load all skills from JSON files, or bootstrap from skill_table
+ * load_skill_data - Load all skills from JSON files
  *
- * Called from boot_db(). On first run (no JSON files exist), bootstraps
- * from the legacy skill_table[] array and saves JSON files. On subsequent
- * boots, loads directly from JSON.
+ * Called from boot_db(). Skills are loaded from individual JSON files
+ * in data/skills/. Requires JSON skill files to exist.
  */
 void load_skill_data(void)
 {
@@ -956,11 +870,10 @@ void load_skill_data(void)
         closedir(dir);
     }
 
-    /* If no JSON files, bootstrap from legacy skill_table */
     if (!has_json) {
-        log_string("No skill JSON files found. Bootstrapping from skill_table[]...");
-        bootstrap_skills_from_table();
-        return;
+        log_string("FATAL: No skill JSON files found in " SKILLS_DIR);
+        log_string("Skills must be defined as JSON files in data/skills/.");
+        exit(1);
     }
 
     /* Load from JSON files */

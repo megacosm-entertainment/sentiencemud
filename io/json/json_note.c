@@ -183,40 +183,40 @@ NOTE_DATA *json_note_deserialize(json_t *json)
     NOTE_DATA *note = new_note();
     const char *str;
 
-    str = json_string_value(json_object_get(json, "sender"));
+    str = json_get_string(json, "sender", "");
     note->sender = str_dup(str ? str : "");
 
-    str = json_string_value(json_object_get(json, "date"));
+    str = json_get_string(json, "date", "");
     note->date = str_dup(str ? str : "");
 
     json_t *stamp = json_object_get(json, "date_stamp");
     if (stamp) note->date_stamp = (time_t)json_integer_value(stamp);
 
-    str = json_string_value(json_object_get(json, "subject"));
+    str = json_get_string(json, "subject", "");
     note->subject = str_dup(str ? str : "");
 
-    str = json_string_value(json_object_get(json, "text"));
+    str = json_get_string(json, "text", "");
     note->text = str_dup(str ? str : "");
 
-    str = json_string_value(json_object_get(json, "to_list"));
+    str = json_get_string(json, "to_list", "");
     note->to_list = str_dup(str ? str : "");
 
-    str = json_string_value(json_object_get(json, "recipient_type"));
+    str = json_get_string(json, "recipient_type", "");
     note->recipient_type = string_to_recipient_type(str);
 
-    str = json_string_value(json_object_get(json, "to_characters"));
+    str = json_get_string(json, "to_characters", "");
     note->to_characters = str_dup(str ? str : "");
 
-    str = json_string_value(json_object_get(json, "to_accounts"));
+    str = json_get_string(json, "to_accounts", "");
     note->to_accounts = str_dup(str ? str : "");
 
-    str = json_string_value(json_object_get(json, "to_churches"));
+    str = json_get_string(json, "to_churches", "");
     note->to_churches = str_dup(str ? str : "");
 
-    str = json_string_value(json_object_get(json, "to_staff_ranks"));
+    str = json_get_string(json, "to_staff_ranks", "");
     note->to_staff_ranks = str_dup(str ? str : "");
 
-    str = json_string_value(json_object_get(json, "to_staff_duties"));
+    str = json_get_string(json, "to_staff_duties", "");
     note->to_staff_duties = str_dup(str ? str : "");
 
     note->valid = true;

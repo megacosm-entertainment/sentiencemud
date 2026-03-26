@@ -97,6 +97,24 @@ Player-facing usage reference for channels, history, and reporting behavior.
 ### [Channels Admin Guide](guides/channels/CHANNELS_ADMIN_GUIDE.md)
 Admin/operator guide for cedit workflows, moderation controls, and runtime behavior.
 
+## Class System — Extended Data and Features
+
+### [Class Extended Data System](PLAN_CLASS_EXTENDED_DATA.md)
+Design for per-class runtime and persistent state beyond level/XP:
+- Two-layer model: `custom_data` (JSON persistence) + `void *ext` (runtime C struct)
+- Three optional callbacks on `CLASS_DATA`: `ext_init`, `ext_sync`, `ext_free`
+- Concrete examples: Ranger pet stable (`RANGER_EXT`), Druid grove (`DRUID_EXT`)
+- Full lifecycle: character load, class enter/leave, save, free
+
+### [Druid Grove System](PLAN_DRUID_GROVE.md)
+Design for persistent, expandable personal grove instances for druids:
+- Persistent dormant instances: `INSTANCE_PERSISTENT` + `INSTANCE_DORMANT` flags
+- `sleep_instance()` / `wake_instance()` lifecycle (rooms freed/rebuilt on demand)
+- Expandable blueprint sections: `BSECREF_DEFERRED` + `add_section_to_instance()`
+- `bp_section_index` fix for section-by-position lookup decoupling
+- Grove level progression, ambient bonuses, tending mechanics
+- Persistence schema for dormant instances with `active_sections` + `room_states`
+
 ## Developer How-To Guides
 
 ### [Guides Directory Index](guides/README.md)

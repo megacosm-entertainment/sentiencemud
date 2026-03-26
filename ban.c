@@ -71,39 +71,8 @@ void save_bans(void)
  */
 void load_bans(void)
 {
-    if (json_load_bans(BAN_JSON_FILE))
-        return;
-
-    FILE *fp;
-    BAN_DATA *ban_last;
-    char ban_file_buf[MAX_INPUT_LENGTH];
-    const char *ban_file = resolve_game_path(BAN_FILE, ban_file_buf, sizeof(ban_file_buf));
-
-    if ((fp = fopen(ban_file, "r")) == NULL)
-        return;
-
-    ban_last = NULL;
-    for (;;) {
-        BAN_DATA *pban;
-        if (feof(fp)) {
-            fclose(fp);
-            json_save_bans(BAN_JSON_FILE);
-            return;
-        }
-
-        pban = new_ban();
-
-        pban->name = str_dup(fread_word(fp));
-        pban->level = fread_number(fp);
-        pban->ban_flags = fread_flag(fp);
-        fread_to_eol(fp);
-
-        if (ban_list == NULL)
-            ban_list = pban;
-        else
-            ban_last->next = pban;
-        ban_last = pban;
-    }
+    if (!json_load_bans(BAN_JSON_FILE))
+        pbugf(LOG_ERROR, "load_bans: failed to load bans from JSON");
 }
 
 

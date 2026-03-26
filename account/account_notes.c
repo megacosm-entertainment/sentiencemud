@@ -923,7 +923,26 @@ void notify_staff_of_notes(DESCRIPTOR_DATA *d)
         strcat(buf, char_buf);
     }
 
-    wiznet(buf, ch, NULL, WIZ_LOGINS, 0, 0);
+    {
+        log_context_t ctx = {
+            .actor_type = IS_NPC(ch) ? "npc" : "player",
+            .actor_name = IS_NPC(ch) ? ch->short_descr : ch->name,
+            .actor_uid = { ch->id[0], ch->id[1] },
+            .actor_wnum = (IS_NPC(ch) && ch->pIndexData)
+                          ? widevnum_string_mobile(ch->pIndexData, NULL) : NULL,
+            .action = "staff_notes_alert",
+        };
+        log_event_t ev = {
+            .severity = EVENT_SEV_INFO,
+            .category = LOG_SECURITY,
+            .plain_message = "staff notes alert",
+            .staff_message = buf,
+            .wiznet_flag = WIZ_LOGINS,
+            .context = &ctx,
+            .source_file = __FILE__, .source_line = __LINE__, .source_func = __func__,
+        };
+        log_emit_event(&ev, ch);
+    }
 }
 
 /***************************************************************************
@@ -976,7 +995,7 @@ void do_standing(CHAR_DATA *ch, char *argument)
         if (pen->expires_at == 0)
             sprintf(dur, "{RPermanent{x");
         else
-            penalty_format_duration(pen->expires_at - current_time, dur, sizeof(dur));
+            penalty_format_duration(ch->desc, pen->expires_at - current_time, dur, sizeof(dur));
 
         if (pen->scope == PENALTY_SCOPE_CHARACTER && !IS_NULLSTR(pen->target_name)) {
             sprintf(buf, "   {R*{x %-14s ({Y%s{x) - %s\n\r",
@@ -1004,7 +1023,7 @@ void do_standing(CHAR_DATA *ch, char *argument)
         if (bon->expires_at == 0)
             sprintf(dur, "{GPermanent{x");
         else
-            penalty_format_duration(bon->expires_at - current_time, dur, sizeof(dur));
+            penalty_format_duration(ch->desc, bon->expires_at - current_time, dur, sizeof(dur));
 
         char scope_str[64];
         if (bon->scope == BONUS_SCOPE_CHARACTER && !IS_NULLSTR(bon->target_name))

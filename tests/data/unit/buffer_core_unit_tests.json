@@ -25,7 +25,10 @@
           { "scenario": "freed_buffer_guards" },
           { "scenario": "exact_limit_fill_then_fail" },
           { "scenario": "overflow_expected" },
-          { "scenario": "overflow_clear_recover" }
+          { "scenario": "overflow_clear_recover" },
+          { "scenario": "bprintf_format_edge_cases" },
+          { "scenario": "large_single_char_sequence" },
+          { "scenario": "capacity_vs_len_consistency" }
         ]
       },
       "expected_output": {

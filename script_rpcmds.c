@@ -2529,6 +2529,7 @@ SCRIPT_CMD(do_rpaddaffectname)
     af.group	= group;
     af.where     = where;
     af.type      = -1;
+    af.skill     = NULL;
     af.location  = loc;
     af.modifier  = mod;
     af.level     = level;
@@ -2787,7 +2788,15 @@ SCRIPT_CMD(do_rpalterexit)
 
     if(script_security < min_sec) {
         sprintf(buf,"RpAlterExit - Attempting to alter '%s' with security %d.\n\r", field, script_security);
-        wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
+        log_event_t ev = {
+            .severity = EVENT_SEV_WARN,
+            .category = LOG_SCRIPTS,
+            .plain_message = buf,
+            .staff_message = buf,
+            .wiznet_flag = WIZ_SCRIPTS,
+            .source_file = __FILE__, .source_line = __LINE__, .source_func = __func__,
+        };
+        log_emit_event(&ev, NULL);
         pbug(LOG_SCRIPTS, buf);
         return;
     }
@@ -3515,23 +3524,26 @@ SCRIPT_CMD(do_rpskill)
             else if( value > 100 ) value = 100;
 
             entry = skill_entry_findsn(mob->sorted_skills, sn);
-            if( value == 0 ) {
-                if( skill_table[sn].spell_fun == spell_null )
-                    skill_entry_removeskill(mob, sn, NULL);
-                else
-                    skill_entry_removespell(mob, sn, NULL);
-            } else {
-                if( !entry ) {
-                    if( skill_table[sn].spell_fun == spell_null )
-                        skill_entry_addskill(mob, sn, NULL, SKILLSRC_SCRIPT, SKILL_AUTOMATIC);
+            {
+                SKILL_DATA *mod_sk = skill_find_uid(sn);
+                if( value == 0 ) {
+                    if( !mod_sk || mod_sk->spell_fun == spell_null )
+                        skill_entry_removeskill(mob, sn, NULL);
                     else
-                        skill_entry_addspell(mob, sn, NULL, SKILLSRC_SCRIPT, SKILL_AUTOMATIC);
+                        skill_entry_removespell(mob, sn, NULL);
+                } else {
+                    if( !entry ) {
+                        if( !mod_sk || mod_sk->spell_fun == spell_null )
+                            skill_entry_addskill(mob, sn, NULL, SKILLSRC_SCRIPT, SKILL_AUTOMATIC);
+                        else
+                            skill_entry_addspell(mob, sn, NULL, SKILLSRC_SCRIPT, SKILL_AUTOMATIC);
 
-                    entry = skill_entry_findsn(mob->sorted_skills, sn);
+                        entry = skill_entry_findsn(mob->sorted_skills, sn);
+                    }
+
+                    if( entry )
+                        entry->rating = value;
                 }
-
-                if( entry )
-                    entry->rating = value;
             }
 
             mob->pcdata->learned[sn] = value;
@@ -3584,7 +3596,6 @@ SCRIPT_CMD(do_rpskillgroup)
 
     char *rest;
     CHAR_DATA *mob = NULL;
-    int gn;
     bool fAdd = false;
 
     if(!info || !info->room || IS_NULLSTR(argument)) return;
@@ -3615,18 +3626,16 @@ SCRIPT_CMD(do_rpskillgroup)
 
     if(arg->type != ENT_STRING) return;
 
-    gn = group_lookup(arg->d.str);
-    if( gn != -1)
     {
-        if( fAdd )
-        {
-            if( !mob->pcdata->group_known[gn] )
-                gn_add(mob,gn);
-        }
-        else
-        {
-            if( mob->pcdata->group_known[gn] )
-                gn_remove(mob,gn);
+        SKILL_GROUP *sg = group_lookup(arg->d.str);
+        if (sg) {
+            if (fAdd) {
+                if (!char_knows_group(mob, sg))
+                    gn_add(mob, sg);
+            } else {
+                if (char_knows_group(mob, sg))
+                    gn_remove(mob, sg);
+            }
         }
     }
 

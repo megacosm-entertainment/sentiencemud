@@ -141,6 +141,44 @@
       "expected_output": {
         "all_lookups_correct": true
       }
+    },
+    {
+      "name": "skill_sn_conversion",
+      "description": "Verify skill to sn conversion returns valid UIDs",
+      "dependencies": ["skill_count_positive"],
+      "test_type": "skill_sn_check",
+      "input": {
+        "max_skills_to_check": 10
+      },
+      "expected_output": {
+        "all_sn_positive": true,
+        "all_sn_match_uid": true
+      }
+    },
+    {
+      "name": "skill_resolve_gsn_validation",
+      "description": "Verify skill GSN resolution by name matches find results",
+      "dependencies": ["skill_count_positive"],
+      "test_type": "skill_gsn_resolve_check",
+      "input": {
+        "test_cases": [
+          {
+            "name": "sword",
+            "should_exist": true
+          },
+          {
+            "name": "dodge", 
+            "should_exist": true
+          },
+          {
+            "name": "bogus_skill_name_xyz",
+            "should_exist": false
+          }
+        ]
+      },
+      "expected_output": {
+        "all_resolve_correct": true
+      }
     }
   ]
 }

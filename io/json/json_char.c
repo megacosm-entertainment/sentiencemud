@@ -28,6 +28,7 @@
 #include "../../wilds.h"
 #include "../../skill_data.h"
 #include "../../traits.h"
+#include "../../gmcp_sentience.h"
 #include "../../class_data.h"
 #include "../../skill_group.h"
 #include "../../account/unlock.h"
@@ -170,17 +171,17 @@ CHAR_INFO_CACHE *json_to_char_info(json_t *json)
     }
 
     // Basic info
-    str = json_string_value(json_object_get(json, "name"));
+    str = json_get_string(json, "name", "");
     info->name = str ? strdup(str) : strdup("Unknown");
 
     info->level = json_integer_value(json_object_get(json, "level"));
     info->tot_level = json_integer_value(json_object_get(json, "tot_level"));
     info->remorts = json_integer_value(json_object_get(json, "remorts"));
 
-    str = json_string_value(json_object_get(json, "race"));
+    str = json_get_string(json, "race", "");
     info->race = str ? strdup(str) : strdup("human");
 
-    str = json_string_value(json_object_get(json, "title"));
+    str = json_get_string(json, "title", "");
     info->title = str ? strdup(str) : strdup("");
 
     // Classes
@@ -707,7 +708,8 @@ static json_t *skills_to_json(CHAR_DATA *ch)
             continue;
 
         int sn = entry->sn;
-        if (sn <= 0 || sn >= MAX_SKILL || !skill_table[sn].name)
+        SKILL_DATA *sk = skill_find_uid(sn);
+        if (sn <= 0 || sn >= MAX_SKILL || !sk || !sk->name)
             continue;
 
         json_t *skill_data = json_object();
@@ -759,15 +761,16 @@ static json_t *skills_to_json(CHAR_DATA *ch)
                 json_decref(sources_arr);
         }
 
-        json_object_set_new(skills, skill_table[sn].name, skill_data);
+        json_object_set_new(skills, sk->name, skill_data);
     }
 
     // Safety net: catch any skills in learned[] not represented in sorted_skills
     // This handles edge cases during migration from old format
     for (int sn = 0; sn < MAX_SKILL; sn++) {
+        SKILL_DATA *fallback_sk = skill_find_uid(sn);
         if ((ch->pcdata->learned[sn] > 0 || ch->pcdata->mod_learned[sn] != 0)
-            && skill_table[sn].name
-            && !json_object_get(skills, skill_table[sn].name)) {
+            && fallback_sk && fallback_sk->name
+            && !json_object_get(skills, fallback_sk->name)) {
 
             json_t *skill_data = json_object();
             if (ch->pcdata->learned[sn] > 0) {
@@ -778,7 +781,7 @@ static json_t *skills_to_json(CHAR_DATA *ch)
                 json_object_set_new(skill_data, "mod_rating", json_integer(ch->pcdata->mod_learned[sn]));
                 json_object_set_new(skill_data, "mod_learned", json_integer(ch->pcdata->mod_learned[sn]));
             }
-            json_object_set_new(skills, skill_table[sn].name, skill_data);
+            json_object_set_new(skills, fallback_sk->name, skill_data);
         }
     }
 
@@ -967,7 +970,6 @@ static json_t *aliases_to_json(CHAR_DATA *ch)
 static json_t *groups_to_json(CHAR_DATA *ch)
 {
     json_t *groups;
-    int gn;
 
     if (!ch->pcdata) {
         return json_array();
@@ -975,8 +977,6 @@ static json_t *groups_to_json(CHAR_DATA *ch)
 
     groups = json_array();
 
-    // Save known skill groups from the new LLIST if populated, otherwise fall
-    // back to the legacy bool array so existing characters still serialize.
     if (ch->pcdata->known_groups && list_size(ch->pcdata->known_groups) > 0) {
         ITERATOR sg_it;
         SKILL_GROUP *sg;
@@ -984,22 +984,12 @@ static json_t *groups_to_json(CHAR_DATA *ch)
         while ((sg = (SKILL_GROUP *)iterator_nextdata(&sg_it))) {
             if (sg->name) {
                 json_t *group_data = json_object();
-                int gn = group_lookup(sg->name);
-                json_object_set_new(group_data, "id", json_integer(gn >= 0 ? gn : -1));
+                json_object_set_new(group_data, "id", json_integer(-1));
                 json_object_set_new(group_data, "name", json_string(sg->name));
                 json_array_append_new(groups, group_data);
             }
         }
         iterator_stop(&sg_it);
-    } else {
-        for (gn = 0; gn < MAX_GROUP; gn++) {
-            if (ch->pcdata->group_known[gn] && group_table[gn].name) {
-                json_t *group_data = json_object();
-                json_object_set_new(group_data, "id", json_integer(gn));
-                json_object_set_new(group_data, "name", json_string(group_table[gn].name));
-                json_array_append_new(groups, group_data);
-            }
-        }
     }
 
     return groups;
@@ -1053,6 +1043,32 @@ static json_t *affects_to_json(CHAR_DATA *ch)
     return affects;
 }
 
+static json_t *auras_to_json(CHAR_DATA *ch)
+{
+    json_t *auras = json_array();
+
+    if (!ch->auras || list_size(ch->auras) < 1)
+        return auras;
+
+    ITERATOR it;
+    AURA_DATA *aura;
+
+    iterator_start(&it, ch->auras);
+    while ((aura = (AURA_DATA *)iterator_nextdata(&it)))
+    {
+        if (IS_NULLSTR(aura->name) || IS_NULLSTR(aura->long_descr))
+            continue;
+
+        json_t *entry = json_object();
+        json_object_set_new(entry, "name", json_string(aura->name));
+        json_object_set_new(entry, "long_descr", json_string(aura->long_descr));
+        json_array_append_new(auras, entry);
+    }
+    iterator_stop(&it);
+
+    return auras;
+}
+
 /***************************************************************************
  * Full Character Serialization - WITH ALL FLAGS AND COMPLETE DATA        *
  ***************************************************************************/
@@ -1083,17 +1099,24 @@ static json_t *char_metadata_to_json(CHAR_DATA *ch)
     }
     json_object_set_new(meta, "last_saved", json_integer(current_time));
 
-    // Account linkage
-    if (ch->pcdata && ch->pcdata->account_name) {
-        json_t *account = json_object();
-        json_object_set_new(account, "name", json_string(ch->pcdata->account_name));
+    if (ch->pcdata) {
+        // Account linkage
+        if (ch->pcdata->account_name) {
+            json_t *account = json_object();
+            json_object_set_new(account, "name", json_string(ch->pcdata->account_name));
 
-        json_t *account_id = json_array();
-        json_array_append_new(account_id, json_integer(ch->pcdata->account_id[0]));
-        json_array_append_new(account_id, json_integer(ch->pcdata->account_id[1]));
-        json_object_set_new(account, "id", account_id);
+            json_t *account_id = json_array();
+            json_array_append_new(account_id, json_integer(ch->pcdata->account_id[0]));
+            json_array_append_new(account_id, json_integer(ch->pcdata->account_id[1]));
+            json_object_set_new(account, "id", account_id);
 
-        json_object_set_new(meta, "account", account);
+            json_object_set_new(meta, "account", account);
+        }
+
+        if (ch->pcdata->lang != NULL)
+        {
+            json_object_set_new(meta, "language", json_string(ch->pcdata->lang->iso_name));
+        }
     }
 
     return meta;
@@ -1411,6 +1434,20 @@ static json_t *char_basic_to_json(CHAR_DATA *ch)
             json_object_set_new(basic, "preference_overrides",
                 prefs_to_json(ch->pcdata->preferences));
         }
+
+        /* Web client layouts */
+        if (ch->pcdata->web_client_layouts) {
+            json_t *layouts_obj = json_object();
+            web_client_layout_t *l;
+            for (l = ch->pcdata->web_client_layouts; l; l = l->next) {
+                if (l->layout)
+                    json_object_set_new(layouts_obj, l->name, json_incref(l->layout));
+            }
+            json_object_set_new(basic, "web_client_layouts", layouts_obj);
+        }
+        if (ch->pcdata->active_layout[0])
+            json_object_set_new(basic, "active_layout",
+                                json_string(ch->pcdata->active_layout));
 
         // Pronouns
         if (ch->pronoun_he_she && ch->pronoun_he_she[0] != '\0') {
@@ -1959,7 +1996,7 @@ static json_t *char_basic_to_json(CHAR_DATA *ch)
 
 json_t *char_to_json(CHAR_DATA *ch)
 {
-    json_t *root, *inventory, *equipment, *locker, *stache, *skills, *groups, *affects, *tokens, *aliases;
+    json_t *root, *inventory, *equipment, *locker, *stache, *skills, *groups, *affects, *auras, *tokens, *aliases;
 
     if (!ch || IS_NPC(ch)) {
         return NULL;
@@ -2051,6 +2088,14 @@ json_t *char_to_json(CHAR_DATA *ch)
         json_object_set_new(root, "affects", affects);
     } else {
         json_decref(affects);
+    }
+
+    // Auras section
+    auras = auras_to_json(ch);
+    if (json_array_size(auras) > 0) {
+        json_object_set_new(root, "auras", auras);
+    } else {
+        json_decref(auras);
     }
 
     // Songs section (bard songs learned)
@@ -2174,7 +2219,25 @@ static bool backup_old_pfile(const char *filename, const char *char_name)
         dst = fopen(backup_path, "w");
         if (!dst) {
             fclose(src);
-            log_stringf("json_write_char: Failed to create backup %s", backup_path);
+            {
+                char msg[MSL];
+                snprintf(msg, sizeof(msg), "json_write_char: Failed to create backup %s", backup_path);
+                log_context_t ctx = {
+                    .actor_type = "player",
+                    .actor_name = char_name,
+                    .action = "json_backup_create_failed",
+                    .target_type = "storage",
+                    .target_name = backup_path,
+                };
+                log_event_t ev = {
+                    .severity = EVENT_SEV_ERROR,
+                    .category = LOG_ERROR,
+                    .plain_message = msg,
+                    .context = &ctx,
+                    .source_file = __FILE__, .source_line = __LINE__, .source_func = __func__,
+                };
+                log_emit_event(&ev, NULL);
+            }
             return false;
         }
 
@@ -2210,7 +2273,28 @@ bool json_write_char(CHAR_DATA *ch, const char *filename)
     // Serialize to JSON
     root = char_to_json(ch);
     if (!root) {
-        log_stringf("json_write_char: Failed to serialize %s", ch->name);
+        {
+            char msg[MSL];
+            snprintf(msg, sizeof(msg), "json_write_char: Failed to serialize %s", ch->name);
+            log_context_t ctx = {
+                .actor_type = IS_NPC(ch) ? "npc" : "player",
+                .actor_name = IS_NPC(ch) ? ch->short_descr : ch->name,
+                .actor_uid = { ch->id[0], ch->id[1] },
+                .actor_wnum = (IS_NPC(ch) && ch->pIndexData)
+                              ? widevnum_string_mobile(ch->pIndexData, NULL) : NULL,
+                .action = "json_serialize_failed",
+                .target_type = "storage",
+                .target_name = "json",
+            };
+            log_event_t ev = {
+                .severity = EVENT_SEV_ERROR,
+                .category = LOG_ERROR,
+                .plain_message = msg,
+                .context = &ctx,
+                .source_file = __FILE__, .source_line = __LINE__, .source_func = __func__,
+            };
+            log_emit_event(&ev, NULL);
+        }
         return false;
     }
 
@@ -2220,13 +2304,55 @@ bool json_write_char(CHAR_DATA *ch, const char *filename)
     json_decref(root);
 
     if (result != 0) {
-        log_stringf("json_write_char: Failed to write %s", tmp_filename);
+        {
+            char msg[MSL];
+            snprintf(msg, sizeof(msg), "json_write_char: Failed to write %s", tmp_filename);
+            log_context_t ctx = {
+                .actor_type = IS_NPC(ch) ? "npc" : "player",
+                .actor_name = IS_NPC(ch) ? ch->short_descr : ch->name,
+                .actor_uid = { ch->id[0], ch->id[1] },
+                .actor_wnum = (IS_NPC(ch) && ch->pIndexData)
+                              ? widevnum_string_mobile(ch->pIndexData, NULL) : NULL,
+                .action = "json_write_failed",
+                .target_type = "storage",
+                .target_name = tmp_filename,
+            };
+            log_event_t ev = {
+                .severity = EVENT_SEV_ERROR,
+                .category = LOG_ERROR,
+                .plain_message = msg,
+                .context = &ctx,
+                .source_file = __FILE__, .source_line = __LINE__, .source_func = __func__,
+            };
+            log_emit_event(&ev, NULL);
+        }
         return false;
     }
 
     // Atomic rename
     if (rename(tmp_filename, filename) != 0) {
-        log_stringf("json_write_char: Failed to rename %s to %s", tmp_filename, filename);
+        {
+            char msg[MSL];
+            snprintf(msg, sizeof(msg), "json_write_char: Failed to rename %s to %s", tmp_filename, filename);
+            log_context_t ctx = {
+                .actor_type = IS_NPC(ch) ? "npc" : "player",
+                .actor_name = IS_NPC(ch) ? ch->short_descr : ch->name,
+                .actor_uid = { ch->id[0], ch->id[1] },
+                .actor_wnum = (IS_NPC(ch) && ch->pIndexData)
+                              ? widevnum_string_mobile(ch->pIndexData, NULL) : NULL,
+                .action = "json_rename_failed",
+                .target_type = "storage",
+                .target_name = filename,
+            };
+            log_event_t ev = {
+                .severity = EVENT_SEV_ERROR,
+                .category = LOG_ERROR,
+                .plain_message = msg,
+                .context = &ctx,
+                .source_file = __FILE__, .source_line = __LINE__, .source_func = __func__,
+            };
+            log_emit_event(&ev, NULL);
+        }
         unlink(tmp_filename);
         return false;
     }
@@ -2276,16 +2402,16 @@ CHAR_INFO_CACHE *json_read_char_info_lightweight(const char *filename)
     }
 
     // Basic identification
-    str = json_string_value(json_object_get(character, "name"));
+    str = json_get_string(character, "name", "");
     info->name = str ? strdup(str) : strdup("Unknown");
 
     info->level = json_integer_value(json_object_get(character, "level"));
     info->tot_level = json_integer_value(json_object_get(character, "tot_level"));
 
-    str = json_string_value(json_object_get(character, "race"));
+    str = json_get_string(character, "race", "");
     info->race = str ? strdup(str) : strdup("human");
 
-    str = json_string_value(json_object_get(character, "title"));
+    str = json_get_string(character, "title", "");
     info->title = str ? strdup(str) : strdup("");
 
     // Quick stats
@@ -2634,8 +2760,8 @@ OBJ_DATA *json_to_obj(json_t *json_obj, CHAR_DATA *ch)
     if (value && json_is_array(value)) {
         json_array_foreach(value, index, array_elem) {
             EXTRA_DESCR_DATA *ed = new_extra_descr();
-            ed->keyword = str_dup(json_string_value(json_object_get(array_elem, "keyword")));
-            ed->description = str_dup(json_string_value(json_object_get(array_elem, "description")));
+            ed->keyword = str_dup(json_get_string(array_elem, "keyword", ""));
+            ed->description = str_dup(json_get_string(array_elem, "description", ""));
             ed->next = obj->extra_descr;
             obj->extra_descr = ed;
         }
@@ -2869,7 +2995,7 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
         // Account linkage
         json_t *account = json_object_get(metadata, "account");
         if (account) {
-            str = json_string_value(json_object_get(account, "name"));
+            str = json_get_string(account, "name", "");
             if (str) {
                 free_string(ch->pcdata->account_name);
                 ch->pcdata->account_name = str_dup(str);
@@ -2894,12 +3020,12 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
     ch->level = json_integer_value(json_object_get(character, "level"));
     ch->tot_level = json_integer_value(json_object_get(character, "tot_level"));
 
-    str = json_string_value(json_object_get(character, "race"));
+    str = json_get_string(character, "race", "");
     if (str) {
         ch->race = race_lookup(str);
     }
 
-    str = json_string_value(json_object_get(character, "original_race"));
+    str = json_get_string(character, "original_race", "");
     if (str) {
         ch->orace = race_lookup(str);
     }
@@ -3107,13 +3233,13 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
     ch->silver = json_integer_value(json_object_get(character, "silver"));
     ch->exp = json_integer_value(json_object_get(character, "experience"));
 
-    str = json_string_value(json_object_get(character, "title"));
+    str = json_get_string(character, "title", "");
     if (str) {
         free_string(ch->pcdata->title);
         ch->pcdata->title = str_dup(str);
     }
 
-    str = json_string_value(json_object_get(character, "description"));
+    str = json_get_string(character, "description", "");
     if (str) {
         free_string(ch->description);
         ch->description = str_dup(str);
@@ -3420,7 +3546,7 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
                     value = json_object_get(history_elem, "abandoned_at");
                     if (value) history->abandoned_at = (time_t)json_integer_value(value);
 
-                    str = json_string_value(json_object_get(history_elem, "name"));
+                    str = json_get_string(history_elem, "name", "");
                     if (str)
                     {
                         free_string(history->name);
@@ -3441,7 +3567,7 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
         value = json_object_get(character, "scroll_lines");
         if (value) ch->lines = json_integer_value(value);
 
-        str = json_string_value(json_object_get(character, "prompt"));
+        str = json_get_string(character, "prompt", "");
         if (str) {
             free_string(ch->prompt);
             ch->prompt = str_dup(str);
@@ -3456,28 +3582,51 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
             json_to_prefs(pref_overrides, &ch->pcdata->preferences);
         }
 
+        /* Web client layouts */
+        {
+            json_t *layouts_obj = json_object_get(character, "web_client_layouts");
+            if (layouts_obj && json_is_object(layouts_obj)) {
+                const char *lname;
+                json_t *lval;
+                json_object_foreach(layouts_obj, lname, lval) {
+                    if (!json_is_object(lval)) continue;
+                    if (layout_count(ch->pcdata->web_client_layouts) >= LAYOUT_MAX_COUNT) break;
+                    web_client_layout_t *entry = calloc(1, sizeof(*entry));
+                    if (!entry) break;
+                    snprintf(entry->name, sizeof(entry->name), "%s", lname);
+                    entry->layout = json_incref(lval);
+                    entry->next = ch->pcdata->web_client_layouts;
+                    ch->pcdata->web_client_layouts = entry;
+                }
+            }
+            json_t *active = json_object_get(character, "active_layout");
+            if (active && json_is_string(active))
+                snprintf(ch->pcdata->active_layout, sizeof(ch->pcdata->active_layout),
+                         "%s", json_string_value(active));
+        }
+
         // Pronouns
-        str = json_string_value(json_object_get(character, "pronoun_he_she"));
+        str = json_get_string(character, "pronoun_he_she", "");
         if (str) {
             free_string(ch->pronoun_he_she);
             ch->pronoun_he_she = str_dup(str);
         }
-        str = json_string_value(json_object_get(character, "pronoun_him_her"));
+        str = json_get_string(character, "pronoun_him_her", "");
         if (str) {
             free_string(ch->pronoun_him_her);
             ch->pronoun_him_her = str_dup(str);
         }
-        str = json_string_value(json_object_get(character, "pronoun_his_her"));
+        str = json_get_string(character, "pronoun_his_her", "");
         if (str) {
             free_string(ch->pronoun_his_her);
             ch->pronoun_his_her = str_dup(str);
         }
-        str = json_string_value(json_object_get(character, "pronoun_his_hers"));
+        str = json_get_string(character, "pronoun_his_hers", "");
         if (str) {
             free_string(ch->pronoun_his_hers);
             ch->pronoun_his_hers = str_dup(str);
         }
-        str = json_string_value(json_object_get(character, "pronoun_himself_herself"));
+        str = json_get_string(character, "pronoun_himself_herself", "");
         if (str) {
             free_string(ch->pronoun_himself_herself);
             ch->pronoun_himself_herself = str_dup(str);
@@ -3554,14 +3703,24 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
         value = json_object_get(character, "wiznet");
         if (value) ch->wiznet = json_integer_value(value);
 
-        // Church membership
-        str = json_string_value(json_object_get(character, "church"));
+        // Church membership — reconnect the member record from the
+        // church's people list so ch->church_member is valid on login.
+        str = json_get_string(character, "church", "");
         if (str) {
             ch->church = get_church_by_name(str);
+            if (ch->church) {
+                for (CHURCH_PLAYER_DATA *m = ch->church->people; m; m = m->next) {
+                    if (m->name && !str_cmp(m->name, ch->name)) {
+                        ch->church_member = m;
+                        m->ch = ch;
+                        break;
+                    }
+                }
+            }
         }
 
         // Immortal imm_flag (custom who-tag)
-        str = json_string_value(json_object_get(character, "imm_flag"));
+        str = json_get_string(character, "imm_flag", "");
         if (str && ch->pcdata->immortal) {
             free_string(ch->pcdata->immortal->imm_flag);
             ch->pcdata->immortal->imm_flag = str_dup(str);
@@ -3608,28 +3767,28 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
         if (value) ch->pcdata->move_before = json_integer_value(value);
 
         // Last area string
-        str = json_string_value(json_object_get(character, "last_area"));
+        str = json_get_string(character, "last_area", "");
         if (str) {
             free_string(ch->pcdata->last_area);
             ch->pcdata->last_area = str_dup(str);
         }
 
         // AFK message
-        str = json_string_value(json_object_get(character, "afk_message"));
+        str = json_get_string(character, "afk_message", "");
         if (str) {
             free_string(ch->pcdata->afk_message);
             ch->pcdata->afk_message = str_dup(str);
         }
 
         // Player flag
-        str = json_string_value(json_object_get(character, "player_flag"));
+        str = json_get_string(character, "player_flag", "");
         if (str) {
             free_string(ch->pcdata->flag);
             ch->pcdata->flag = str_dup(str);
         }
 
         // Character-level auth data (for unlinked characters or mid-migration)
-        str = json_string_value(json_object_get(character, "char_password"));
+        str = json_get_string(character, "char_password", "");
         if (str) {
             free_string(ch->pcdata->pwd);
             ch->pcdata->pwd = str_dup(str);
@@ -3637,13 +3796,13 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
         value = json_object_get(character, "char_password_version");
         if (value) ch->pcdata->pwd_vers = json_integer_value(value);
 
-        str = json_string_value(json_object_get(character, "char_old_password"));
+        str = json_get_string(character, "char_old_password", "");
         if (str) {
             free_string(ch->pcdata->old_pwd);
             ch->pcdata->old_pwd = str_dup(str);
         }
 
-        str = json_string_value(json_object_get(character, "char_reset_code"));
+        str = json_get_string(character, "char_reset_code", "");
         if (str) {
             free_string(ch->pcdata->reset_code);
             ch->pcdata->reset_code = str_dup(str);
@@ -3653,7 +3812,7 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
         value = json_object_get(character, "char_reset_state");
         if (value) ch->pcdata->reset_state = json_integer_value(value);
 
-        str = json_string_value(json_object_get(character, "char_mfa_key"));
+        str = json_get_string(character, "char_mfa_key", "");
         if (str) {
             free_string(ch->pcdata->mfa_key);
             ch->pcdata->mfa_key = str_dup(str);
@@ -3661,7 +3820,7 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
         ch->pcdata->mfa_enabled = json_is_true(json_object_get(character, "char_mfa_enabled"));
         ch->pcdata->mfa_pending = json_is_true(json_object_get(character, "char_mfa_pending"));
 
-        str = json_string_value(json_object_get(character, "char_mfa_pending_key"));
+        str = json_get_string(character, "char_mfa_pending_key", "");
         if (str) {
             free_string(ch->pcdata->mfa_pending_key);
             ch->pcdata->mfa_pending_key = str_dup(str);
@@ -3676,7 +3835,7 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
                 json_t *relem;
                 json_array_foreach(recovery, ridx, relem) {
                     if (ri >= MFA_RECOVERY_CODES) break;
-                    str = json_string_value(json_object_get(relem, "code"));
+                    str = json_get_string(relem, "code", "");
                     if (str) {
                         free_string(ch->pcdata->recovery_codes[ri]);
                         ch->pcdata->recovery_codes[ri] = str_dup(str);
@@ -3688,19 +3847,19 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
         }
 
         // Character-level email fields
-        str = json_string_value(json_object_get(character, "char_email"));
+        str = json_get_string(character, "char_email", "");
         if (str) {
             free_string(ch->pcdata->email);
             ch->pcdata->email = str_dup(str);
         }
         ch->pcdata->email_verified = json_is_true(json_object_get(character, "char_email_verified"));
 
-        str = json_string_value(json_object_get(character, "char_pending_email"));
+        str = json_get_string(character, "char_pending_email", "");
         if (str) {
             free_string(ch->pcdata->pending_email);
             ch->pcdata->pending_email = str_dup(str);
         }
-        str = json_string_value(json_object_get(character, "char_email_verification_code"));
+        str = json_get_string(character, "char_email_verification_code", "");
         if (str) {
             free_string(ch->pcdata->email_verification_code);
             ch->pcdata->email_verification_code = str_dup(str);
@@ -3714,11 +3873,11 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
         json_t *ignoring = json_object_get(character, "ignoring");
         if (ignoring && json_is_array(ignoring)) {
             json_array_foreach(ignoring, index, array_elem) {
-                const char *ignore_name = json_string_value(json_object_get(array_elem, "name"));
+                const char *ignore_name = json_get_string(array_elem, "name", "");
                 if (ignore_name) {
                     IGNORE_DATA *ignore = new_ignore();
                     ignore->name = str_dup(ignore_name);
-                    const char *ignore_reason = json_string_value(json_object_get(array_elem, "reason"));
+                    const char *ignore_reason = json_get_string(array_elem, "reason", "");
                     if (ignore_reason) {
                         ignore->reason = str_dup(ignore_reason);
                     }
@@ -4093,7 +4252,7 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
                     if (!binding_elem || !json_is_object(binding_elem))
                         continue;
 
-                    binding_name = json_string_value(json_object_get(binding_elem, "name"));
+                    binding_name = json_get_string(binding_elem, "name", "");
                     if (IS_NULLSTR(binding_name))
                         continue;
 
@@ -4469,10 +4628,10 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
             char source = SKILLSRC_NORMAL;
             long flags = SKILL_AUTOMATIC;
             if (json_is_object(skill_value)) {
-                const char *source_str = json_string_value(json_object_get(skill_value, "source"));
+                const char *source_str = json_get_string(skill_value, "source", "");
                 source = json_parse_skill_source(source_str);
 
-                const char *flags_str = json_string_value(json_object_get(skill_value, "flags"));
+                const char *flags_str = json_get_string(skill_value, "flags", "");
                 if (flags_str) {
                     flags = flag_value(skill_flags, (char *)flags_str);
                     if (flags == NO_FLAG) flags = SKILL_AUTOMATIC;
@@ -4480,10 +4639,12 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
             }
 
             // Add to sorted_skills list so 'skills'/'spells' commands work
-            if (skill_table[sn].spell_fun == spell_null)
+            { SKILL_DATA *load_sk = skill_find_uid(sn);
+            if (!load_sk || load_sk->spell_fun == spell_null)
                 skill_entry_addskill(ch, sn, NULL, source, flags);
             else
-                skill_entry_addspell(ch, sn, NULL, source, flags);
+                skill_entry_addspell(ch, sn, NULL, source, flags); }
+
 
             // Populate entry rating fields from loaded learned[] data
             entry = skill_entry_findsn(ch->sorted_skills, sn);
@@ -4567,25 +4728,11 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
     json_t *skill_groups = json_object_get(root, "skill_groups");
     if (skill_groups && json_is_array(skill_groups)) {
         json_array_foreach(skill_groups, index, array_elem) {
-            /* Try name-based resolution first, fall back to integer id */
-            const char *gname = json_string_value(json_object_get(array_elem, "name"));
-            int gn = -1;
-
-            if (gname && gname[0])
-                gn = group_lookup(gname);
-
-            if (gn < 0)
-                gn = json_integer_value(json_object_get(array_elem, "id"));
-
-            if (gn >= 0 && gn < MAX_GROUP) {
-                ch->pcdata->group_known[gn] = true;
-
-                /* Also populate known_groups LLIST */
-                if (group_table[gn].name) {
-                    SKILL_GROUP *sg = skill_group_find(group_table[gn].name);
-                    if (sg && !list_hasdata(ch->pcdata->known_groups, sg))
-                        list_appendlink(ch->pcdata->known_groups, sg);
-                }
+            const char *gname = json_get_string(array_elem, "name", "");
+            if (gname && gname[0]) {
+                SKILL_GROUP *sg = skill_group_find(gname);
+                if (sg && !list_hasdata(ch->pcdata->known_groups, sg))
+                    list_appendlink(ch->pcdata->known_groups, sg);
             }
         }
     }
@@ -4605,7 +4752,7 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
             paf->type = json_integer_value(json_object_get(array_elem, "type"));
 
             // Resolve by name first (resilient to skill reordering)
-            str = json_string_value(json_object_get(array_elem, "type_name"));
+            str = json_get_string(array_elem, "type_name", "");
             if (str && str[0]) {
                 SKILL_DATA *sk = skill_find(str);
                 if (sk) {
@@ -4638,13 +4785,27 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
                 paf->bitvector2 = json_integer_value(value);
             }
 
-            str = json_string_value(json_object_get(array_elem, "custom_name"));
+            str = json_get_string(array_elem, "custom_name", "");
             if (str) {
                 paf->custom_name = str_dup(str);
             }
 
             paf->next = ch->affected;
             ch->affected = paf;
+        }
+    }
+
+    // Read auras section
+    json_t *auras_array = json_object_get(root, "auras");
+    if (auras_array && json_is_array(auras_array)) {
+        json_array_foreach(auras_array, index, array_elem) {
+            const char *aura_name = json_get_string(array_elem, "name", "");
+            const char *aura_long_descr = json_get_string(array_elem, "long_descr", "");
+
+            if (IS_NULLSTR(aura_name) || IS_NULLSTR(aura_long_descr))
+                continue;
+
+            add_aura_to_char(ch, (char *)aura_name, (char *)aura_long_descr);
         }
     }
 
@@ -4713,13 +4874,13 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
                 break;
             }
 
-            str = json_string_value(json_object_get(array_elem, "alias"));
+            str = json_get_string(array_elem, "alias", "");
             if (str) {
                 free_string(ch->pcdata->alias[pos]);
                 ch->pcdata->alias[pos] = str_dup(str);
             }
 
-            str = json_string_value(json_object_get(array_elem, "substitution"));
+            str = json_get_string(array_elem, "substitution", "");
             if (str) {
                 free_string(ch->pcdata->alias_sub[pos]);
                 ch->pcdata->alias_sub[pos] = str_dup(str);
@@ -4804,7 +4965,7 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
                 if (value)
                     clazz = class_find_uid((int16_t)json_integer_value(value));
                 if (!clazz) {
-                    str = json_string_value(json_object_get(array_elem, "name"));
+                    str = json_get_string(array_elem, "name", "");
                     if (str)
                         clazz = class_find_exact(str);
                 }
@@ -4820,7 +4981,7 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
                     value = json_object_get(array_elem, "xp");
                     if (value) cl->xp = json_integer_value(value);
 
-                    str = json_string_value(json_object_get(array_elem, "active_title"));
+                    str = json_get_string(array_elem, "active_title", "");
                     if (str && str[0])
                         cl->active_title = str_dup(str);
 
@@ -5026,21 +5187,27 @@ bool json_read_char_remaining_from_json(CHAR_DATA *ch, json_t *root)
             char source = SKILLSRC_NORMAL;
             long flags = SKILL_AUTOMATIC;
             if (json_is_object(skill_value)) {
-                const char *source_str = json_string_value(json_object_get(skill_value, "source"));
+                const char *source_str = json_get_string(skill_value, "source", "");
                 source = json_parse_skill_source(source_str);
 
-                const char *flags_str = json_string_value(json_object_get(skill_value, "flags"));
+                const char *flags_str = json_get_string(skill_value, "flags", "");
                 if (flags_str) {
                     flags = flag_value(skill_flags, (char *)flags_str);
                     if (flags == NO_FLAG) flags = SKILL_AUTOMATIC;
                 }
             }
-
             // Add to sorted_skills list so 'skills'/'spells' commands work
-            if (skill_table[sn].spell_fun == spell_null)
+
+            { SKILL_DATA *load_sk = skill_find_uid(sn);
+            if (!load_sk || load_sk->spell_fun == spell_null)
                 skill_entry_addskill(ch, sn, NULL, source, flags);
             else
-                skill_entry_addspell(ch, sn, NULL, source, flags);
+                skill_entry_addspell(ch, sn, NULL, source, flags); }
+
+
+
+
+
 
             // Populate entry rating fields from loaded learned[] data
             entry = skill_entry_findsn(ch->sorted_skills, sn);
@@ -5099,25 +5266,11 @@ bool json_read_char_remaining_from_json(CHAR_DATA *ch, json_t *root)
     json_t *skill_groups = json_object_get(root, "skill_groups");
     if (skill_groups && json_is_array(skill_groups)) {
         json_array_foreach(skill_groups, index, array_elem) {
-            /* Try name-based resolution first, fall back to integer id */
-            const char *gname = json_string_value(json_object_get(array_elem, "name"));
-            int gn = -1;
-
-            if (gname && gname[0])
-                gn = group_lookup(gname);
-
-            if (gn < 0)
-                gn = json_integer_value(json_object_get(array_elem, "id"));
-
-            if (gn >= 0 && gn < MAX_GROUP) {
-                ch->pcdata->group_known[gn] = true;
-
-                /* Also populate known_groups LLIST */
-                if (group_table[gn].name) {
-                    SKILL_GROUP *sg = skill_group_find(group_table[gn].name);
-                    if (sg && !list_hasdata(ch->pcdata->known_groups, sg))
-                        list_appendlink(ch->pcdata->known_groups, sg);
-                }
+            const char *gname = json_get_string(array_elem, "name", "");
+            if (gname && gname[0]) {
+                SKILL_GROUP *sg = skill_group_find(gname);
+                if (sg && !list_hasdata(ch->pcdata->known_groups, sg))
+                    list_appendlink(ch->pcdata->known_groups, sg);
             }
         }
     }
@@ -5137,7 +5290,7 @@ bool json_read_char_remaining_from_json(CHAR_DATA *ch, json_t *root)
             paf->type = json_integer_value(json_object_get(array_elem, "type"));
 
             // Resolve by name first (resilient to skill reordering)
-            str = json_string_value(json_object_get(array_elem, "type_name"));
+            str = json_get_string(array_elem, "type_name", "");
             if (str && str[0]) {
                 SKILL_DATA *sk = skill_find(str);
                 if (sk) {
@@ -5170,7 +5323,7 @@ bool json_read_char_remaining_from_json(CHAR_DATA *ch, json_t *root)
                 paf->bitvector2 = json_integer_value(value);
             }
 
-            str = json_string_value(json_object_get(array_elem, "custom_name"));
+            str = json_get_string(array_elem, "custom_name", "");
             if (str) {
                 paf->custom_name = str_dup(str);
             }
@@ -5247,13 +5400,13 @@ bool json_read_char_remaining_from_json(CHAR_DATA *ch, json_t *root)
                 break;
             }
 
-            str = json_string_value(json_object_get(array_elem, "alias"));
+            str = json_get_string(array_elem, "alias", "");
             if (str) {
                 free_string(ch->pcdata->alias[pos]);
                 ch->pcdata->alias[pos] = str_dup(str);
             }
 
-            str = json_string_value(json_object_get(array_elem, "substitution"));
+            str = json_get_string(array_elem, "substitution", "");
             if (str) {
                 free_string(ch->pcdata->alias_sub[pos]);
                 ch->pcdata->alias_sub[pos] = str_dup(str);

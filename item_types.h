@@ -198,6 +198,9 @@ void            obj_index_assess_item_types(OBJ_INDEX_DATA *pObjIndex, bool assi
 #define SHIP_TYPE(obj)   ((obj)->_item_ship)
 #define IS_SHIP_TYPE(obj)(SHIP_TYPE(obj) != NULL && (obj)->_item_ship->valid)
 
+#define SHIP_MODULE_TYPE(obj)   ((obj)->_ship_module)
+#define IS_SHIP_MODULE(obj)     (SHIP_MODULE_TYPE(obj) != NULL && (obj)->_ship_module->valid)
+
 #define JEWELRY(obj)     ((obj)->_jewelry)
 #define IS_JEWELRY(obj)  (JEWELRY(obj) != NULL && (obj)->_jewelry->valid)
 
@@ -724,6 +727,7 @@ struct obj_corpse_data
     int  resurrection;   /* Resurrection chance (0-100%) */
     int  animation;      /* Animation chance (0-100%) */
     long body_parts;     /* part_flags */
+    long flags;          /* corpse_object_flags */
     long mobile_vnum;    /* Source mobile vnum */
     long mobile_area_uid;/* Source mobile area UID (0 = resolve globally) */
 };
@@ -763,6 +767,57 @@ struct obj_item_ship_data
     long first_room_area_uid; /* Room area UID (0 = resolve globally) */
     int  hit_points;
     int  max_guns;
+};
+
+/* ==================== SHIP MODULE ==================== */
+/* Installable module for ship hardpoint slots.
+ * Replaces the former SHIP_MODULE_INDEX template system — all module
+ * properties now live on object indexes as item-type data. */
+
+struct obj_ship_module_data
+{
+    struct obj_ship_module_data *next;
+    bool valid;
+
+    int type;                   /* Must match hardpoint type (HARDPOINT_WEAPON/DEFENSE/UTILITY/PROPULSION) */
+    int size;                   /* Must be <= hardpoint size (HARDPOINT_SIZE_SMALL/MEDIUM/LARGE) */
+    int weight;                 /* Contributes to hull module weight budget */
+    long domain_flags;          /* DOMAIN_AQUATIC | DOMAIN_AERIAL | DOMAIN_TERRESTRIAL */
+
+    /* Stat bonuses (applied additively to ship base stats) */
+    int hit_bonus;              /* Extra hull HP */
+    int armor_bonus;            /* Extra damage reduction */
+    int speed_bonus;            /* Movement speed modifier (percent) */
+    int turning_bonus;          /* Turning speed modifier (degrees) */
+    int cargo_weight_bonus;     /* Extra weight capacity */
+    int cargo_capacity_bonus;   /* Extra item capacity */
+    int crew_bonus;             /* Extra crew capacity */
+
+    /* Weapon stats (HARDPOINT_WEAPON only) */
+    int damage;                 /* Base damage per volley */
+    int range;                  /* Max range in wilderness tiles */
+    int reload_time;            /* Ticks between volleys */
+    int damage_type;            /* SHIP_DAMAGE_GRIND, SHIP_DAMAGE_FIRE, etc. */
+    long weapon_flags;          /* MODULE_AOE, MODULE_ANTI_CREW, etc. */
+
+    /* Crew requirements */
+    int16_t operators;          /* How many crew members needed to operate */
+    int16_t req_gunning;        /* Minimum gunning skill (0 = no req) */
+    int16_t req_mechanics;      /* Minimum mechanics skill */
+    int16_t req_scouting;       /* Minimum scouting skill */
+    int16_t req_navigation;     /* Minimum navigation skill */
+    int16_t req_oarring;        /* Minimum oarring skill */
+    int16_t req_leadership;     /* Minimum leadership skill */
+
+    /* Ammo (optional, for weapons) */
+    union {
+        WNUM_LOAD load;
+        long vnum;
+    } ammo_ref;
+    OBJ_INDEX_DATA *ammo;       /* Required ammo object (NULL = unlimited) */
+    int ammo_per_shot;          /* Ammo consumed per volley */
+
+    long flags;                 /* MODULE_REQUIRES_AMMO, MODULE_PASSIVE, etc. */
 };
 
 /* ==================== SEED ==================== */
@@ -823,6 +878,7 @@ typedef struct obj_herb_data            HERB_DATA;
 typedef struct obj_ink_data             INK_DATA;
 typedef struct obj_instrument_data      INSTRUMENT_DATA;
 typedef struct obj_item_ship_data       ITEM_SHIP_DATA;
+typedef struct obj_ship_module_data     SHIP_MODULE_DATA;
 typedef struct obj_jewelry_data         JEWELRY_DATA;
 typedef struct obj_light_data           LIGHT_DATA;
 typedef struct obj_map_data             MAP_DATA;
@@ -864,6 +920,7 @@ HERB_DATA *             new_herb_data(void);
 INK_DATA *              new_ink_data(void);
 INSTRUMENT_DATA *       new_instrument_data(void);
 ITEM_SHIP_DATA *        new_item_ship_data(void);
+SHIP_MODULE_DATA *      new_ship_module_data(void);
 JEWELRY_DATA *          new_jewelry_data(void);
 LIGHT_DATA *            new_light_data(void);
 MAP_DATA *              new_map_data(void);
@@ -899,6 +956,7 @@ HERB_DATA *             copy_herb_data(HERB_DATA *src);
 INK_DATA *              copy_ink_data(INK_DATA *src);
 INSTRUMENT_DATA *       copy_instrument_data(INSTRUMENT_DATA *src);
 ITEM_SHIP_DATA *        copy_item_ship_data(ITEM_SHIP_DATA *src);
+SHIP_MODULE_DATA *      copy_ship_module_data(SHIP_MODULE_DATA *src);
 JEWELRY_DATA *          copy_jewelry_data(JEWELRY_DATA *src);
 LIGHT_DATA *            copy_light_data(LIGHT_DATA *src);
 MAP_DATA *              copy_map_data(MAP_DATA *src);
@@ -934,6 +992,7 @@ void    free_herb_data(HERB_DATA *data);
 void    free_ink_data(INK_DATA *data);
 void    free_instrument_data(INSTRUMENT_DATA *data);
 void    free_item_ship_data(ITEM_SHIP_DATA *data);
+void    free_ship_module_data(SHIP_MODULE_DATA *data);
 void    free_jewelry_data(JEWELRY_DATA *data);
 void    free_light_data(LIGHT_DATA *data);
 void    free_map_data(MAP_DATA *data);

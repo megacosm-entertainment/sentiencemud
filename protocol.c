@@ -27,16 +27,58 @@
 #include <ctype.h>
 
 #include "protocol.h"
+#include "gmcp_sentience.h"
+#include "account/preferences.h"
 
 /******************************************************************************
  The following section is for Diku/Merc derivatives.  Replace as needed.
  ******************************************************************************/
 #include "strings.h"
 #include "merc.h"
+#include "connection.h"
 
+static bool descriptor_uses_telnet_iac(descriptor_t *apDescriptor)
+{
+   if (!apDescriptor || !apDescriptor->conn)
+      return true;
+
+   return apDescriptor->conn->type != CONN_TYPE_WEBSOCKET_TLS;
+}
+
+/*
+ * Send Sentience.Client.Ready.Capabilities if Sentience support is enabled.
+ */
+static void sentience_send_capabilities(descriptor_t *d)
+{
+    json_t *caps;
+    char *dump;
+
+    if (!d || !d->pProtocol || !d->pProtocol->bGMCPSupport[GMCP_SUPPORT_SENTIENCE])
+        return;
+
+    caps = sentience_build_client_ready_capabilities_json();
+    if (!caps) return;
+
+    dump = json_dumps(caps, JSON_COMPACT);
+    if (dump) {
+        SendGMCPRaw(d, "Sentience.Client.Ready.Capabilities", dump);
+        free(dump);
+    }
+    json_decref(caps);
+}
 
 static void Write( descriptor_t *apDescriptor, const char *apData )
 {
+   if ( apDescriptor == NULL )
+      return;
+
+   /* WebSocket payloads must never include telnet IAC control sequences. */
+   if ( !descriptor_uses_telnet_iac(apDescriptor) && apData != NULL &&
+        ((unsigned char)apData[0] == (unsigned char)IAC) )
+   {
+      return;
+   }
+
    if ( apDescriptor != NULL && !apDescriptor->fcommand )
    {
       if ( apDescriptor->pProtocol->WriteOOB > 0 || 
@@ -395,6 +437,9 @@ protocol_t *ProtocolCreate( void )
    }
 
    pProtocol = malloc(sizeof(protocol_t));
+   if ( pProtocol == NULL )
+      return NULL;
+   memset(pProtocol, 0, sizeof(protocol_t));
    pProtocol->WriteOOB = 0;
    for ( i = eNEGOTIATED_TTYPE; i < eNEGOTIATED_MAX; ++i )
       pProtocol->Negotiated[i] = false;
@@ -419,10 +464,25 @@ protocol_t *ProtocolCreate( void )
    pProtocol->pMXPVersion = AllocString("Unknown");
    pProtocol->pLastTTYPE = NULL;
    pProtocol->pVariables = malloc(sizeof(MSDP_t*)*eMSDP_MAX);
+   if ( pProtocol->pVariables == NULL )
+   {
+      free(pProtocol);
+      return NULL;
+   }
 
    for ( i = eMSDP_NONE+1; i < eMSDP_MAX; ++i )
    {
       pProtocol->pVariables[i] = malloc(sizeof(MSDP_t));
+      if ( pProtocol->pVariables[i] == NULL )
+      {
+         /* Clean up previously allocated variables */
+         int j;
+         for ( j = eMSDP_NONE+1; j < i; ++j )
+            free(pProtocol->pVariables[j]);
+         free(pProtocol->pVariables);
+         free(pProtocol);
+         return NULL;
+      }
       pProtocol->pVariables[i]->bReport = false;
       pProtocol->pVariables[i]->bDirty = false;
       pProtocol->pVariables[i]->ValueInt = 0;
@@ -455,6 +515,11 @@ protocol_t *ProtocolCreate( void )
 
    for ( i = 0; i < GMCP_PACKAGE_MAX; i++ )
       pProtocol->bGMCPUpdatePackage[i] = 0;
+
+   /* Sentience GMCP cache */
+   pProtocol->sentience_dirty = 0;
+   sentience_gmcp_cache_reset(&pProtocol->sentience_cache);
+   sentience_link_queue_init(&pProtocol->sentience_link_queue);
    /*************** END GMCP ***************/
 
    return pProtocol;
@@ -479,6 +544,7 @@ void ProtocolDestroy( protocol_t *apProtocol )
       free( apProtocol->GMCPVariable[i] );
    /*************** END GMCP ***************/
 
+   sentience_link_queue_free(&apProtocol->sentience_link_queue);
    free(apProtocol);
 }
 
@@ -1120,12 +1186,18 @@ const char *ProtocolOutput( descriptor_t *apDescriptor, const char *apData, int 
  */
 void ProtocolNegotiate( descriptor_t *apDescriptor )
 {
+   if ( !descriptor_uses_telnet_iac(apDescriptor) )
+      return;
+
    ConfirmNegotiation(apDescriptor, eNEGOTIATED_TTYPE, true, true);
 }
 
 /* Tells the client to switch echo on or off. */
 void ProtocolNoEcho( descriptor_t *apDescriptor, bool abOn )
 {
+   if ( !descriptor_uses_telnet_iac(apDescriptor) )
+      return;
+
    ConfirmNegotiation(apDescriptor, eNEGOTIATED_ECHO, abOn, true);
 }
 
@@ -1546,6 +1618,8 @@ void MSDPSetTable( descriptor_t *apDescriptor, variable_t aMSDP, const char *apV
          const char MsdpTableStop[]  = { (char)MSDP_TABLE_CLOSE, '\0' };
 
          char *pTable = malloc(strlen(apValue) + 3); /* 3: START, STOP, NUL */
+         if ( pTable == NULL )
+            return;
 
          strcpy(pTable, MsdpTableStart);
          strcat(pTable, apValue);
@@ -1624,6 +1698,8 @@ void MSDPSetArray( descriptor_t *apDescriptor, variable_t aMSDP, const char *apV
          const char MsdpArrayStop[]  = { (char)MSDP_ARRAY_CLOSE, '\0' };
 
          char *pArray = malloc(strlen(apValue) + 3); /* 3: START, STOP, NUL */
+         if ( pArray == NULL )
+            return;
 
          strcpy(pArray, MsdpArrayStart);
          strcat(pArray, apValue);
@@ -2403,7 +2479,8 @@ static void PerformSubnegotiation( descriptor_t *apDescriptor, char aCmd, char *
                const char *pStartPos = strstr( pClientName, "-" );
 
                /* Store the TTYPE */
-               free(pProtocol->pLastTTYPE);
+               if (pProtocol->pLastTTYPE)
+                  free(pProtocol->pLastTTYPE);
                pProtocol->pLastTTYPE = AllocString(pClientName);
 
                /* Look for 256 colour support */
@@ -2443,13 +2520,13 @@ static void PerformSubnegotiation( descriptor_t *apDescriptor, char aCmd, char *
             }
             else if ( PrefixString("Mudlet", pClientName) )
             {
-               /* Mudlet beta 15 and later supports 256 colours, but we can't 
-                * identify it from the mud - everything prior to 1.1 claims 
-                * to be version 1.0, so we just don't know.
-                */ 
+               /* Mudlet beta 15+ supports 256 colours; all modern Mudlet
+                * versions (1.x and later) support UTF-8 natively.
+                */
                pProtocol->b256Support = eYES;
                pProtocol->pVariables[eMSDP_ANSI_COLORS]->ValueInt = 1;
                pProtocol->pVariables[eMSDP_XTERM_256_COLORS]->ValueInt = 1;
+               pProtocol->pVariables[eMSDP_UTF_8]->ValueInt = 1;
 
             }
             else if ( MatchString(pClientName, "EMACS-RINZAI") || MatchString(pClientName, "MUDRAMMER") )
@@ -3292,6 +3369,8 @@ const struct gmcp_receive_struct GMCPReceiveTable[GMCP_RECEIVE_MAX+1] =
    { GMCP_CORE_SUPPORTS_REMOVE,		"Core.Supports.Remove"				},
    { GMCP_EXTERNAL_DISCORD_HELLO,		"External.Discord.Hello"			},
    { GMCP_EXTERNAL_DISCORD_GET,		"External.Discord.Get"				},
+   { GMCP_SENTIENCE_CLIENT_PREFERENCES,	"Sentience.Client.Preferences"		},
+   { GMCP_SENTIENCE_CLIENT_LAYOUT,      "Sentience.Client.Layout"           },
 
    { GMCP_RECEIVE_MAX,					"",									}
 };
@@ -3314,6 +3393,7 @@ const struct gmcp_support_struct bGMCPSupportTable[GMCP_SUPPORT_MAX+1] =
 {
    { GMCP_SUPPORT_CHAR,			"Char"						},
    { GMCP_SUPPORT_ROOM,			"Room"						},
+   { GMCP_SUPPORT_SENTIENCE,		"Sentience"					},
 
    { GMCP_SUPPORT_MAX,				NULL						}
 };
@@ -3798,6 +3878,8 @@ void ParseGMCP( descriptor_t *apDescriptor, char *string )
                }
             }
          }
+
+         sentience_send_capabilities(apDescriptor);
       }
       break;
 
@@ -3822,6 +3904,8 @@ void ParseGMCP( descriptor_t *apDescriptor, char *string )
                }
             }
          }
+
+         sentience_send_capabilities(apDescriptor);
       }
       break;
 
@@ -3890,6 +3974,267 @@ void ParseGMCP( descriptor_t *apDescriptor, char *string )
          #else
          #endif
          Write( apDescriptor, buf );
+      }
+      break;
+
+      case GMCP_SENTIENCE_CLIENT_PREFERENCES:
+      {
+         /* Client sends either:
+          * Legacy: {"gmcp_channels": true, ...}
+          * New: {"action": "set", "key": "brief", "scope": "character", "value": true}
+          *      {"action": "reset", "key": "brief", "scope": "character"} */
+         CHAR_DATA *ch = apDescriptor->character;
+         ACCOUNT_DATA *account = NULL;
+         bool account_loaded = false;
+         bool has_action = false;
+         char action[32] = "";
+         char pref_key[64] = "";
+         char scope[32] = "";
+         
+         if (!ch || IS_NPC(ch) || !ch->pcdata)
+             break;
+
+         if (ch->pcdata->account_name[0]) {
+             account = get_account_online_or_offline(ch->pcdata->account_name, &account_loaded);
+         }
+
+         if (t[1].type == JSMN_OBJECT) {
+             /* Check if this uses the new action-based format */
+             for (i = 2; i < tokens; i += 2) {
+                 key = PullJSONString(t[i].start, t[i].end, string);
+                 if (!strcmp(key, "action")) {
+                     has_action = true;
+                     strlcpy(action, PullJSONString(t[i + 1].start, t[i + 1].end, string), sizeof(action));
+                     break;
+                 }
+             }
+
+             if (has_action) {
+                 /* New action-based format */
+                 json_t *error_obj = NULL;
+                 
+                 /* Parse all fields */
+                 for (i = 2; i < tokens; i += 2) {
+                     key = PullJSONString(t[i].start, t[i].end, string);
+                     if (!strcmp(key, "key")) {
+                         strlcpy(pref_key, PullJSONString(t[i + 1].start, t[i + 1].end, string), sizeof(pref_key));
+                     } else if (!strcmp(key, "scope")) {
+                         strlcpy(scope, PullJSONString(t[i + 1].start, t[i + 1].end, string), sizeof(scope));
+                     }
+                 }
+
+                 /* Validate action */
+                 if (strcmp(action, "set") && strcmp(action, "reset")) {
+                     error_obj = json_object();
+                     json_object_set_new(error_obj, "error", json_string("invalid_action"));
+                     json_object_set_new(error_obj, "message", json_string("Action must be 'set' or 'reset'"));
+                     sentience_send_package(apDescriptor, "Sentience.Client.Preferences", error_obj);
+                     goto cleanup_account;
+                 }
+
+                 /* Validate scope */
+                 if (strcmp(scope, "character") && strcmp(scope, "account")) {
+                     error_obj = json_object();
+                     json_object_set_new(error_obj, "error", json_string("invalid_scope"));
+                     json_object_set_new(error_obj, "message", json_string("Scope must be 'character' or 'account'"));
+                     sentience_send_package(apDescriptor, "Sentience.Client.Preferences", error_obj);
+                     goto cleanup_account;
+                 }
+
+                 /* Validate key exists */
+                 bool valid_key = false;
+                 for (int j = 0; pc_set_table[j].name; j++) {
+                     if (!strcmp(pref_key, pc_set_table[j].name)) {
+                         valid_key = true;
+                         break;
+                     }
+                 }
+                 if (!valid_key) {
+                     for (PREF_ENTRY *p = game_settings.pref_defaults; p; p = p->next) {
+                         if (!strcmp(pref_key, p->key)) {
+                             valid_key = true;
+                             break;
+                         }
+                     }
+                 }
+                 
+                 if (!valid_key) {
+                     error_obj = json_object();
+                     json_object_set_new(error_obj, "error", json_string("invalid_key"));
+                     json_object_set_new(error_obj, "message", json_string("Unknown preference key"));
+                     sentience_send_package(apDescriptor, "Sentience.Client.Preferences", error_obj);
+                     goto cleanup_account;
+                 }
+
+                 /* Get the preference list to modify */
+                 PREF_ENTRY **pref_list = NULL;
+                 if (!strcmp(scope, "character")) {
+                     pref_list = &ch->pcdata->preferences;
+                 } else if (!strcmp(scope, "account") && account) {
+                     pref_list = &account->preferences;
+                 }
+
+                 if (!pref_list) {
+                     error_obj = json_object();
+                     json_object_set_new(error_obj, "error", json_string("invalid_scope"));
+                     json_object_set_new(error_obj, "message", json_string("Cannot access account preferences"));
+                     sentience_send_package(apDescriptor, "Sentience.Client.Preferences", error_obj);
+                     goto cleanup_account;
+                 }
+
+                 if (!strcmp(action, "reset")) {
+                     /* Remove the preference */
+                     pref_remove(pref_list, pref_key);
+                 } else if (!strcmp(action, "set")) {
+                     /* Find preference type and set value */
+                     int pref_type = PREF_TYPE_BOOL; /* Default */
+                     int pref_category = PREF_CAT_TOGGLE; /* Default */
+                     
+                     /* Check if it's in pc_set_table (toggle) */
+                     bool is_toggle = false;
+                     for (int j = 0; pc_set_table[j].name; j++) {
+                         if (!strcmp(pref_key, pc_set_table[j].name)) {
+                             is_toggle = true;
+                             pref_category = PREF_CAT_TOGGLE;
+                             pref_type = PREF_TYPE_BOOL;
+                             break;
+                         }
+                     }
+                     
+                     /* If not in pc_set_table, check game_settings.pref_defaults */
+                     if (!is_toggle) {
+                         for (PREF_ENTRY *p = game_settings.pref_defaults; p; p = p->next) {
+                             if (!strcmp(pref_key, p->key)) {
+                                 pref_category = p->category;
+                                 pref_type = p->type;
+                                 break;
+                             }
+                         }
+                     }
+
+                     /* Find the value token */
+                     bool found_value = false;
+                     for (i = 2; i < tokens; i += 2) {
+                         key = PullJSONString(t[i].start, t[i].end, string);
+                         if (!strcmp(key, "value")) {
+                             found_value = true;
+                             char *val_str = PullJSONString(t[i + 1].start, t[i + 1].end, string);
+                             
+                             switch (pref_type) {
+                                 case PREF_TYPE_BOOL: {
+                                     if (strcmp(val_str, "true") && strcmp(val_str, "false")
+                                         && strcmp(val_str, "1") && strcmp(val_str, "0")) {
+                                         error_obj = json_object();
+                                         json_object_set_new(error_obj, "error", json_string("invalid_value"));
+                                         json_object_set_new(error_obj, "message", json_string("Boolean value must be true or false"));
+                                         sentience_send_package(apDescriptor, "Sentience.Client.Preferences", error_obj);
+                                         goto cleanup_account;
+                                     }
+                                     bool val = (!strcmp(val_str, "true") || !strcmp(val_str, "1"));
+                                     pref_set_bool(pref_list, pref_category, pref_key, val);
+                                     break;
+                                 }
+                                 case PREF_TYPE_INT: {
+                                     char *endptr;
+                                     int val = (int)strtol(val_str, &endptr, 10);
+                                     if (*endptr != '\0') {
+                                         error_obj = json_object();
+                                         json_object_set_new(error_obj, "error", json_string("invalid_value"));
+                                         json_object_set_new(error_obj, "message", json_string("Integer value required"));
+                                         sentience_send_package(apDescriptor, "Sentience.Client.Preferences", error_obj);
+                                         goto cleanup_account;
+                                     }
+                                     pref_set_int(pref_list, pref_category, pref_key, val);
+                                     break;
+                                 }
+                                 case PREF_TYPE_STRING: {
+                                     pref_set_string(pref_list, pref_category, pref_key, val_str);
+                                     break;
+                                 }
+                                 case PREF_TYPE_BITFIELD: {
+                                     char *endptr;
+                                     long val = strtol(val_str, &endptr, 0);
+                                     if (*endptr != '\0') {
+                                         error_obj = json_object();
+                                         json_object_set_new(error_obj, "error", json_string("invalid_value"));
+                                         json_object_set_new(error_obj, "message", json_string("Numeric value required for bitfield"));
+                                         sentience_send_package(apDescriptor, "Sentience.Client.Preferences", error_obj);
+                                         goto cleanup_account;
+                                     }
+                                     pref_set_bitfield(pref_list, pref_category, pref_key, val);
+                                     break;
+                                 }
+                                 default:
+                                     break;
+                             }
+                             break;
+                         }
+                     }
+
+                     if (!found_value) {
+                         error_obj = json_object();
+                         json_object_set_new(error_obj, "error", json_string("invalid_value"));
+                         json_object_set_new(error_obj, "message", json_string("Missing 'value' field for set action"));
+                         sentience_send_package(apDescriptor, "Sentience.Client.Preferences", error_obj);
+                         goto cleanup_account;
+                     }
+                 }
+
+                 /* Save */
+                 save_char_obj(ch);
+                 if (!strcmp(scope, "account") && account) {
+                     save_account(account);
+                 }
+
+                 /* Send updated preferences */
+                 sentience_send_client_preferences(apDescriptor);
+             } else {
+                 /* Legacy format: {"gmcp_channels": true, ...} */
+                 static const char *valid_keys[] = {
+                     "gmcp_channels", "gmcp_suppress_channels", "gmcp_suppress_minimap", NULL
+                 };
+
+                 for (i = 2; i < tokens; i += 2) {
+                     int k;
+                     bool valid = false;
+
+                     key = PullJSONString(t[i].start, t[i].end, string);
+
+                     for (k = 0; valid_keys[k]; k++) {
+                         if (!strcmp(key, valid_keys[k])) {
+                             valid = true;
+                             break;
+                         }
+                     }
+                     if (!valid)
+                         continue;
+
+                     if (i + 1 < tokens) {
+                         char *val_str = PullJSONString(t[i + 1].start, t[i + 1].end, string);
+                         bool val = (!strcmp(val_str, "true") || !strcmp(val_str, "1"));
+                         pref_set_bool(&ch->pcdata->preferences, PREF_CAT_GMCP,
+                                       key, val);
+                     }
+                 }
+                 save_char_obj(ch);
+                 sentience_send_client_preferences(apDescriptor);
+             }
+         }
+
+cleanup_account:
+         /* Cleanup account if we loaded it */
+         if (account_loaded && account) {
+             free_account(account);
+         }
+      }
+      break;
+
+      case GMCP_SENTIENCE_CLIENT_LAYOUT:
+      {
+         if (!apDescriptor->character || IS_NPC(apDescriptor->character))
+             break;
+         if (tokens > 1 && t[1].type == JSMN_OBJECT)
+             sentience_handle_client_layout(apDescriptor, string + t[1].start);
       }
       break;
    }
@@ -4032,6 +4377,61 @@ void UpdateGMCPNumber( descriptor_t *apDescriptor, GMCP_VARIABLE var, const long
    apDescriptor->pProtocol->bGMCPUpdatePackage[GMCPVariableTable[var].package] = 1;
 
    return;
+}
+
+/**
+ * SendGMCPRaw - Send an ad-hoc GMCP event packet to a descriptor
+ *
+ * Sends a GMCP message in the form: package json_body, framed with
+ * IAC SB GMCP ... IAC SE.  Does nothing if the descriptor does not
+ * have GMCP negotiated.  This bypasses the state table and fires
+ * immediately (fire-and-forget events).
+ *
+ * @param apDescriptor  Target connection
+ * @param package       Full package name, e.g. "Sentience.Channel.Message"
+ * @param json_body     JSON content (already formatted), e.g. {"channel":"gossip",...}
+ */
+void SendGMCPRaw( descriptor_t *apDescriptor, const char *package, const char *json_body )
+{
+   if ( !apDescriptor || !apDescriptor->pProtocol || !apDescriptor->pProtocol->bGMCP )
+      return;
+
+   if ( !package || !json_body )
+      return;
+
+   size_t pkg_len = strlen(package);
+   size_t json_len = strlen(json_body);
+
+   /* WebSocket: send as plain text frame (no telnet IAC framing) */
+   if ( !descriptor_uses_telnet_iac(apDescriptor) )
+   {
+      /* "package json\n\r\0" — the \n\r delimiter is required for the
+       * client to split multiple GMCP packages per tick.  The client
+       * must strip GMCP lines from visible output. */
+      size_t need = pkg_len + 1 + json_len + 2 + 1;
+      char *buf = alloc_mem(need);
+
+      if ( !apDescriptor->fcommand && apDescriptor->pProtocol->WriteOOB <= 0 )
+         apDescriptor->pProtocol->WriteOOB = 2;
+      snprintf( buf, need, "%s %s\n\r", package, json_body );
+      write_to_buffer( apDescriptor, buf, 0 );
+      free_mem( buf, need );
+      return;
+   }
+
+   /* Telnet: wrap in IAC SB GMCP ... IAC SE */
+   /* 3 (iac_sb_gmcp) + pkg + 1 (space) + json + 2 (iac_se) + 1 (nul) */
+   size_t need = 3 + pkg_len + 1 + json_len + 2 + 1;
+   char *buf = alloc_mem(need);
+
+   snprintf( buf, need, "%s%s %s%s",
+             ( char * ) iac_sb_gmcp,
+             package,
+             json_body,
+             ( char * ) iac_se );
+
+   Write( apDescriptor, buf );
+   free_mem( buf, need );
 }
 
 static char *OneArg( char *fStr, char *bStr )

@@ -6,12 +6,16 @@
 #include <signal.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <pthread.h>
 #include <sys/resource.h>
 #include <sys/prctl.h>
 #include <sys/wait.h>
 #include <time.h>
+#include <jansson.h>
+#include <hiredis/hiredis.h>
 #include "merc.h"
 #include "zlog.h"
+#include "io/cache/redis_cache.h"
 
 #ifdef MUD_DEBUG
 #include <backtrace.h>
@@ -97,6 +101,137 @@ static struct backtrace_state *get_backtrace_state(void) {
 
 static bool log_initialized = false;
 
+/* ---------------------------------------------------------------------------
+ * Log stream queue — decouples game thread from Redis I/O.
+ *
+ * The game thread calls log_stream_enqueue() which just copies the JSON
+ * string pointer into a ring buffer and signals a condition variable.
+ * It never blocks beyond a mutex lock.  If the queue is full the entry is
+ * dropped (backpressure) rather than stalling the game loop.
+ *
+ * The worker thread owns its own redisContext exclusively — no sharing with
+ * the persist worker or any other thread.
+ * -------------------------------------------------------------------------*/
+
+#define LOG_QUEUE_CAPACITY 8192   /* must be power of 2 */
+#define LOG_QUEUE_MASK     (LOG_QUEUE_CAPACITY - 1)
+
+typedef struct {
+    char               *entries[LOG_QUEUE_CAPACITY];
+    unsigned int        head;    /* worker reads from here */
+    unsigned int        tail;    /* producer writes here  */
+    pthread_mutex_t     mutex;
+    pthread_cond_t      cond;
+    bool                running;
+} log_stream_queue_t;
+
+static log_stream_queue_t  lsq = {
+    .mutex   = PTHREAD_MUTEX_INITIALIZER,
+    .cond    = PTHREAD_COND_INITIALIZER,
+    .running = false,
+};
+static pthread_t           log_stream_thread;
+
+/* Enqueue a heap-allocated JSON string.  Ownership transfers to queue on
+ * success; caller must NOT free on success.  On queue-full the string is
+ * freed here (drop) so the caller never leaks. */
+static void log_stream_enqueue(char *json_str)
+{
+    pthread_mutex_lock(&lsq.mutex);
+    unsigned int next_tail = (lsq.tail + 1) & LOG_QUEUE_MASK;
+    if (next_tail == lsq.head) {
+        /* Queue full — drop entry to avoid blocking game thread */
+        pthread_mutex_unlock(&lsq.mutex);
+        free(json_str);
+        return;
+    }
+    lsq.entries[lsq.tail] = json_str;
+    lsq.tail = next_tail;
+    pthread_cond_signal(&lsq.cond);
+    pthread_mutex_unlock(&lsq.mutex);
+}
+
+static void *log_stream_worker(void *arg)
+{
+    (void)arg;
+    prctl(PR_SET_NAME, "log-stream", 0, 0, 0);
+
+    redisContext *ctx = NULL;
+
+    pthread_mutex_lock(&lsq.mutex);
+    while (lsq.running) {
+        /* Wait until there's work or we're asked to stop */
+        while (lsq.head == lsq.tail && lsq.running)
+            pthread_cond_wait(&lsq.cond, &lsq.mutex);
+
+        /* Drain the queue while holding the mutex only to dequeue, then
+         * release before doing Redis I/O so producers never contend. */
+        while (lsq.head != lsq.tail) {
+            char *json_str = lsq.entries[lsq.head];
+            lsq.head = (lsq.head + 1) & LOG_QUEUE_MASK;
+            pthread_mutex_unlock(&lsq.mutex);
+
+            /* Ensure we have a live connection */
+            if (!ctx) {
+                ctx = redis_new_context();
+                /* If we can't connect right now, drop this entry and
+                 * back off briefly to avoid a tight reconnect loop. */
+                if (!ctx) {
+                    free(json_str);
+                    pthread_mutex_lock(&lsq.mutex);
+                    /* brief sleep without holding mutex */
+                    struct timespec ts = { .tv_sec = 1, .tv_nsec = 0 };
+                    pthread_mutex_unlock(&lsq.mutex);
+                    nanosleep(&ts, NULL);
+                    pthread_mutex_lock(&lsq.mutex);
+                    continue;
+                }
+            }
+
+            redisReply *reply = (redisReply *)redisCommand(ctx,
+                "XADD %s MAXLEN ~ %d * json %s",
+                game_settings.log_stream_key,
+                game_settings.log_stream_maxlen,
+                json_str);
+            free(json_str);
+
+            if (!reply || ctx->err) {
+                /* Lost connection — free context, will reconnect on next entry */
+                if (reply) freeReplyObject(reply);
+                redisFree(ctx);
+                ctx = NULL;
+            } else {
+                freeReplyObject(reply);
+            }
+
+            pthread_mutex_lock(&lsq.mutex);
+        }
+    }
+
+    /* Drain remaining entries on shutdown */
+    while (lsq.head != lsq.tail) {
+        char *json_str = lsq.entries[lsq.head];
+        lsq.head = (lsq.head + 1) & LOG_QUEUE_MASK;
+        if (ctx) {
+            pthread_mutex_unlock(&lsq.mutex);
+            redisReply *reply = (redisReply *)redisCommand(ctx,
+                "XADD %s MAXLEN ~ %d * json %s",
+                game_settings.log_stream_key,
+                game_settings.log_stream_maxlen,
+                json_str);
+            if (reply) freeReplyObject(reply);
+            free(json_str);
+            pthread_mutex_lock(&lsq.mutex);
+        } else {
+            free(json_str);
+        }
+    }
+    pthread_mutex_unlock(&lsq.mutex);
+
+    if (ctx) redisFree(ctx);
+    return NULL;
+}
+
 int log_init(const char *config_path) {
     if (log_initialized) {
         return 0;
@@ -119,6 +254,49 @@ void log_shutdown(void) {
 
     zlog_fini();
     log_initialized = false;
+}
+
+/**
+ * log_stream_init - Start the async Redis Stream worker thread.
+ *
+ * Must be called after game settings and Redis are initialized.
+ * Safe to call even when log_stream_enabled is false (no-ops cleanly).
+ *
+ * @return  true on success, false if pthread_create fails
+ */
+bool log_stream_init(void)
+{
+    if (lsq.running)
+        return true;  /* already started */
+
+    lsq.head    = 0;
+    lsq.tail    = 0;
+    lsq.running = true;
+
+    if (pthread_create(&log_stream_thread, NULL, log_stream_worker, NULL) != 0) {
+        lsq.running = false;
+        return false;
+    }
+    return true;
+}
+
+/**
+ * log_stream_shutdown - Signal and join the async Redis Stream worker thread.
+ *
+ * Must be called before redis_shutdown() so the worker can flush its queue.
+ * Blocks until the worker thread exits.
+ */
+void log_stream_shutdown(void)
+{
+    if (!lsq.running)
+        return;
+
+    pthread_mutex_lock(&lsq.mutex);
+    lsq.running = false;
+    pthread_cond_signal(&lsq.cond);
+    pthread_mutex_unlock(&lsq.mutex);
+
+    pthread_join(log_stream_thread, NULL);
 }
 
 static bool log_unit_tests_only = false;
@@ -150,6 +328,113 @@ const char *log_category_for_domain(event_domain_t domain) {
         default:
             return LOG_INFO;
     }
+}
+
+static const char *event_severity_to_string(event_severity_t severity) {
+    switch (severity) {
+        case EVENT_SEV_INFO:     return "INFO";
+        case EVENT_SEV_WARN:     return "WARN";
+        case EVENT_SEV_ERROR:    return "ERROR";
+        case EVENT_SEV_DEBUG:    return "DEBUG";
+        case EVENT_SEV_CRITICAL: return "CRITICAL";
+        case EVENT_SEV_BUG:      return "BUG";
+        default:                 return "INFO";
+    }
+}
+
+/**
+ * log_serialize_event - Serialize a log_event_t to a JSON string per LOGGING_SCHEMA.md
+ *
+ * Builds a JSON object matching the defined schema. The context object is
+ * omitted (null) if event->context is NULL. Fields with zero int64 values
+ * are serialized as JSON null per the nullable convention.
+ *
+ * @param event  The event to serialize. Must not be NULL.
+ * @return       Heap-allocated JSON string (caller must free), or NULL on failure.
+ */
+static char *log_serialize_event(const log_event_t *event) {
+    char iso[48];
+    struct timespec ts;
+    struct tm tm_info;
+
+    clock_gettime(CLOCK_REALTIME, &ts);
+    gmtime_r(&ts.tv_sec, &tm_info);
+    char ts_buf[32];
+    strftime(ts_buf, sizeof(ts_buf), "%Y-%m-%dT%H:%M:%S", &tm_info);
+    snprintf(iso, sizeof(iso), "%s.%03ldZ", ts_buf, ts.tv_nsec / 1000000L);
+
+    const char *server_id = (game_settings.mssp_hostname && game_settings.mssp_hostname[0])
+        ? game_settings.mssp_hostname : "unknown";
+
+    json_t *root = json_object();
+    if (!root) return NULL;
+
+    /* metadata */
+    json_t *metadata = json_object();
+    json_object_set_new(metadata, "timestamp",  json_string(iso));
+    json_object_set_new(metadata, "server_id",  json_string(server_id));
+    json_object_set_new(metadata, "version",    json_integer(1));
+    json_object_set_new(root, "metadata", metadata);
+
+    /* source */
+    json_t *source = json_object();
+    json_object_set_new(source, "file",     json_string(event->source_file ? event->source_file : "unknown"));
+    json_object_set_new(source, "line",     json_integer(event->source_line));
+    json_object_set_new(source, "function", json_string(event->source_func ? event->source_func : "unknown"));
+    json_object_set_new(root, "source", source);
+
+    /* message */
+    json_t *message = json_object();
+    json_object_set_new(message, "level",    json_string(event_severity_to_string(event->severity)));
+    json_object_set_new(message, "category", json_string(event->category ? event->category : LOG_INFO));
+    json_object_set_new(message, "text",     json_string(event->plain_message ? event->plain_message : ""));
+    json_object_set_new(root, "message", message);
+
+    /* context (optional) */
+    const log_context_t *ctx = event->context;
+    if (ctx) {
+        json_t *context = json_object();
+        json_object_set_new(context, "actor_type",  ctx->actor_type  ? json_string(ctx->actor_type)  : json_null());
+        json_object_set_new(context, "actor_name",  ctx->actor_name  ? json_string(ctx->actor_name)  : json_null());
+        if (ctx->actor_uid[0] || ctx->actor_uid[1]) {
+            json_t *auid = json_array();
+            json_array_append_new(auid, json_integer((json_int_t)ctx->actor_uid[0]));
+            json_array_append_new(auid, json_integer((json_int_t)ctx->actor_uid[1]));
+            json_object_set_new(context, "actor_uid", auid);
+        } else {
+            json_object_set_new(context, "actor_uid", json_null());
+        }
+        json_object_set_new(context, "actor_wnum",  ctx->actor_wnum  ? json_string(ctx->actor_wnum)  : json_null());
+        json_object_set_new(context, "action",      ctx->action      ? json_string(ctx->action)      : json_null());
+        json_object_set_new(context, "target_type", ctx->target_type ? json_string(ctx->target_type) : json_null());
+        json_object_set_new(context, "target_name", ctx->target_name ? json_string(ctx->target_name) : json_null());
+        if (ctx->target_uid[0] || ctx->target_uid[1]) {
+            json_t *tuid = json_array();
+            json_array_append_new(tuid, json_integer((json_int_t)ctx->target_uid[0]));
+            json_array_append_new(tuid, json_integer((json_int_t)ctx->target_uid[1]));
+            json_object_set_new(context, "target_uid", tuid);
+        } else {
+            json_object_set_new(context, "target_uid", json_null());
+        }
+        json_object_set_new(context, "target_wnum",  ctx->target_wnum ? json_string(ctx->target_wnum) : json_null());
+        json_object_set_new(context, "value",       ctx->value       ? json_integer(ctx->value)      : json_null());
+        json_object_set_new(context, "duration_ms", ctx->duration_ms ? json_integer(ctx->duration_ms): json_null());
+
+        if (ctx->extra_json) {
+            json_error_t err;
+            json_t *extra = json_loads(ctx->extra_json, 0, &err);
+            json_object_set_new(context, "extra", extra ? extra : json_null());
+        } else {
+            json_object_set_new(context, "extra", json_null());
+        }
+        json_object_set_new(root, "context", context);
+    } else {
+        json_object_set_new(root, "context", json_null());
+    }
+
+    char *result = json_dumps(root, JSON_COMPACT);
+    json_decref(root);
+    return result;
 }
 
 static int event_severity_to_zlevel(event_severity_t severity) {
@@ -205,7 +490,7 @@ void log_emit_event(const log_event_t *event, void *public_recipient) {
         wiznet(
             (char *)event->staff_message,
             recipient,
-            NULL,
+            (OBJ_DATA *)event->wiznet_obj,
             event->wiznet_flag,
             event->wiznet_skip_flag,
             event->wiznet_min_rank
@@ -227,7 +512,15 @@ void log_emit_event(const log_event_t *event, void *public_recipient) {
     long line = event->source_line;
     int zlevel = event_severity_to_zlevel(event->severity);
 
-    zlog(c, file, strlen(file), func, strlen(func), line, zlevel, "%s", event->plain_message);
+    if (game_settings.log_flat_file_enabled && !event->skip_flat_file)
+        zlog(c, file, strlen(file), func, strlen(func), line, zlevel, "%s", event->plain_message);
+
+    /* Enqueue for async Redis Stream dispatch — never blocks the game thread */
+    if (game_settings.log_stream_enabled && lsq.running) {
+        char *json_str = log_serialize_event(event);
+        if (json_str)
+            log_stream_enqueue(json_str);  /* ownership transferred */
+    }
 }
 
 void log_emit_event_f(const log_event_t *base_event, void *public_recipient, const char *plain_fmt, ...) {

@@ -22,6 +22,7 @@
 #include "../recycle.h"
 #include "../log.h"
 #include "penalty.h"
+#include "../io/json/json_common.h"
 
 /***************************************************************************
  * Type Name Tables                                                        *
@@ -44,6 +45,24 @@ const char *penalty_type_names[] = {
     NULL
 };
 
+const char *penalty_type_localized[] = {
+    "type.penalty.deny",         /* PENALTY_DENY        */
+    "type.penalty.freeze",       /* PENALTY_FREEZE      */
+    "type.penalty.log",          /* PENALTY_LOG         */
+    "type.penalty.nochannels",   /* PENALTY_NOCHANNELS  */
+    "type.penalty.notell",       /* PENALTY_NOTELL      */
+    "type.penalty.nochat",       /* PENALTY_NOCHAT      */
+    "type.penalty.noemote",      /* PENALTY_NOEMOTE     */
+    "type.penalty.ban.ip",       /* PENALTY_BAN_IP      */
+    "type.penalty.ban.email",    /* PENALTY_BAN_EMAIL   */
+    "type.penalty.ban.host",     /* PENALTY_BAN_HOST    */
+    "type.penalty.restrict",     /* PENALTY_RESTRICT    */
+    "type.penalty.chanmute",     /* PENALTY_CHAN_MUTE   */
+    "type.penalty.chanwarn",     /* PENALTY_CHAN_WARN   */
+    NULL
+};
+
+
 const char *bonus_type_names[] = {
     "xp",           /* BONUS_XP            */
     "gold",         /* BONUS_GOLD          */
@@ -56,9 +75,61 @@ const char *bonus_type_names[] = {
     NULL
 };
 
+static void emit_penalty_staff_event(const char *plain_message,
+                                     const char *staff_message,
+                                     CHAR_DATA *actor,
+                                     const char *action)
+{
+    log_context_t ctx = {0};
+    const log_context_t *ctx_ptr = NULL;
+
+    if (actor) {
+        ctx.actor_type = IS_NPC(actor) ? "npc" : "player";
+        ctx.actor_name = IS_NPC(actor) ? actor->short_descr : actor->name;
+        ctx.actor_uid[0] = actor->id[0];
+        ctx.actor_uid[1] = actor->id[1];
+        ctx.actor_wnum = (IS_NPC(actor) && actor->pIndexData)
+                       ? widevnum_string_mobile(actor->pIndexData, NULL) : NULL;
+        ctx.action = action;
+        ctx_ptr = &ctx;
+    }
+
+    log_event_t ev = {
+        .severity = EVENT_SEV_INFO,
+        .category = LOG_SECURITY,
+        .plain_message = plain_message ? plain_message : "penalty staff event",
+        .staff_message = staff_message,
+        .wiznet_flag = WIZ_PENALTIES,
+        .wiznet_skip_flag = WIZ_SECURE,
+        .wiznet_min_rank = 0,
+        .context = ctx_ptr,
+        .source_file = __FILE__, .source_line = __LINE__, .source_func = __func__,
+    };
+
+    log_emit_event(&ev, actor);
+}
+
+const char *bonus_type_localized[] = {
+    "type.bonus.xp",           /* BONUS_XP            */
+    "type.bonus.gold",         /* BONUS_GOLD          */
+    "type.bonus.charslots",    /* BONUS_CHAR_SLOTS    */
+    "type.bonus.staffslots",   /* BONUS_STAFF_SLOTS   */
+    "type.bonus.qp",           /* BONUS_QP            */
+    "type.bonus.train",        /* BONUS_TRAIN         */
+    "type.bonus.custom",       /* BONUS_CUSTOM        */
+    "type.bonus.freelevels",   /* BONUS_FREE_LEVELS   */
+    NULL
+};
+
 const char *penalty_scope_names[] = {
     "account",      /* PENALTY_SCOPE_ACCOUNT   */
     "character",    /* PENALTY_SCOPE_CHARACTER  */
+    NULL
+};
+
+const char *penalty_scope_localized[] = {
+    "scope.penalty.account",      /* PENALTY_SCOPE_ACCOUNT   */
+    "scope.penalty.character",    /* PENALTY_SCOPE_CHARACTER  */
     NULL
 };
 
@@ -66,6 +137,13 @@ const char *bonus_scope_names[] = {
     "account",      /* BONUS_SCOPE_ACCOUNT     */
     "character",    /* BONUS_SCOPE_CHARACTER    */
     "unassigned",   /* BONUS_SCOPE_UNASSIGNED   */
+    NULL
+};
+
+const char *bonus_scope_localized[] = {
+    "scope.bonus.account",      /* BONUS_SCOPE_ACCOUNT     */
+    "scope.bonus.character",    /* BONUS_SCOPE_CHARACTER    */
+    "scope.bonus.unassigned",   /* BONUS_SCOPE_UNASSIGNED   */
     NULL
 };
 
@@ -216,6 +294,19 @@ const char *penalty_type_name(int type)
 }
 
 /**
+ * penalty_type_name_localized - Convert a type constant to its display name
+ *
+ * @param type  Type constant
+ * @return      Name string, or "unknown" if out of range
+ */
+const char *penalty_type_name_localized(int type)
+{
+    if (type < 0 || type >= PENALTY_MAX)
+        return "type.penalty.unknown";
+    return penalty_type_localized[type];
+}
+
+/**
  * penalty_scope_lookup - Convert a scope name to its numeric constant
  *
  * @param name  Scope name (e.g., "account", "character")
@@ -243,6 +334,19 @@ const char *penalty_scope_name(int scope)
     if (scope < 0 || scope > PENALTY_SCOPE_CHARACTER)
         return "unknown";
     return penalty_scope_names[scope];
+}
+
+/**
+ * penalty_scope_name_localized - Convert a scope constant to its localized name
+ *
+ * @param scope  Scope constant
+ * @return       Name string, or "unknown" if out of range
+ */
+const char *penalty_scope_name_localized(int scope)
+{
+    if (scope < 0 || scope > PENALTY_SCOPE_CHARACTER)
+        return "scope.penalty.unknown";
+    return penalty_scope_localized[scope];
 }
 
 /**
@@ -276,6 +380,19 @@ const char *bonus_type_name(int type)
 }
 
 /**
+ * bonus_type_name_localized - Convert a bonus type constant to its display name
+ *
+ * @param type  Type constant
+ * @return      Name string, or "unknown" if out of range
+ */
+const char *bonus_type_name_localized(int type)
+{
+    if (type < 0 || type >= BONUS_MAX)
+        return "type.bonus.unknown";
+    return bonus_type_localized[type];
+}
+
+/**
  * bonus_scope_lookup - Convert a bonus scope name to its numeric constant
  *
  * @param name  Scope name
@@ -303,6 +420,19 @@ const char *bonus_scope_name(int scope)
     if (scope < 0 || scope > BONUS_SCOPE_UNASSIGNED)
         return "unknown";
     return bonus_scope_names[scope];
+}
+
+/**
+ * bonus_scope_name_localized - Convert a bonus scope constant to its display name
+ *
+ * @param scope  Scope constant
+ * @return       Name string, or "unknown" if out of range
+ */
+const char *bonus_scope_name_localized(int scope)
+{
+    if (scope < 0 || scope > BONUS_SCOPE_UNASSIGNED)
+        return "scope.bonus.unknown";
+    return bonus_scope_localized[scope];
 }
 
 /***************************************************************************
@@ -360,15 +490,16 @@ time_t parse_duration(const char *str)
 /**
  * penalty_format_duration - Format seconds into a human-readable duration string
  *
+ * @param d        Who is looking at it (for localization)
  * @param seconds  Duration in seconds (0 = permanent)
  * @param buf      Output buffer
  * @param buflen   Size of output buffer
  * @return         Pointer to buf
  */
-const char *penalty_format_duration(time_t seconds, char *buf, size_t buflen)
+const char *penalty_format_duration(DESCRIPTOR_DATA *d, time_t seconds, char *buf, size_t buflen)
 {
     if (seconds <= 0) {
-        snprintf(buf, buflen, "permanent");
+        snprintf(buf, buflen, capitalize(LT(d, "time.permanent")));
         return buf;
     }
 
@@ -384,24 +515,24 @@ const char *penalty_format_duration(time_t seconds, char *buf, size_t buflen)
     buf[0] = '\0';
 
     if (days > 0) {
-        written = snprintf(p, remaining, "%dd", days);
+        written = snprintf(p, remaining, "%s", LTF(d, "time.days", days));
         p += written; remaining -= written;
     }
     if (hours > 0 && remaining > 0) {
-        written = snprintf(p, remaining, "%dh", hours);
+        written = snprintf(p, remaining, "%s", LTF(d, "time.hours", hours));
         p += written; remaining -= written;
     }
     if (minutes > 0 && remaining > 0) {
-        written = snprintf(p, remaining, "%dm", minutes);
+        written = snprintf(p, remaining, "%s", LTF(d, "time.minutes", minutes));
         p += written; remaining -= written;
     }
     if (secs > 0 && remaining > 0 && days == 0) {
-        snprintf(p, remaining, "%ds", secs);
+        snprintf(p, remaining, "%s", LTF(d, "time.seconds", secs));
     }
 
     /* Edge case: everything was zero */
     if (buf[0] == '\0') {
-        snprintf(buf, buflen, "0s");
+        snprintf(buf, buflen, capitalize(LT(d, "time.now")));
     }
 
     return buf;
@@ -1135,25 +1266,25 @@ bool json_to_penalties(json_t *array, PENALTY_DATA **list)
     json_array_foreach(array, index, elem) {
         PENALTY_DATA *p = new_penalty();
 
-        str = json_string_value(json_object_get(elem, "type"));
+        str = json_get_string(elem, "type", "");
         if (str) p->type = penalty_type_lookup(str);
 
-        str = json_string_value(json_object_get(elem, "scope"));
+        str = json_get_string(elem, "scope", "");
         if (str) p->scope = penalty_scope_lookup(str);
 
-        str = json_string_value(json_object_get(elem, "reason"));
+        str = json_get_string(elem, "reason", "");
         if (str) { free_string(p->reason); p->reason = str_dup(str); }
 
-        str = json_string_value(json_object_get(elem, "applied_by"));
+        str = json_get_string(elem, "applied_by", "");
         if (str) { free_string(p->applied_by); p->applied_by = str_dup(str); }
 
         p->applied_at = json_integer_value(json_object_get(elem, "applied_at"));
         p->expires_at = json_integer_value(json_object_get(elem, "expires_at"));
 
-        str = json_string_value(json_object_get(elem, "target_name"));
+        str = json_get_string(elem, "target_name", "");
         if (str) { free_string(p->target_name); p->target_name = str_dup(str); }
 
-        str = json_string_value(json_object_get(elem, "extra"));
+        str = json_get_string(elem, "extra", "");
         if (str) { free_string(p->extra); p->extra = str_dup(str); }
 
         /* Append in order */
@@ -1234,16 +1365,16 @@ bool json_to_bonuses(json_t *array, BONUS_DATA **list)
     json_array_foreach(array, index, elem) {
         BONUS_DATA *b = new_bonus();
 
-        str = json_string_value(json_object_get(elem, "type"));
+        str = json_get_string(elem, "type", "");
         if (str) b->type = bonus_type_lookup(str);
 
-        str = json_string_value(json_object_get(elem, "scope"));
+        str = json_get_string(elem, "scope", "");
         if (str) b->scope = bonus_scope_lookup(str);
 
-        str = json_string_value(json_object_get(elem, "reason"));
+        str = json_get_string(elem, "reason", "");
         if (str) { free_string(b->reason); b->reason = str_dup(str); }
 
-        str = json_string_value(json_object_get(elem, "granted_by"));
+        str = json_get_string(elem, "granted_by", "");
         if (str) { free_string(b->granted_by); b->granted_by = str_dup(str); }
 
         b->granted_at = json_integer_value(json_object_get(elem, "granted_at"));
@@ -1251,10 +1382,10 @@ bool json_to_bonuses(json_t *array, BONUS_DATA **list)
         b->value      = (int)json_integer_value(json_object_get(elem, "value"));
         b->flags      = (long)json_integer_value(json_object_get(elem, "flags"));
 
-        str = json_string_value(json_object_get(elem, "target_name"));
+        str = json_get_string(elem, "target_name", "");
         if (str) { free_string(b->target_name); b->target_name = str_dup(str); }
 
-        str = json_string_value(json_object_get(elem, "extra"));
+        str = json_get_string(elem, "extra", "");
         if (str) { free_string(b->extra); b->extra = str_dup(str); }
 
         /* Append in order */
@@ -1461,7 +1592,7 @@ void do_penalty(CHAR_DATA *ch, char *argument)
                 if (remaining <= 0)
                     snprintf(dur_buf, sizeof(dur_buf), "{Dexpired{x");
                 else
-                    penalty_format_duration(remaining, dur_buf, sizeof(dur_buf));
+                    penalty_format_duration(ch->desc, remaining, dur_buf, sizeof(dur_buf));
             }
 
             snprintf(buf, sizeof(buf),
@@ -1508,7 +1639,7 @@ void do_penalty(CHAR_DATA *ch, char *argument)
             if (remaining <= 0)
                 snprintf(dur_buf, sizeof(dur_buf), "{Dexpired{x");
             else
-                penalty_format_duration(remaining, dur_buf, sizeof(dur_buf));
+                penalty_format_duration(ch->desc, remaining, dur_buf, sizeof(dur_buf));
         }
 
         snprintf(buf, sizeof(buf),
@@ -1561,7 +1692,7 @@ void do_penalty(CHAR_DATA *ch, char *argument)
         snprintf(buf, sizeof(buf),
             "$N removed %s penalty from account %s",
             penalty_type_name(p->type), account->username);
-        wiznet(buf, ch, NULL, WIZ_PENALTIES, WIZ_SECURE, 0);
+        emit_penalty_staff_event(buf, buf, ch, "penalty_remove");
 
         snprintf(buf, sizeof(buf),
             "Removed %s penalty (#%d) from account {W%s{x.\n\r",
@@ -1685,7 +1816,7 @@ void do_penalty(CHAR_DATA *ch, char *argument)
             if (expires_at == 0)
                 snprintf(dur_buf, sizeof(dur_buf), "permanent");
             else
-                penalty_format_duration(expires_at - current_time,
+                penalty_format_duration(ch->desc, expires_at - current_time,
                     dur_buf, sizeof(dur_buf));
 
             snprintf(buf, sizeof(buf),
@@ -1703,7 +1834,7 @@ void do_penalty(CHAR_DATA *ch, char *argument)
                 "$N applied %s penalty (%s) to account %s: %s",
                 penalty_type_name(type), dur_buf,
                 account->username, argument);
-            wiznet(buf, ch, NULL, WIZ_PENALTIES, WIZ_SECURE, 0);
+            emit_penalty_staff_event(buf, buf, ch, "penalty_add");
         }
         return;
     }
@@ -1845,7 +1976,7 @@ void do_bonus(CHAR_DATA *ch, char *argument)
                 if (remaining <= 0)
                     snprintf(dur_buf, sizeof(dur_buf), "{Dexpired{x");
                 else
-                    penalty_format_duration(remaining, dur_buf, sizeof(dur_buf));
+                    penalty_format_duration(ch->desc, remaining, dur_buf, sizeof(dur_buf));
             }
 
             const char *scope_str;
@@ -1899,7 +2030,7 @@ void do_bonus(CHAR_DATA *ch, char *argument)
             if (remaining <= 0)
                 snprintf(dur_buf, sizeof(dur_buf), "{Dexpired{x");
             else
-                penalty_format_duration(remaining, dur_buf, sizeof(dur_buf));
+                penalty_format_duration(ch->desc, remaining, dur_buf, sizeof(dur_buf));
         }
 
         snprintf(buf, sizeof(buf),
@@ -1960,7 +2091,7 @@ void do_bonus(CHAR_DATA *ch, char *argument)
         snprintf(buf, sizeof(buf),
             "$N removed %s bonus (%d) from account %s",
             bonus_type_name(b->type), b->value, account->username);
-        wiznet(buf, ch, NULL, WIZ_PENALTIES, WIZ_SECURE, 0);
+        emit_penalty_staff_event(buf, buf, ch, "bonus_remove");
 
         snprintf(buf, sizeof(buf),
             "Removed %s bonus (#%d, value %d) from account {W%s{x.\n\r",
@@ -2087,7 +2218,7 @@ void do_bonus(CHAR_DATA *ch, char *argument)
             if (expires_at == 0)
                 snprintf(dur_buf, sizeof(dur_buf), "permanent");
             else
-                penalty_format_duration(expires_at - current_time,
+                penalty_format_duration(ch->desc, expires_at - current_time,
                     dur_buf, sizeof(dur_buf));
 
             snprintf(buf, sizeof(buf),
@@ -2101,7 +2232,7 @@ void do_bonus(CHAR_DATA *ch, char *argument)
                 "$N granted %s bonus (%d, %s) to account %s: %s",
                 bonus_type_name(type), value, dur_buf,
                 account->username, reason_buf);
-            wiznet(buf, ch, NULL, WIZ_PENALTIES, WIZ_SECURE, 0);
+            emit_penalty_staff_event(buf, buf, ch, "bonus_add");
         }
         return;
     }

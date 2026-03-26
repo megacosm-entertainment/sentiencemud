@@ -920,6 +920,13 @@ void olc_editor_interp(CHAR_DATA *ch, char *argument, const OLC_EDITOR_DEF *def)
                     /* Command returned true = data was changed */
                     olc_mark_changed(ch, def);
 
+                    /* Keep parent inheritance live for inheritable index editors. */
+                    if (def->editor_type == ED_ROOM
+                    || def->editor_type == ED_MOBILE
+                    || def->editor_type == ED_OBJECT) {
+                        fix_index_inheritance();
+                    }
+
                     /* Record lightweight command-level history entry */
                     hist = olc_get_history_for_edit(def, ch->desc->pEdit, true);
                     if (hist) {

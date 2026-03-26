@@ -22,7 +22,15 @@ SPELL_FUNC(spell_create_spring)
     int sn __attribute__((unused)) = skill->uid;
     OBJ_DATA *spring;
 
-    spring = create_object(get_reserved_obj_index("obj_spring"), 0, true);
+    OBJ_INDEX_DATA *spring_idx = get_reserved_obj_index("obj_spring");
+    if (!spring_idx) {
+        log_message(LOG_LEVEL_BUG, LOG_ERROR, "spell_create_spring: obj_spring prototype not found.");
+        return false;
+    }
+    spring = create_object(spring_idx, 0, true);
+    if (!spring) {
+        return false;
+    }
     spring->timer = level;
     obj_to_room(spring, ch->in_room);
     act("$p flows from the ground.", ch, NULL, NULL, spring, NULL, NULL, NULL, TO_ALL, NULL, NULL);

@@ -1,6 +1,7 @@
 #include <string.h>
 #include <regex.h>
 #include <jansson.h>
+#include "../io/json/json_common.h"
 #if defined(CHANNEL_FILTER_USE_PCRE2)
 #define PCRE2_CODE_UNIT_WIDTH 8
 #include <pcre2.h>
@@ -209,7 +210,7 @@ static bool channel_filter_match_spec(const char *text,
                     break;
                 }
             } else if (json_is_object(item)) {
-                const char *pattern = json_string_value(json_object_get(item, "match"));
+                const char *pattern = json_get_string(item, "match", "");
                 if (!IS_NULLSTR(pattern) && channel_filter_text_matches(text, pattern, regex_mode)) {
                     matched = true;
                     break;
@@ -222,7 +223,7 @@ static bool channel_filter_match_spec(const char *text,
     }
 
     if (json_is_object(root)) {
-        const char *pattern = json_string_value(json_object_get(root, "match"));
+        const char *pattern = json_get_string(root, "match", "");
         bool matched = (!IS_NULLSTR(pattern) && channel_filter_text_matches(text, pattern, regex_mode));
         json_decref(root);
         return matched;

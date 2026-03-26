@@ -140,6 +140,23 @@ void olc_display_vnum(OLC_LAYOUT_CTX *ctx, const OLC_EDITOR_THEME *theme,
                       long vnum, const char *name);
 
 /**
+ * olc_display_widevnum - Render a widevnum reference field
+ *
+ * Displays a widevnum string (e.g. "955#11195") with an optional
+ * entity name. Shows "(none)" if wnum_str is NULL or empty.
+ *
+ * @param ctx       Layout context
+ * @param theme     Color theme
+ * @param label     Field label
+ * @param command   MXP command (NULL = read-only)
+ * @param wnum_str  Widevnum string (NULL = shows "(none)")
+ * @param name      Entity name (NULL = no name shown)
+ */
+void olc_display_widevnum(OLC_LAYOUT_CTX *ctx, const OLC_EDITOR_THEME *theme,
+                          const char *label, const char *command,
+                          const char *wnum_str, const char *name);
+
+/**
  * Render a percentage field (0-100 or 0-1000).
  *
  * @param ctx       Layout context

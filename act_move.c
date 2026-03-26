@@ -1231,13 +1231,14 @@ bool check_ice(CHAR_DATA *ch, bool show)
  */
 bool check_room_flames(CHAR_DATA *ch, bool show)
 {
-    OBJ_DATA *obj;
+    OBJ_DATA *obj, *obj_next;
 
     if (ch->in_room == NULL)
         return false;
 
-    for (obj = ch->in_room->contents; obj != NULL; obj = obj->next_content)
+    for (obj = ch->in_room->contents; obj != NULL; obj = obj_next)
     {
+        obj_next = obj->next_content;
         if (obj->item_type == ITEM_ROOM_FLAME)
         {
             if (!IS_DEAD(ch) &&
@@ -2650,7 +2651,10 @@ void do_pick(CHAR_DATA *ch, char *argument)
         return;
     }
 
-    WAIT_STATE(ch, skill_table[pick_sn].beats);
+    {
+        SKILL_DATA *sk = skill_find_uid(pick_sn);
+        if (sk) WAIT_STATE(ch, sk->beats);
+    }
 
     if (!ch_has_trait(ch, "lockpick_mastery"))
     {
@@ -3794,7 +3798,10 @@ static bool do_hide_self(CHAR_DATA *ch)
         return true;
 
     send_to_char("You attempt to hide.\n\r", ch);
-    HIDE_STATE(ch, skill_table[skill_resolve_gsn("hide")].beats);
+    {
+        SKILL_DATA *sk = skill_find("hide");
+        if (sk) HIDE_STATE(ch, sk->beats);
+    }
     return true;
 }
 

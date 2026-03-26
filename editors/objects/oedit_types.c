@@ -13,6 +13,7 @@
 #include "../../item_types.h"
 #include "../../recycle.h"
 #include <string.h>
+#include "../../skill_data.h"
 
 /* Forward declarations for helpers used by type commands */
 extern void set_weapon_dice(OBJ_INDEX_DATA *objIndex);
@@ -757,7 +758,8 @@ OEDIT(oedit_herb)
         if (!str_prefix(field, "spell")) {
             if (argument[0] == '\0') { send_to_char("Syntax: herb spell <spell_name>\n\r", ch); return false; }
             int sn = skill_lookup(argument);
-            if (sn > 0 && skill_table[sn].spell_fun != spell_null) {
+            SKILL_DATA *spell_ref = skill_find_uid(sn);
+            if (sn > 0 && spell_ref && spell_ref->spell_fun != spell_null) {
                 HERB(pObj)->spell = sn;
                 send_to_char("Spell set.\n\r", ch);
                 return true;
@@ -790,7 +792,7 @@ OEDIT(oedit_herb)
         flag_string(imm_flags, HERB(pObj)->immunity),
         flag_string(res_flags, HERB(pObj)->resistance),
         flag_string(vuln_flags, HERB(pObj)->vulnerability),
-        HERB(pObj)->spell > 0 ? skill_table[HERB(pObj)->spell].name : "none");
+        HERB(pObj)->spell > 0 ? (skill_find_uid(HERB(pObj)->spell) ? skill_find_uid(HERB(pObj)->spell)->name : "unknown") : "none");
     send_to_char(buf, ch);
     return false;
 }
@@ -1667,6 +1669,281 @@ OEDIT(oedit_ship)
 }
 
 /* ============================================================================
+ *  SHIP MODULE
+ * ============================================================================ */
+OEDIT(oedit_shipmodule)
+{
+    OBJ_INDEX_DATA *pObj;
+    char field[MIL];
+    char buf[MSL];
+
+    EDIT_OBJ(ch, pObj);
+
+    if (!IS_SHIP_MODULE(pObj)) {
+        send_to_char("Object lacks the ship module type. Use '{Waddtype shipmodule{x'.\n\r", ch);
+        return false;
+    }
+
+    SHIP_MODULE_DATA *d = SHIP_MODULE_TYPE(pObj);
+
+    argument = one_argument(argument, field);
+
+    if (field[0] != '\0') {
+        if (!str_prefix(field, "type")) {
+            if (argument[0] == '\0') { send_to_char("Syntax: shipmodule type <weapon|defense|utility|propulsion>\n\r", ch); return false; }
+            int val = flag_value(hardpoint_types, argument);
+            if (val == NO_FLAG) { send_to_char("Invalid hardpoint type.\n\r", ch); return false; }
+            d->type = val;
+            send_to_char("Module type set.\n\r", ch);
+            return true;
+        }
+        if (!str_prefix(field, "size")) {
+            if (argument[0] == '\0') { send_to_char("Syntax: shipmodule size <small|medium|large>\n\r", ch); return false; }
+            int val = flag_value(hardpoint_sizes, argument);
+            if (val == NO_FLAG) { send_to_char("Invalid hardpoint size.\n\r", ch); return false; }
+            d->size = val;
+            send_to_char("Module size set.\n\r", ch);
+            return true;
+        }
+        if (!str_prefix(field, "weight")) {
+            if (argument[0] == '\0') { send_to_char("Syntax: shipmodule weight <value>\n\r", ch); return false; }
+            d->weight = atoi(argument);
+            send_to_char("Module weight set.\n\r", ch);
+            return true;
+        }
+        if (!str_prefix(field, "domain")) {
+            if (argument[0] == '\0') { send_to_char("Syntax: shipmodule domain <aquatic|aerial|terrestrial>\n\r", ch); return false; }
+            int val = flag_value(domain_flags, argument);
+            if (val != NO_FLAG) TOGGLE_BIT(d->domain_flags, val);
+            else { send_to_char("Invalid domain flag.\n\r", ch); return false; }
+            send_to_char("Module domain flags toggled.\n\r", ch);
+            return true;
+        }
+        if (!str_prefix(field, "hitbonus")) {
+            if (argument[0] == '\0') { send_to_char("Syntax: shipmodule hitbonus <value>\n\r", ch); return false; }
+            d->hit_bonus = atoi(argument);
+            send_to_char("Hit bonus set.\n\r", ch);
+            return true;
+        }
+        if (!str_prefix(field, "armorbonus")) {
+            if (argument[0] == '\0') { send_to_char("Syntax: shipmodule armorbonus <value>\n\r", ch); return false; }
+            d->armor_bonus = atoi(argument);
+            send_to_char("Armor bonus set.\n\r", ch);
+            return true;
+        }
+        if (!str_prefix(field, "speedbonus")) {
+            if (argument[0] == '\0') { send_to_char("Syntax: shipmodule speedbonus <percent>\n\r", ch); return false; }
+            d->speed_bonus = atoi(argument);
+            send_to_char("Speed bonus set.\n\r", ch);
+            return true;
+        }
+        if (!str_prefix(field, "turningbonus")) {
+            if (argument[0] == '\0') { send_to_char("Syntax: shipmodule turningbonus <degrees>\n\r", ch); return false; }
+            d->turning_bonus = atoi(argument);
+            send_to_char("Turning bonus set.\n\r", ch);
+            return true;
+        }
+        if (!str_prefix(field, "cargoweight")) {
+            if (argument[0] == '\0') { send_to_char("Syntax: shipmodule cargoweight <value>\n\r", ch); return false; }
+            d->cargo_weight_bonus = atoi(argument);
+            send_to_char("Cargo weight bonus set.\n\r", ch);
+            return true;
+        }
+        if (!str_prefix(field, "cargocapacity")) {
+            if (argument[0] == '\0') { send_to_char("Syntax: shipmodule cargocapacity <value>\n\r", ch); return false; }
+            d->cargo_capacity_bonus = atoi(argument);
+            send_to_char("Cargo capacity bonus set.\n\r", ch);
+            return true;
+        }
+        if (!str_prefix(field, "crewbonus")) {
+            if (argument[0] == '\0') { send_to_char("Syntax: shipmodule crewbonus <value>\n\r", ch); return false; }
+            d->crew_bonus = atoi(argument);
+            send_to_char("Crew bonus set.\n\r", ch);
+            return true;
+        }
+        if (!str_prefix(field, "damage")) {
+            if (argument[0] == '\0') { send_to_char("Syntax: shipmodule damage <value>\n\r", ch); return false; }
+            d->damage = atoi(argument);
+            send_to_char("Damage set.\n\r", ch);
+            return true;
+        }
+        if (!str_prefix(field, "range")) {
+            if (argument[0] == '\0') { send_to_char("Syntax: shipmodule range <tiles>\n\r", ch); return false; }
+            d->range = atoi(argument);
+            send_to_char("Range set.\n\r", ch);
+            return true;
+        }
+        if (!str_prefix(field, "reload")) {
+            if (argument[0] == '\0') { send_to_char("Syntax: shipmodule reload <ticks>\n\r", ch); return false; }
+            d->reload_time = atoi(argument);
+            send_to_char("Reload time set.\n\r", ch);
+            return true;
+        }
+        if (!str_prefix(field, "damagetype")) {
+            if (argument[0] == '\0') { send_to_char("Syntax: shipmodule damagetype <0=grind|1=fire>\n\r", ch); return false; }
+            d->damage_type = atoi(argument);
+            send_to_char("Damage type set.\n\r", ch);
+            return true;
+        }
+        if (!str_prefix(field, "weapflags")) {
+            if (argument[0] == '\0') { send_to_char("Syntax: shipmodule weapflags <flag>\n\r", ch); return false; }
+            int val = flag_value(weapon_module_flags, argument);
+            if (val != NO_FLAG) TOGGLE_BIT(d->weapon_flags, val);
+            else { send_to_char("Invalid weapon module flag.\n\r", ch); return false; }
+            send_to_char("Weapon flags toggled.\n\r", ch);
+            return true;
+        }
+        if (!str_prefix(field, "operators")) {
+            if (argument[0] == '\0') { send_to_char("Syntax: shipmodule operators <count>\n\r", ch); return false; }
+            d->operators = (int16_t)atoi(argument);
+            send_to_char("Operators set.\n\r", ch);
+            return true;
+        }
+        if (!str_prefix(field, "gunning")) {
+            if (argument[0] == '\0') { send_to_char("Syntax: shipmodule gunning <min_skill>\n\r", ch); return false; }
+            d->req_gunning = (int16_t)atoi(argument);
+            send_to_char("Required gunning set.\n\r", ch);
+            return true;
+        }
+        if (!str_prefix(field, "mechanics")) {
+            if (argument[0] == '\0') { send_to_char("Syntax: shipmodule mechanics <min_skill>\n\r", ch); return false; }
+            d->req_mechanics = (int16_t)atoi(argument);
+            send_to_char("Required mechanics set.\n\r", ch);
+            return true;
+        }
+        if (!str_prefix(field, "scouting")) {
+            if (argument[0] == '\0') { send_to_char("Syntax: shipmodule scouting <min_skill>\n\r", ch); return false; }
+            d->req_scouting = (int16_t)atoi(argument);
+            send_to_char("Required scouting set.\n\r", ch);
+            return true;
+        }
+        if (!str_prefix(field, "navigation")) {
+            if (argument[0] == '\0') { send_to_char("Syntax: shipmodule navigation <min_skill>\n\r", ch); return false; }
+            d->req_navigation = (int16_t)atoi(argument);
+            send_to_char("Required navigation set.\n\r", ch);
+            return true;
+        }
+        if (!str_prefix(field, "oarring")) {
+            if (argument[0] == '\0') { send_to_char("Syntax: shipmodule oarring <min_skill>\n\r", ch); return false; }
+            d->req_oarring = (int16_t)atoi(argument);
+            send_to_char("Required oarring set.\n\r", ch);
+            return true;
+        }
+        if (!str_prefix(field, "leadership")) {
+            if (argument[0] == '\0') { send_to_char("Syntax: shipmodule leadership <min_skill>\n\r", ch); return false; }
+            d->req_leadership = (int16_t)atoi(argument);
+            send_to_char("Required leadership set.\n\r", ch);
+            return true;
+        }
+        if (!str_prefix(field, "ammo")) {
+            if (argument[0] == '\0') { send_to_char("Syntax: shipmodule ammo <obj_vnum|0 for none>\n\r", ch); return false; }
+            long vnum = atol(argument);
+            if (vnum == 0) {
+                d->ammo_ref.load.vnum = 0;
+                d->ammo_ref.load.auid = 0;
+                d->ammo = NULL;
+                send_to_char("Ammo cleared.\n\r", ch);
+            } else {
+                WNUM key_wnum = { NULL, 0 };
+                parse_widevnum(argument, pObj->area, &key_wnum);
+                OBJ_INDEX_DATA *ammo_obj = key_wnum.pArea
+                    ? get_obj_index(key_wnum.pArea, key_wnum.vnum)
+                    : get_obj_index_global(key_wnum.vnum);
+                if (!ammo_obj) {
+                    send_to_char("No such object exists.\n\r", ch);
+                    return false;
+                }
+                d->ammo_ref.load.vnum = key_wnum.vnum;
+                d->ammo_ref.load.auid = key_wnum.pArea ? key_wnum.pArea->uid : 0;
+                d->ammo = ammo_obj;
+                send_to_char("Ammo object set.\n\r", ch);
+            }
+            return true;
+        }
+        if (!str_prefix(field, "ammoshot")) {
+            if (argument[0] == '\0') { send_to_char("Syntax: shipmodule ammoshot <count>\n\r", ch); return false; }
+            d->ammo_per_shot = atoi(argument);
+            send_to_char("Ammo per shot set.\n\r", ch);
+            return true;
+        }
+        if (!str_prefix(field, "flags")) {
+            if (argument[0] == '\0') { send_to_char("Syntax: shipmodule flags <flag>\n\r", ch); return false; }
+            int val = flag_value(module_flags, argument);
+            if (val != NO_FLAG) TOGGLE_BIT(d->flags, val);
+            else { send_to_char("Invalid module flag.\n\r", ch); return false; }
+            send_to_char("Module flags toggled.\n\r", ch);
+            return true;
+        }
+        send_to_char(
+            "Valid fields: type, size, weight, domain, hitbonus, armorbonus,\n\r"
+            "  speedbonus, turningbonus, cargoweight, cargocapacity, crewbonus,\n\r"
+            "  damage, range, reload, damagetype, weapflags, operators,\n\r"
+            "  gunning, mechanics, scouting, navigation, oarring, leadership,\n\r"
+            "  ammo, ammoshot, flags\n\r", ch);
+        return false;
+    }
+
+    /* Show mode */
+    sprintf(buf,
+        "{WShip Module:{x\n\r"
+        "  {Gtype          {x [%s]\n\r"
+        "  {Gsize          {x [%s]\n\r"
+        "  {Gweight        {x [%d]\n\r"
+        "  {Gdomain        {x [%s]\n\r"
+        "  {Gflags         {x [%s]\n\r",
+        flag_string(hardpoint_types, d->type),
+        flag_string(hardpoint_sizes, d->size),
+        d->weight,
+        flag_string(domain_flags, d->domain_flags),
+        flag_string(module_flags, d->flags));
+    send_to_char(buf, ch);
+
+    sprintf(buf,
+        "  {GBonuses:{x\n\r"
+        "    {Ghitbonus      {x [%d]  {Garmorbonus   {x [%d]\n\r"
+        "    {Gspeedbonus    {x [%d%%] {Gturningbonus {x [%d]\n\r"
+        "    {Gcargoweight   {x [%d]  {Gcargocapacity{x [%d]\n\r"
+        "    {Gcrewbonus     {x [%d]\n\r",
+        d->hit_bonus, d->armor_bonus,
+        d->speed_bonus, d->turning_bonus,
+        d->cargo_weight_bonus, d->cargo_capacity_bonus,
+        d->crew_bonus);
+    send_to_char(buf, ch);
+
+    sprintf(buf,
+        "  {GWeapon:{x\n\r"
+        "    {Gdamage       {x [%d]  {Grange        {x [%d]\n\r"
+        "    {Greload       {x [%d]  {Gdamagetype   {x [%d]\n\r"
+        "    {Gweapflags    {x [%s]\n\r",
+        d->damage, d->range,
+        d->reload_time, d->damage_type,
+        flag_string(weapon_module_flags, d->weapon_flags));
+    send_to_char(buf, ch);
+
+    sprintf(buf,
+        "  {GCrew Requirements:{x\n\r"
+        "    {Goperators    {x [%d]\n\r"
+        "    {Ggunning      {x [%d]  {Gmechanics    {x [%d]\n\r"
+        "    {Gscouting     {x [%d]  {Gnavigation   {x [%d]\n\r"
+        "    {Goarring      {x [%d]  {Gleadership   {x [%d]\n\r",
+        d->operators,
+        d->req_gunning, d->req_mechanics,
+        d->req_scouting, d->req_navigation,
+        d->req_oarring, d->req_leadership);
+    send_to_char(buf, ch);
+
+    sprintf(buf,
+        "  {GAmmo:{x\n\r"
+        "    {Gammo         {x [%s]\n\r"
+        "    {Gammoshot     {x [%d]\n\r",
+        d->ammo ? d->ammo->short_descr : "(none)",
+        d->ammo_per_shot);
+    send_to_char(buf, ch);
+
+    return false;
+}
+
+/* ============================================================================
  *  TATTOO
  * ============================================================================ */
 OEDIT(oedit_tattoo)
@@ -2340,7 +2617,7 @@ void oedit_show_type_data(OBJ_INDEX_DATA *pObj, BUFFER *buffer)
             flag_string(imm_flags, HERB(pObj)->immunity),
             flag_string(res_flags, HERB(pObj)->resistance),
             flag_string(vuln_flags, HERB(pObj)->vulnerability),
-            HERB(pObj)->spell > 0 ? skill_table[HERB(pObj)->spell].name : "none");
+            HERB(pObj)->spell > 0 ? (skill_find_uid(HERB(pObj)->spell) ? skill_find_uid(HERB(pObj)->spell)->name : "unknown") : "none");
         add_buf(buffer, buf);
     }
 
@@ -2553,6 +2830,65 @@ void oedit_show_type_data(OBJ_INDEX_DATA *pObj, BUFFER *buffer)
                 SHIP_TYPE(pObj)->first_room, pObj->area),
             SHIP_TYPE(pObj)->hit_points,
             SHIP_TYPE(pObj)->max_guns);
+        add_buf(buffer, buf);
+    }
+
+    if (IS_SHIP_MODULE(pObj)) {
+        SHIP_MODULE_DATA *d = SHIP_MODULE_TYPE(pObj);
+        sprintf(buf,
+            "\n\r{WShip Module:{x\n\r"
+            "  {Gtype          {x [%s]\n\r"
+            "  {Gsize          {x [%s]\n\r"
+            "  {Gweight        {x [%d]\n\r"
+            "  {Gdomain        {x [%s]\n\r"
+            "  {Gflags         {x [%s]\n\r",
+            flag_string(hardpoint_types, d->type),
+            flag_string(hardpoint_sizes, d->size),
+            d->weight,
+            flag_string(domain_flags, d->domain_flags),
+            flag_string(module_flags, d->flags));
+        add_buf(buffer, buf);
+
+        sprintf(buf,
+            "  {GBonuses:{x\n\r"
+            "    {Ghitbonus      {x [%d]  {Garmorbonus   {x [%d]\n\r"
+            "    {Gspeedbonus    {x [%d%%] {Gturningbonus {x [%d]\n\r"
+            "    {Gcargoweight   {x [%d]  {Gcargocapacity{x [%d]\n\r"
+            "    {Gcrewbonus     {x [%d]\n\r",
+            d->hit_bonus, d->armor_bonus,
+            d->speed_bonus, d->turning_bonus,
+            d->cargo_weight_bonus, d->cargo_capacity_bonus,
+            d->crew_bonus);
+        add_buf(buffer, buf);
+
+        sprintf(buf,
+            "  {GWeapon:{x\n\r"
+            "    {Gdamage       {x [%d]  {Grange        {x [%d]\n\r"
+            "    {Greload       {x [%d]  {Gdamagetype   {x [%d]\n\r"
+            "    {Gweapflags    {x [%s]\n\r",
+            d->damage, d->range,
+            d->reload_time, d->damage_type,
+            flag_string(weapon_module_flags, d->weapon_flags));
+        add_buf(buffer, buf);
+
+        sprintf(buf,
+            "  {GCrew Requirements:{x\n\r"
+            "    {Goperators    {x [%d]\n\r"
+            "    {Ggunning      {x [%d]  {Gmechanics    {x [%d]\n\r"
+            "    {Gscouting     {x [%d]  {Gnavigation   {x [%d]\n\r"
+            "    {Goarring      {x [%d]  {Gleadership   {x [%d]\n\r",
+            d->operators,
+            d->req_gunning, d->req_mechanics,
+            d->req_scouting, d->req_navigation,
+            d->req_oarring, d->req_leadership);
+        add_buf(buffer, buf);
+
+        sprintf(buf,
+            "  {GAmmo:{x\n\r"
+            "    {Gammo         {x [%s]\n\r"
+            "    {Gammoshot     {x [%d]\n\r",
+            d->ammo ? d->ammo->short_descr : "(none)",
+            d->ammo_per_shot);
         add_buf(buffer, buf);
     }
 

@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <jansson.h>
+#include "io/json/json_common.h"
 
 #include "merc.h"
 #include "tables.h"
@@ -116,7 +117,7 @@ static bool requirements_eval_plr_flag(const json_t *value,
     if (json_is_string(value)) {
         flag_name = json_string_value(value);
     } else if (json_is_object(value)) {
-        flag_name = json_string_value(json_object_get(value, "name"));
+        flag_name = json_get_string((json_t *)value, "name", "");
         if (json_is_boolean(json_object_get(value, "value")))
             expected = json_boolean_value(json_object_get(value, "value"));
     } else {
@@ -151,7 +152,7 @@ static bool requirements_eval_staff_rank(const json_t *value,
             return false;
         expected_rank = (int)rank_bit;
     } else if (json_is_object(value)) {
-        const char *op_name = json_string_value(json_object_get(value, "op"));
+        const char *op_name = json_get_string((json_t *)value, "op", "");
         json_t *rank_value = json_object_get(value, "value");
 
         op = requirements_parse_compare_op(op_name, REQUIREMENT_OP_GE);
@@ -185,7 +186,7 @@ static bool requirements_eval_tot_level(const json_t *value,
     if (json_is_integer(value)) {
         expected_level = (int)json_integer_value(value);
     } else if (json_is_object(value)) {
-        const char *op_name = json_string_value(json_object_get(value, "op"));
+        const char *op_name = json_get_string((json_t *)value, "op", "");
         json_t *level_value = json_object_get(value, "value");
 
         if (!json_is_integer(level_value))
@@ -1020,7 +1021,7 @@ static bool requirements_eval_terrain(const json_t *value,
         } else if (json_is_string(nv)) {
             name = json_string_value(nv);
         } else if (json_is_string(json_object_get(value, "value"))) {
-            const char *text = json_string_value(json_object_get(value, "value"));
+            const char *text = json_get_string((json_t *)value, "value", "");
             if (!IS_NULLSTR(text) && strlen(text) == 1)
                 token = (unsigned char)text[0];
             else

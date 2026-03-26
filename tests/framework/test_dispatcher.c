@@ -48,6 +48,73 @@ static void log_json_compact_snippet(const char *label, json_t *value)
     free(dump);
 }
 
+/*
+ * Handler dispatch table.
+ *
+ * Order matters: first match wins. Place exact matches before prefix matches
+ * to avoid ambiguity. Add new handlers as single-line entries.
+ */
+static const test_handler_entry_t handler_table[] = {
+    /* Unit test handlers */
+    { "pure_function_test",              run_pure_function_test_case,       MATCH_EXACT  },
+    { "buffer_function_test",            run_buffer_function_test_case,     MATCH_EXACT  },
+    { "memory_util_test",                run_memory_util_test_case,         MATCH_EXACT  },
+    { "utf8_",                           run_utf8_test_case,                MATCH_SUBSTR },
+    { "dynarr_",                         run_array_test_case,               MATCH_SUBSTR },
+    { "strdict_",                        run_strdict_test_case,             MATCH_SUBSTR },
+    { "gmcp_sentience_",                 run_gmcp_sentience_test_case,      MATCH_SUBSTR },
+    { "slink_",                          run_sentience_link_test_case,      MATCH_SUBSTR },
+
+    /* Integration test handlers — exact matches first */
+    { "reset_cross_area_creation",       run_reset_test_case,               MATCH_EXACT  },
+    { "reset_serialization",             run_reset_test_case,               MATCH_EXACT  },
+    { "reset_legacy_vnum",               run_reset_test_case,               MATCH_EXACT  },
+    { "shop_stock_cross_area_creation",  run_shop_stock_test_case,          MATCH_EXACT  },
+    { "shop_stock_serialization",        run_shop_stock_test_case,          MATCH_EXACT  },
+    { "shop_stock_legacy_vnum",          run_shop_stock_test_case,          MATCH_EXACT  },
+    { "shop_stock_reference_integrity",  run_shop_stock_test_case,          MATCH_EXACT  },
+    { "damage_class_lookup_test",        run_lookup_table_test_case,        MATCH_EXACT  },
+    { "reserved_lookup_test",            run_wnum_test_case,                MATCH_EXACT  },
+    { "reserved_wnum_format_test",       run_wnum_test_case,                MATCH_EXACT  },
+    { "reserved_compat_test",            run_wnum_test_case,                MATCH_EXACT  },
+
+    /* Integration test handlers — prefix/substring matches */
+    { "string_editor_",                  run_string_editor_test_case,       MATCH_SUBSTR },
+    { "church_",                         run_church_test_case,              MATCH_SUBSTR },
+    { "instance_",                       run_instance_test_case,            MATCH_SUBSTR },
+    { "blueprint_",                      run_instance_test_case,            MATCH_SUBSTR },
+    { "dungeon_",                        run_instance_test_case,            MATCH_SUBSTR },
+    { "ship_",                           run_instance_test_case,            MATCH_SUBSTR },
+    { "wnum_json_",                      run_instance_test_case,            MATCH_SUBSTR },
+    { "persist_directory",               run_instance_test_case,            MATCH_SUBSTR },
+    { "chat_room_",                      run_chat_room_test_case,           MATCH_SUBSTR },
+    { "skill_group_",                    run_skill_group_test_case,         MATCH_SUBSTR },
+    { "skill_",                          run_skill_data_test_case,          MATCH_SUBSTR },
+    { "spell_fun_",                      run_skill_data_test_case,          MATCH_SUBSTR },
+    { "spelldt_",                        run_spell_data_test_case,          MATCH_SUBSTR },
+    { "class_",                          run_class_data_test_case,          MATCH_SUBSTR },
+    { "item_type_",                      run_item_type_test_case,           MATCH_SUBSTR },
+    { "song_",                           run_song_data_test_case,           MATCH_SUBSTR },
+    { "trait_",                          run_trait_system_test_case,        MATCH_SUBSTR },
+    { "script_engine_",                  run_script_engine_test_case,       MATCH_SUBSTR },
+    { "channel_",                        run_channel_pubsub_test_case,      MATCH_SUBSTR },
+    { "cmbtmath_",                       run_combat_math_test_case,         MATCH_SUBSTR },
+    { "combat_",                         run_combat_telemetry_test_case,    MATCH_SUBSTR },
+    { "command_table_",                  run_command_table_test_case,       MATCH_SUBSTR },
+    { "const_table_",                    run_constants_tables_test_case,    MATCH_SUBSTR },
+    { "_lookup_test",                    run_lookup_table_test_case,        MATCH_SUBSTR },
+    { "flag_table_",                     run_lookup_table_test_case,        MATCH_SUBSTR },
+    { "handler_",                        run_handler_function_test_case,    MATCH_SUBSTR },
+    { "qsys_",                           run_quest_system_test_case,        MATCH_SUBSTR },
+    { "repsys_",                         run_reputation_system_test_case,  MATCH_SUBSTR },
+    { "olcfw_",                          run_olc_framework_test_case,       MATCH_SUBSTR },
+    { "wildsys_",                        run_wilderness_system_test_case,  MATCH_SUBSTR },
+    { "updcyc_",                         run_update_cycle_test_case,        MATCH_SUBSTR },
+
+    /* Sentinel — must be last */
+    { NULL, NULL, MATCH_EXACT }
+};
+
 test_result_t run_test_case(test_case_t *test)
 {
     if (!test) {
@@ -87,59 +154,26 @@ test_result_t run_test_case(test_case_t *test)
     test_result_t result = TEST_SKIP;
 
     if (test->test_type) {
-        if (strcmp(test->test_type, "pure_function_test") == 0) {
-            result = run_pure_function_test_case(test);
-        } else if (strcmp(test->test_type, "buffer_function_test") == 0) {
-            result = run_buffer_function_test_case(test);
-        } else if (strstr(test->test_type, "string_editor_") != NULL) {
-            result = run_string_editor_test_case(test);
-        } else if (strcmp(test->test_type, "reset_cross_area_creation") == 0 ||
-            strcmp(test->test_type, "reset_serialization") == 0 ||
-            strcmp(test->test_type, "reset_legacy_vnum") == 0) {
-            result = run_reset_test_case(test);
-        } else if (strcmp(test->test_type, "shop_stock_cross_area_creation") == 0 ||
-                   strcmp(test->test_type, "shop_stock_serialization") == 0 ||
-                   strcmp(test->test_type, "shop_stock_legacy_vnum") == 0 ||
-                   strcmp(test->test_type, "shop_stock_reference_integrity") == 0) {
-            result = run_shop_stock_test_case(test);
-        } else if (strstr(test->test_type, "church_") != NULL) {
-            result = run_church_test_case(test);
-        } else if (strstr(test->test_type, "instance_") != NULL ||
-                   strstr(test->test_type, "blueprint_") != NULL ||
-                   strstr(test->test_type, "dungeon_") != NULL ||
-                   strstr(test->test_type, "ship_") != NULL ||
-                   strstr(test->test_type, "wnum_json_") != NULL ||
-                   strstr(test->test_type, "persist_directory") != NULL) {
-            result = run_instance_test_case(test);
-        } else if (strstr(test->test_type, "chat_room_") != NULL) {
-            result = run_chat_room_test_case(test);
-        } else if (strstr(test->test_type, "skill_group_") != NULL) {
-            result = run_skill_group_test_case(test);
-        } else if (strstr(test->test_type, "skill_") != NULL ||
-                   strstr(test->test_type, "spell_fun_") != NULL) {
-            result = run_skill_data_test_case(test);
-        } else if (strcmp(test->test_type, "damage_class_lookup_test") == 0) {
-            result = run_lookup_table_test_case(test);
-        } else if (strstr(test->test_type, "class_") != NULL) {
-            result = run_class_data_test_case(test);
-        } else if (strstr(test->test_type, "item_type_") != NULL) {
-            result = run_item_type_test_case(test);
-        } else if (strstr(test->test_type, "song_") != NULL) {
-            result = run_song_data_test_case(test);
-        } else if (strstr(test->test_type, "trait_") != NULL) {
-            result = run_trait_system_test_case(test);
-        } else if (strstr(test->test_type, "script_engine_") != NULL) {
-            result = run_script_engine_test_case(test);
-        } else if (strstr(test->test_type, "channel_") != NULL) {
-            result = run_channel_pubsub_test_case(test);
-        } else if (strcmp(test->test_type, "reserved_lookup_test") == 0 ||
-                   strcmp(test->test_type, "reserved_wnum_format_test") == 0 ||
-                   strcmp(test->test_type, "reserved_compat_test") == 0) {
-            result = run_wnum_test_case(test);
-        } else if (strstr(test->test_type, "_lookup_test") != NULL ||
-                   strstr(test->test_type, "flag_table_") != NULL) {
-            result = run_lookup_table_test_case(test);
-        } else {
+        bool matched = false;
+
+        for (int i = 0; handler_table[i].pattern != NULL; i++) {
+            bool is_match = false;
+
+            if (handler_table[i].match_mode == MATCH_EXACT) {
+                is_match = (strcmp(test->test_type, handler_table[i].pattern) == 0);
+            } else {
+                is_match = (strstr(test->test_type, handler_table[i].pattern) != NULL);
+            }
+
+            if (is_match) {
+                result = handler_table[i].handler(test);
+                matched = true;
+                break;
+            }
+        }
+
+        if (!matched) {
+            /* Fallback: unmatched types go to wnum handler (legacy behavior) */
             result = run_wnum_test_case(test);
         }
     } else if (test->execute) {

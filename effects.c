@@ -444,6 +444,7 @@ void fire_effect(void *vo, int level, int dam, int target)
             for (t_obj = obj->contains; t_obj != NULL; t_obj = n_obj)
             {
                 n_obj = t_obj->next_content;
+                obj_from_obj(t_obj);
                 if ((to_room = obj_room(obj)))
                     obj_to_room(t_obj, to_room);
                 else

@@ -27,7 +27,6 @@ void save_tokens(FILE *fp, AREA_DATA *area);
 void save_token(FILE *fp, TOKEN_INDEX_DATA *token);
 
 /* read areas */
-AREA_DATA *read_area_new( FILE *fp );
 ROOM_INDEX_DATA *read_room_new( FILE *fp, AREA_DATA *area, int roomtype );
 MOB_INDEX_DATA *read_mobile_new( FILE *fp, AREA_DATA *area );
 OBJ_INDEX_DATA *read_object_new( FILE *fp, AREA_DATA *area );
@@ -48,8 +47,6 @@ void save_helpfiles_new();
 void read_helpfiles_new();
 void save_help_category_new( FILE *fp, HELP_CATEGORY *hCat );
 void save_help_new( FILE *fp, HELP_DATA *help );
-HELP_CATEGORY *read_help_category_new( FILE *fp );
-HELP_DATA *read_help_new( FILE *fp );
 
 /* wilderness */
 void read_virtual_rooms( FILE *fp, AREA_DATA *area );

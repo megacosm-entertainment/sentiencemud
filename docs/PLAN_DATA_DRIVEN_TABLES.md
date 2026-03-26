@@ -480,6 +480,110 @@ medit attacks remove <slot>             -- remove pattern
 attackinfo <mob>        -- display effective attack table for a mob
 ```
 
+### Attack Patterns Under COMBAT_DATA (Multi-Engagement / Multi-Room)
+
+`PLAN_COMBAT_ENTITY.md` changes combat from a single `ch->fighting` loop to
+participant-scoped `COMBAT_DATA` with potentially multiple simultaneous
+engagements. Attack patterns should execute inside that model with the
+following contract.
+
+#### Round and Cooldown Scope
+
+- **Round source**: for requirements checks (`round`, `round_mod`) use the
+  participant's active engagement round (`ENGAGEMENT_DATA.round_count + 1`), not
+  a global room tick.
+- **Cooldown source**: cooldowns are tracked per-attacker, per-combat
+  participant state (not globally on the mob template).
+- **Cooldown clock**: store last-used against `COMBAT_DATA.total_rounds` (or an
+  equivalent combat-monotonic round id) so cooldowns remain stable across
+  movement and pursuit.
+- **Persistence across engagements**: cooldown history persists when an
+  engagement closes and a new one opens in the same combat. This explicitly
+  prevents flee/re-engage from resetting attack-table cooldowns.
+- **Reset condition**: cooldown history clears when the mob leaves or resolves
+  the combat, matching other combat-scoped runtime state.
+
+#### Targeting and Reachability
+
+- Attack pattern execution starts from `ch->fighting` when valid.
+- If `ch->fighting` is NULL, dead, or unreachable under engagement range rules,
+  choose a new target from the mob's threat table (highest hostile threat that
+  is reachable now).
+- A pattern cannot execute against unreachable targets. If no reachable target
+  exists, the mob spends its turn without forcing cross-room invalid actions.
+- `MATTK_AREA` applies to hostile participants in the **same active
+  engagement** that are reachable by that attack profile; it is not combat-wide
+  across unrelated simultaneous engagements.
+
+#### REQUIREMENT_CONTEXT Mapping
+
+When executing one attack-pattern slot in a combat-entity round:
+
+- `self_mob` = attacking mob participant
+- `actor` = selected target for this slot
+- `fighting` = current primary target (`ch->fighting` after retarget if any)
+- `combat_round` = active engagement round index (1-based)
+- `cooldown_state` = participant-scoped cooldown map for this combat
+
+This keeps requirements evaluation stateless while allowing multi-engagement
+combat state to drive decisions.
+
+#### Turn Resolution Order (Within `violence_update` Participant Turn)
+
+For a mob with `attack_table`:
+
+1. Resolve/validate target from engagement reachability + threat table
+2. Fire `TRIG_PREROUND`
+3. Evaluate attack slots in slot order (chance -> cooldown -> requires -> execute)
+4. Record cooldown tags for slots that fired
+5. Fire `TRIG_FIGHT`
+
+For a mob without `attack_table`, keep legacy `multi_hit()` path.
+
+#### Interaction With COMBAT_DATA Open Questions
+
+- **OQ-9 (adjacent-room rules)** directly gates which pattern slots can fire;
+  attack tables consume the final reachability rule but do not define it.
+- **OQ-12 (threat formula)** controls retarget quality when `ch->fighting`
+  becomes invalid mid-combat.
+- **OQ-6/OQ-7 (movement/disengage costs)** affect attack opportunity frequency,
+  but not slot semantics.
+
+#### Companion AI Integration (PLAN_PARTY_SYSTEM)
+
+Attack tables are also the execution surface for Tier 2-4 companion combat
+behavior from `PLAN_PARTY_SYSTEM.md`:
+
+- **Tier 2 (henchmen):** use constrained role-specific pattern subsets
+  (e.g., tank taunt slots, healer support slots) and simple stance gates.
+- **Tier 3/4 (heroes/alts):** use full pattern sets with tactical preference
+  weighting (target priority, skill usage preference) before slot evaluation.
+- **Stance mapping:** `aggressive/defensive/passive` modifies pattern
+  eligibility or priority, not hard-coded per-skill branching in combat loop.
+- **Target preference mapping:** companion `target_pref` influences the
+  threat-table candidate chosen by `combat_resolve_target()` before a slot runs.
+
+This keeps companion intelligence data-driven: party tactics selects intent,
+COMBAT_DATA selects legal/reachable targets, and attack patterns choose concrete
+actions per round.
+
+#### Ranged Slot Integration (`shoot.c` Migration)
+
+To replace ad-hoc ranged command flow, attack patterns should support ranged
+execution semantics directly:
+
+- Add ranged-capable slot metadata (weapon/profile requirement + max range).
+- Allow optional `aim_rounds` on a pattern (channel/windup before fire).
+- During windup, keep a stable target handle (combat participant id), not only
+  a name string.
+- On resolve, re-check engagement reachability and LOS via shared combat
+  helpers before applying hit/miss logic.
+- If windup is interrupted (control, forced movement, LOS loss), emit
+  interruption event and clear pending shot.
+
+This lets builders author ranged behavior in the same table system as melee and
+skills, while keeping multi-room rules consistent with COMBAT_DATA.
+
 ---
 
 ## 4. Implementation Sequence

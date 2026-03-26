@@ -31,6 +31,7 @@
 #include <time.h>
 #include "merc.h"
 #include "tables.h"
+#include "skill_data.h"
 
 
 /**
@@ -300,9 +301,12 @@ char *affect_loc_name( int location )
     case APPLY_DAMROLL:		return "damage roll";
     case APPLY_SPELL_AFFECT:	return "none";
     default:
-        if(location >= APPLY_SKILL && location < APPLY_SKILL_MAX && skill_table[location - APPLY_SKILL].name) {
-            sprintf(buf[i], "%s %%rating", skill_table[location - APPLY_SKILL].name);
-            return buf[i];
+        {
+            SKILL_DATA *skill = skill_find_uid(location - APPLY_SKILL);
+            if(location >= APPLY_SKILL && location < APPLY_SKILL_MAX && skill && skill->name) {
+                sprintf(buf[i], "%s %%rating", skill->name);
+                return buf[i];
+            }
         }
         break;
     }
@@ -694,6 +698,7 @@ char *act_bit_name( int act_type, long act_flags )
         if (act_flags & PLR_AUTOAFK     ) strcat(buf, " autoafk");
         if (act_flags & PLR_HIDE_IDLE   ) strcat(buf, " hide_idle");
         if (act_flags & PLR_SHOW_TIMESTAMPS   ) strcat(buf, " show_timestamps");
+        if (act_flags & PLR_SHOW_RESTRINGS   ) strcat(buf, " show_restrings");
         break;
     }
     return ( buf[0] != '\0' ) ? buf+1 : "none";

@@ -4,6 +4,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <jansson.h>
+#include "../io/json/json_common.h"
 #include "../merc.h"
 #include "../recycle.h"
 #include "channel_service.h"
@@ -12,6 +13,7 @@
 #include "channel_filter.h"
 #include "channel_review.h"
 #include "channels_common.h"
+#include "channel_gmcp.h"
 #include "../account/penalty.h"
 #include "../account/preferences.h"
 #include "../mxp_links.h"
@@ -291,18 +293,18 @@ static void channel_history_load(void)
         if (!json_is_object(value))
             continue;
 
-        channel_id = json_string_value(json_object_get(value, "channel_id"));
-        message_text = json_string_value(json_object_get(value, "message_text"));
+        channel_id = json_get_string(value, "channel_id", "");
+        message_text = json_get_string(value, "message_text", "");
         if (IS_NULLSTR(channel_id) || IS_NULLSTR(message_text))
             continue;
 
         record = &channel_history_ring[channel_history_ring_next];
         memset(record, 0, sizeof(*record));
 
-        report_id = json_string_value(json_object_get(value, "report_id"));
-        reports_json = json_string_value(json_object_get(value, "reports_json"));
-        topic = json_string_value(json_object_get(value, "topic"));
-        sender_name = json_string_value(json_object_get(value, "sender_name"));
+        report_id = json_get_string(value, "report_id", "");
+        reports_json = json_get_string(value, "reports_json", "");
+        topic = json_get_string(value, "topic", "");
+        sender_name = json_get_string(value, "sender_name", "");
         timestamp_json = json_object_get(value, "timestamp");
 
         strlcpy(record->report_id,
@@ -434,19 +436,19 @@ static void channel_staff_report_load(void)
         if (!json_is_object(value))
             continue;
 
-        report_id = json_string_value(json_object_get(value, "report_id"));
+        report_id = json_get_string(value, "report_id", "");
         if (IS_NULLSTR(report_id))
             continue;
 
         record = &channel_staff_report_ring[channel_staff_report_ring_next];
         memset(record, 0, sizeof(*record));
 
-        queue_name = json_string_value(json_object_get(value, "queue_name"));
-        channel_id = json_string_value(json_object_get(value, "channel_id"));
-        reason = json_string_value(json_object_get(value, "reason"));
-        reporter_name = json_string_value(json_object_get(value, "reporter_name"));
-        detail_text = json_string_value(json_object_get(value, "detail_text"));
-        ack_by = json_string_value(json_object_get(value, "ack_by"));
+        queue_name = json_get_string(value, "queue_name", "");
+        channel_id = json_get_string(value, "channel_id", "");
+        reason = json_get_string(value, "reason", "");
+        reporter_name = json_get_string(value, "reporter_name", "");
+        detail_text = json_get_string(value, "detail_text", "");
+        ack_by = json_get_string(value, "ack_by", "");
         timestamp_json = json_object_get(value, "timestamp");
         ack_json = json_object_get(value, "acknowledged");
 
@@ -949,15 +951,16 @@ static void channel_modifier_apply_ordered(CHAR_DATA *sender,
         return;
 
     if (!IS_NULLSTR(def->modifier_order)) {
+        char *saveptr;
         strlcpy(order_copy, def->modifier_order, sizeof(order_copy));
-        token = strtok(order_copy, ", ");
+        token = strtok_r(order_copy, ", ", &saveptr);
         while (token) {
             long modifier = channel_modifier_flag_from_name(token);
             if (modifier != 0 && (text_modifier_mask & modifier) != 0 && (applied_mask & modifier) == 0) {
                 channel_modifier_apply_one(sender, text, modifier);
                 applied_mask |= modifier;
             }
-            token = strtok(NULL, ", ");
+            token = strtok_r(NULL, ", ", &saveptr);
         }
     }
 
@@ -1089,7 +1092,7 @@ static bool channel_topic_list_add_ref(CHANNEL_SUBSCRIPTION_TOPIC *topics,
         return false;
 
     for (i = 0; i < *topic_count; i++) {
-        if (!str_cmp(topics[i].topic, topic)) {
+        if (strcmp(topics[i].topic, topic) == 0) {
             topics[i].refs++;
             return true;
         }
@@ -1114,7 +1117,7 @@ static int channel_topic_list_find(CHANNEL_SUBSCRIPTION_TOPIC *topics,
         return -1;
 
     for (i = 0; i < topic_count; i++) {
-        if (!str_cmp(topics[i].topic, topic))
+        if (strcmp(topics[i].topic, topic) == 0)
             return i;
     }
 
@@ -1318,6 +1321,12 @@ bool channel_can_deliver_to_descriptor(CHAR_DATA *sender,
 
     /* Respect wizi-level invisibility for channel delivery when enabled. */
     if (honor_wizi && IS_IMMORTAL(sender) && sender->invis_level > victim->tot_level)
+        return false;
+
+    /* GMCP inline suppression: if the recipient has both gmcp_channels ON
+     * and gmcp_suppress_channels ON, skip inline text delivery — the GMCP
+     * path handles it. */
+    if (pref_gmcp_channels(victim) && pref_gmcp_suppress_channels(victim))
         return false;
 
     if (out_victim)
@@ -1618,8 +1627,8 @@ static bool channel_apply_pref_filter_spec(const char *spec,
                     return true;
                 }
             } else if (json_is_object(item)) {
-                const char *pattern = json_string_value(json_object_get(item, "match"));
-                const char *replacement = json_string_value(json_object_get(item, "replace"));
+                const char *pattern = json_get_string(item, "match", "");
+                const char *replacement = json_get_string(item, "replace", "");
                 json_t *block_val = json_object_get(item, "block");
                 bool force_block = (block_val && json_is_boolean(block_val) && json_is_true(block_val));
 
@@ -1644,8 +1653,8 @@ static bool channel_apply_pref_filter_spec(const char *spec,
     }
 
     if (json_is_object(root)) {
-        const char *pattern = json_string_value(json_object_get(root, "match"));
-        const char *replacement = json_string_value(json_object_get(root, "replace"));
+        const char *pattern = json_get_string(root, "match", "");
+        const char *replacement = json_get_string(root, "replace", "");
         json_t *block_val = json_object_get(root, "block");
         bool force_block = (block_val && json_is_boolean(block_val) && json_is_true(block_val));
 
@@ -2470,7 +2479,34 @@ static void channel_notify_staff_report(const char *channel_id,
                                 reporter_name,
                                 detail_text);
 
-    wiznet(buf, NULL, NULL, WIZ_SECURE, 0, STAFF_IMMORTAL);
+    {
+        char extra[256];
+        snprintf(extra, sizeof(extra),
+                 "{\"queue\":\"%s\",\"channel\":\"%s\",\"report_id\":\"%s\",\"reason\":\"%s\",\"reporter\":\"%s\"}",
+                 IS_NULLSTR(queue_name) ? "(default)" : queue_name,
+                 IS_NULLSTR(channel_id) ? "(unknown)" : channel_id,
+                 IS_NULLSTR(report_id) ? "(none)" : report_id,
+                 IS_NULLSTR(reason) ? "none" : reason,
+                 IS_NULLSTR(reporter_name) ? "(unknown)" : reporter_name);
+
+        log_context_t ctx = {
+            .actor_type = "system",
+            .actor_name = "channel_service",
+            .action = "channel_report",
+            .extra_json = extra,
+        };
+        log_event_t ev = {
+            .severity = EVENT_SEV_INFO,
+            .category = LOG_SECURITY,
+            .plain_message = "channel staff report",
+            .staff_message = buf,
+            .wiznet_flag = WIZ_SECURE,
+            .wiznet_min_rank = STAFF_IMMORTAL,
+            .context = &ctx,
+            .source_file = __FILE__, .source_line = __LINE__, .source_func = __func__,
+        };
+        log_emit_event(&ev, NULL);
+    }
 }
 
 int channel_service_staff_report_recent(CHANNEL_STAFF_REPORT_ENTRY *out_entries,
@@ -3350,6 +3386,7 @@ bool channel_service_send(CHAR_DATA *sender, const char *channel_id, const char 
                                msg.reports_json,
                                appended_report_id,
                                sizeof(appended_report_id));
+        channel_gmcp_broadcast(def, sender, delivery_text, current_time, appended_report_id);
         return channel_dispatch_legacy_by_id(sender, channel_id, delivery_text, appended_report_id);
     }
 
@@ -3360,6 +3397,7 @@ bool channel_service_send(CHAR_DATA *sender, const char *channel_id, const char 
 
     if (channel_transport_backend_mode() != CHANNEL_BACKEND_LEGACY_ITERATIVE) {
         if (channel_transport_publish(topic, &msg)) {
+            channel_gmcp_broadcast(def, sender, delivery_text, current_time, NULL);
             return channel_dispatch_legacy_by_id(sender, channel_id, delivery_text, NULL);
         }
 
@@ -3373,6 +3411,7 @@ bool channel_service_send(CHAR_DATA *sender, const char *channel_id, const char 
                                msg.reports_json,
                                appended_report_id,
                                sizeof(appended_report_id));
+        channel_gmcp_broadcast(def, sender, delivery_text, current_time, appended_report_id);
         return channel_dispatch_legacy_by_id(sender, channel_id, delivery_text, appended_report_id);
     }
 
@@ -3385,6 +3424,7 @@ bool channel_service_send(CHAR_DATA *sender, const char *channel_id, const char 
                            msg.reports_json,
                            appended_report_id,
                            sizeof(appended_report_id));
+    channel_gmcp_broadcast(def, sender, delivery_text, current_time, appended_report_id);
     return channel_dispatch_legacy_by_id(sender, channel_id, delivery_text, appended_report_id);
 }
 
@@ -3508,6 +3548,7 @@ bool channel_service_send_directed(CHAR_DATA *sender, const char *channel_id,
         channel_history_set_participants(sender->id[0], sender->id[1],
                                          recipient->id[0], recipient->id[1]);
         channel_history_set_recipient_name(recipient->name);
+        channel_gmcp_send_directed(sender, recipient, channel_id, delivery_text, current_time, appended_report_id);
         channel_deliver_tell_legacy(sender, recipient, channel_id, delivery_text);
         return true;
     }
@@ -3536,6 +3577,7 @@ bool channel_service_send_directed(CHAR_DATA *sender, const char *channel_id,
     msg.timestamp = current_time;
 
     if (channel_transport_publish(topic, &msg)) {
+        channel_gmcp_send_directed(sender, recipient, channel_id, delivery_text, current_time, NULL);
         channel_deliver_tell_legacy(sender, recipient, channel_id, delivery_text);
         return true;
     }
@@ -3553,6 +3595,7 @@ bool channel_service_send_directed(CHAR_DATA *sender, const char *channel_id,
     channel_history_set_participants(sender->id[0], sender->id[1],
                                      recipient->id[0], recipient->id[1]);
     channel_history_set_recipient_name(recipient->name);
+    channel_gmcp_send_directed(sender, recipient, channel_id, delivery_text, current_time, appended_report_id);
     channel_deliver_tell_legacy(sender, recipient, channel_id, delivery_text);
     return true;
 }

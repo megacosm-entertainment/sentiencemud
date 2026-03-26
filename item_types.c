@@ -297,6 +297,10 @@ void item_types_init(void)
     item_type_info[ITEM_BODY_PART].type      = ITEM_BODY_PART;
     item_type_info[ITEM_BODY_PART].name      = "body part";
 
+    item_type_info[ITEM_SHIP_MODULE].type         = ITEM_SHIP_MODULE;
+    item_type_info[ITEM_SHIP_MODULE].name         = "ship module";
+    item_type_info[ITEM_SHIP_MODULE].has_typed_data = true;
+
     /*
      * New unified types (not yet in the main item type list).
      * These will be used as the codebase migrates.
@@ -684,6 +688,7 @@ void obj_free_type_data(OBJ_DATA *obj)
     if (obj->_ink)             { free_ink_data(obj->_ink);               obj->_ink = NULL; }
     if (obj->_instrument)      { free_instrument_data(obj->_instrument); obj->_instrument = NULL; }
     if (obj->_item_ship)       { free_item_ship_data(obj->_item_ship);   obj->_item_ship = NULL; }
+    if (obj->_ship_module)     { free_ship_module_data(obj->_ship_module); obj->_ship_module = NULL; }
     if (obj->_jewelry)         { free_jewelry_data(obj->_jewelry);       obj->_jewelry = NULL; }
     if (obj->_light)           { free_light_data(obj->_light);           obj->_light = NULL; }
     if (obj->_map)             { free_map_data(obj->_map);               obj->_map = NULL; }
@@ -723,6 +728,7 @@ void obj_index_free_type_data(OBJ_INDEX_DATA *pObj)
     if (pObj->_ink)             { free_ink_data(pObj->_ink);               pObj->_ink = NULL; }
     if (pObj->_instrument)      { free_instrument_data(pObj->_instrument); pObj->_instrument = NULL; }
     if (pObj->_item_ship)       { free_item_ship_data(pObj->_item_ship);   pObj->_item_ship = NULL; }
+    if (pObj->_ship_module)     { free_ship_module_data(pObj->_ship_module); pObj->_ship_module = NULL; }
     if (pObj->_jewelry)         { free_jewelry_data(pObj->_jewelry);       pObj->_jewelry = NULL; }
     if (pObj->_light)           { free_light_data(pObj->_light);           pObj->_light = NULL; }
     if (pObj->_map)             { free_map_data(pObj->_map);               pObj->_map = NULL; }
@@ -811,6 +817,7 @@ void obj_copy_type_data_from_index(OBJ_DATA *dst, OBJ_INDEX_DATA *src)
     dst->_ink             = copy_ink_data(src->_ink);
     dst->_instrument      = copy_instrument_data(src->_instrument);
     dst->_item_ship       = copy_item_ship_data(src->_item_ship);
+    dst->_ship_module     = copy_ship_module_data(src->_ship_module);
     dst->_jewelry         = copy_jewelry_data(src->_jewelry);
     dst->_light           = copy_light_data(src->_light);
     dst->_map             = copy_map_data(src->_map);
@@ -951,20 +958,24 @@ void obj_copy_type_data_from_index(OBJ_DATA *dst, OBJ_INDEX_DATA *src)
         \
         case ITEM_CORPSE_NPC: \
             ALLOC_TYPE(O, _corpse, new_corpse_data, ITEM_CORPSE_NPC); \
-            (O)->_corpse->corpse_type  = (int)(O)->value[0]; \
-            (O)->_corpse->resurrection = (int)(O)->value[1]; \
-            (O)->_corpse->animation    = (int)(O)->value[2]; \
-            (O)->_corpse->body_parts   = (O)->value[3]; \
-            (O)->_corpse->mobile_vnum  = (O)->value[5]; \
+            (O)->_corpse->corpse_type     = (int)(O)->value[0]; \
+            (O)->_corpse->resurrection    = (int)(O)->value[1]; \
+            (O)->_corpse->animation       = (int)(O)->value[2]; \
+            (O)->_corpse->body_parts      = (O)->value[3]; \
+            (O)->_corpse->flags           = (O)->value[4]; \
+            (O)->_corpse->mobile_vnum     = (O)->value[5]; \
+            (O)->_corpse->mobile_area_uid = (O)->value[6]; \
             break; \
         \
         case ITEM_CORPSE_PC: \
             ALLOC_TYPE(O, _corpse, new_corpse_data, ITEM_CORPSE_PC); \
-            (O)->_corpse->corpse_type  = (int)(O)->value[0]; \
-            (O)->_corpse->resurrection = (int)(O)->value[1]; \
-            (O)->_corpse->animation    = (int)(O)->value[2]; \
-            (O)->_corpse->body_parts   = (O)->value[3]; \
-            (O)->_corpse->mobile_vnum  = (O)->value[5]; \
+            (O)->_corpse->corpse_type     = (int)(O)->value[0]; \
+            (O)->_corpse->resurrection    = (int)(O)->value[1]; \
+            (O)->_corpse->animation       = (int)(O)->value[2]; \
+            (O)->_corpse->body_parts      = (O)->value[3]; \
+            (O)->_corpse->flags           = (O)->value[4]; \
+            (O)->_corpse->mobile_vnum     = (O)->value[5]; \
+            (O)->_corpse->mobile_area_uid = (O)->value[6]; \
             break; \
         \
         case ITEM_FOUNTAIN: \
@@ -1708,6 +1719,9 @@ bool obj_index_alloc_type_data(OBJ_INDEX_DATA *pObj, int item_type)
     case ITEM_SHIP:
         if (!pObj->_item_ship) pObj->_item_ship = new_item_ship_data();
         break;
+    case ITEM_SHIP_MODULE:
+        if (!pObj->_ship_module) pObj->_ship_module = new_ship_module_data();
+        break;
     case ITEM_SEXTANT:
         if (!pObj->_sextant) pObj->_sextant = new_sextant_data();
         break;
@@ -1848,6 +1862,9 @@ bool obj_index_remove_type(OBJ_INDEX_DATA *pObj, int item_type)
     case ITEM_SHIP:
         if (pObj->_item_ship) { free_item_ship_data(pObj->_item_ship); pObj->_item_ship = NULL; }
         break;
+    case ITEM_SHIP_MODULE:
+        if (pObj->_ship_module) { free_ship_module_data(pObj->_ship_module); pObj->_ship_module = NULL; }
+        break;
     case ITEM_SEXTANT:
         if (pObj->_sextant) { free_sextant_data(pObj->_sextant); pObj->_sextant = NULL; }
         break;
@@ -1915,6 +1932,7 @@ void obj_index_copy_type_data(OBJ_INDEX_DATA *dst, OBJ_INDEX_DATA *src)
     dst->_ink             = copy_ink_data(src->_ink);
     dst->_instrument      = copy_instrument_data(src->_instrument);
     dst->_item_ship       = copy_item_ship_data(src->_item_ship);
+    dst->_ship_module     = copy_ship_module_data(src->_ship_module);
     dst->_jewelry         = copy_jewelry_data(src->_jewelry);
     dst->_light           = copy_light_data(src->_light);
     dst->_map             = copy_map_data(src->_map);

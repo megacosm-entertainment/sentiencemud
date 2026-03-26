@@ -41,6 +41,27 @@ static void aedit_rebuild_auto_tags(AREA_DATA *pArea)
     pArea->auto_tags = short_to_name(pArea->name);
 }
 
+static AREA_DATA *aedit_find_area_by_name(const char *name)
+{
+    AREA_DATA *area;
+
+    if (IS_NULLSTR(name))
+        return NULL;
+
+    for (area = area_first; area != NULL; area = area->next)
+    {
+        if (!IS_NULLSTR(area->name) && !str_cmp(area->name, name))
+            return area;
+    }
+
+    return NULL;
+}
+
+static void aedit_show_general_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
+static void aedit_show_regions_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
+static void aedit_show_dependencies_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
+static void aedit_show_scripts_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
+
 /***************************************************************************
  * Area Editor Command Table (moved from olc.c)                            *
  ***************************************************************************/
@@ -98,7 +119,15 @@ static const OLC_EDITOR_DEF aedit_def = {
     .editor_type    = ED_AREA,
     .cmd_table      = aedit_table,
     .show_fn        = aedit_show,
-    .tabs           = { .count = 0 },
+    .tabs           = {
+        .count = 4,
+        .tabs = {
+            { "General", "Gen", aedit_show_general_tab },
+            { "Regions", "Reg", aedit_show_regions_tab },
+            { "Dependencies", "Dep", aedit_show_dependencies_tab },
+            { "Scripts", "Scr", aedit_show_scripts_tab },
+        }
+    },
     .theme          = &olc_theme_world,
     .perm           = {
         .flags          = OLC_PERM_STAFF_RANK,
@@ -171,6 +200,46 @@ void do_aedit(CHAR_DATA *ch, char *argument)
     olc_editor_enter(ch, &aedit_def, (void *)pArea, false);
 }
 
+void do_ashow(CHAR_DATA *ch, char *argument)
+{
+    AREA_DATA *pArea;
+    char arg[MAX_STRING_LENGTH];
+    char *name_lookup;
+
+    if (!olc_editor_check_perm(ch, &aedit_def, NULL)) {
+        send_to_char("AShow: Insufficient security to view area details.\n\r", ch);
+        return;
+    }
+
+    if (IS_NPC(ch))
+        return;
+
+    name_lookup = argument;
+    while (name_lookup[0] != '\0' && isspace((unsigned char)name_lookup[0]))
+        name_lookup++;
+
+    argument = one_argument(argument, arg);
+    pArea = ch->in_room ? ch->in_room->area : NULL;
+
+    if (!IS_NULLSTR(arg)) {
+        if (is_number(arg)) {
+            pArea = get_area_from_uid(atol(arg));
+        } else {
+            pArea = find_area_kwd(arg);
+        }
+
+        if (!pArea)
+            pArea = aedit_find_area_by_name(name_lookup);
+    }
+
+    if (!pArea) {
+        send_to_char("Area not found.\n\r", ch);
+        return;
+    }
+
+    olc_show_item(ch, (void *)pArea, aedit_show, "");
+}
+
 /***************************************************************************
  * Editor Interpreter (Framework)                                          *
  ***************************************************************************/
@@ -187,30 +256,20 @@ void aedit(CHAR_DATA *ch, char *argument)
  * Display                                                                 *
  ***************************************************************************/
 
-AEDIT(aedit_show)
+static void aedit_show_general_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit)
 {
-    AREA_DATA *pArea;
+    AREA_DATA *pArea = (AREA_DATA *)pEdit;
     const OLC_EDITOR_THEME *theme = olc_get_theme(&aedit_def);
-    OLC_LAYOUT_CTX *ctx;
     ROOM_INDEX_DATA *recall;
     const char *file_format;
     const char *dot;
 
-    EDIT_AREA(ch, pArea);
-
-    ctx = olc_display_new(ch, theme);
-
-    olc_display_header(ctx, "AEdit", pArea->name,
-        formatf("%ld", pArea->uid), &aedit_def);
-
-    /* --- Identity --- */
     olc_display_string(ctx, theme, "Name:", "name", pArea->name);
     olc_display_string(ctx, theme, "Tags:", "tags", IS_NULLSTR(pArea->tags) ? "(none)" : pArea->tags);
     olc_display_string(ctx, theme, "Auto Tags:", NULL, IS_NULLSTR(pArea->auto_tags) ? "(none)" : pArea->auto_tags);
     olc_display_string(ctx, theme, "Topic:", "topic", IS_NULLSTR(pArea->area_topic) ? "(default)" : pArea->area_topic);
     olc_display_number(ctx, theme, "Area ID:", NULL, pArea->uid);
 
-    /* --- System Information --- */
     olc_display_section(ctx, theme, "System Information");
     olc_display_string(ctx, theme, "File:", "filename", pArea->file_name);
     dot = pArea->file_name ? strrchr(pArea->file_name, '.') : NULL;
@@ -229,7 +288,6 @@ AEDIT(aedit_show)
     olc_display_flags(ctx, theme, "Flags:", "flags", area_flags, pArea->area_flags);
     olc_display_bool(ctx, theme, "Open:", "open", pArea->open);
 
-    /* --- OLC Info --- */
     olc_display_section(ctx, theme, "OLC Info");
     {
         long display_min = 0;
@@ -266,10 +324,7 @@ AEDIT(aedit_show)
         "Min Level:", NULL, formatf("%d", pArea->min_level),
         "Max Level:", NULL, formatf("%d", pArea->max_level));
 
-    /* --- Location Information --- */
     olc_display_section(ctx, theme, "Location Information");
-
-    /* Recall display */
     {
         char recall_buf[MSL];
         if (pArea->recall.wuid) {
@@ -282,32 +337,22 @@ AEDIT(aedit_show)
                 sprintf(recall_buf, "Wilds ??? [%lu]", pArea->recall.wuid);
         } else if (pArea->recall.id[0] > 0
             && (recall = get_room_index(pArea, pArea->recall.id[0]))) {
-            sprintf(recall_buf, "Room [%ld] %s", pArea->recall.id[0], recall->name);
+            sprintf(recall_buf, "Room [%s] %s", widevnum_string_room(recall, pArea), recall->name);
         } else {
             sprintf(recall_buf, "(none)");
         }
         olc_display_string(ctx, theme, "Recall:", "recall", recall_buf);
     }
 
-    olc_display_type(ctx, theme, "AreaWho:", "areawho", area_who_titles, pArea->area_who);
-    olc_display_type(ctx, theme, "PlaceType:", "placetype", place_flags, pArea->place_flags);
-    olc_display_section(ctx, theme, "Region Defaults");
-    olc_display_type(ctx, theme, "Def Who:", "regions who default", area_who_titles, pArea->region.area_who);
-    olc_display_type(ctx, theme, "Def Place:", "regions place default", place_flags, pArea->region.rs_place_flags);
-    olc_display_string(ctx, theme, "Def Flags:", "regions flags default",
-        flag_string(area_region_flags, pArea->region.flags));
-    olc_display_infof(ctx, theme, "Custom regions:", "%zu", pArea->regions ? list_size(pArea->regions) : 0);
-
-    /* Airship landing */
     {
         ROOM_INDEX_DATA *landing = get_room_index(pArea, pArea->airship_land_load.vnum);
-        olc_display_vnum(ctx, theme, "AirshipLand:", "airshipland",
-            pArea->airship_land_load.vnum, landing ? landing->name : NULL);
+        olc_display_widevnum(ctx, theme, "AirshipLand:", "airshipland",
+            landing ? widevnum_string_room(landing, pArea) :
+                (pArea->airship_land_load.vnum > 0 ? formatf("%ld", pArea->airship_land_load.vnum) : NULL),
+            landing ? landing->name : NULL);
     }
 
-    /* --- Wilderness Map Locations --- */
     olc_display_section(ctx, theme, "Wilderness Map Locations");
-
     if (pArea->wilds_uid > 0) {
         WILDS_DATA *pWilds = get_wilds_from_uid(NULL, pArea->wilds_uid);
         olc_display_string(ctx, theme, "Wilderness:", "wilds",
@@ -323,7 +368,6 @@ AEDIT(aedit_show)
         "LandX:", "landx", formatf("%d", pArea->land_x),
         "LandY:", "landy", formatf("%d", pArea->land_y));
 
-    /* --- Trade Items --- */
     if (pArea->trade_list != NULL) {
         TRADE_ITEM *temp;
         olc_display_section(ctx, theme, "Trade Items");
@@ -340,9 +384,11 @@ AEDIT(aedit_show)
         olc_display_table_begin(ctx, theme, NULL, trade_cols, 7);
 
         for (temp = pArea->trade_list; temp != NULL; temp = temp->next) {
+            OBJ_INDEX_DATA *trade_obj = get_obj_index(pArea, temp->obj_load.vnum);
             const char *vals[7] = {
                 trade_table[temp->trade_type].name,
-                formatf("%ld", temp->obj_load.vnum),
+                trade_obj ? widevnum_string_object(trade_obj, pArea)
+                          : formatf("%ld", temp->obj_load.vnum),
                 formatf("%ld", temp->replenish_time),
                 formatf("%ld", temp->replenish_amount),
                 formatf("%ld", temp->max_qty),
@@ -354,17 +400,137 @@ AEDIT(aedit_show)
         olc_display_table_end(ctx, theme);
     }
 
-    /* --- Text fields --- */
     olc_display_text(ctx, theme, "Description:", "description", pArea->description);
     olc_display_text(ctx, theme, "Player Notes:", "notes", pArea->notes);
     olc_display_text(ctx, theme, "Builders' Comments:", "comments", pArea->comments);
+}
 
-    /* --- Scripts --- */
-    if (pArea->progs->progs)
+static void aedit_show_regions_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit)
+{
+    AREA_DATA *pArea = (AREA_DATA *)pEdit;
+    const OLC_EDITOR_THEME *theme = olc_get_theme(&aedit_def);
+
+    olc_display_type(ctx, theme, "AreaWho:", "areawho", area_who_titles, pArea->area_who);
+    olc_display_type(ctx, theme, "PlaceType:", "placetype", place_flags, pArea->place_flags);
+
+    olc_display_section(ctx, theme, "Region Defaults");
+    olc_display_type(ctx, theme, "Def Who:", "regions who default", area_who_titles, pArea->region.area_who);
+    olc_display_type(ctx, theme, "Def Place:", "regions place default", place_flags, pArea->region.rs_place_flags);
+    olc_display_string(ctx, theme, "Def Flags:", "regions flags default",
+        flag_string(area_region_flags, pArea->region.flags));
+    olc_display_infof(ctx, theme, "Custom regions:", "%zu", pArea->regions ? list_size(pArea->regions) : 0);
+
+    if (pArea->regions && list_size(pArea->regions) > 0) {
+        ITERATOR it;
+        AREA_REGION *region;
+        OLC_TABLE_COL region_cols[] = {
+            { "UID", 8, true },
+            { "Name", 24, false },
+            { "Who", 14, false },
+            { "Place", 14, false },
+        };
+
+        olc_display_table_begin(ctx, theme, NULL, region_cols, 4);
+        iterator_start(&it, pArea->regions);
+        while ((region = (AREA_REGION *)iterator_nextdata(&it)) != NULL) {
+            const char *vals[4] = {
+                formatf("%ld", region->uid),
+                IS_NULLSTR(region->name) ? "(unnamed)" : region->name,
+                flag_string(area_who_titles, region->area_who),
+                flag_string(place_flags, region->rs_place_flags),
+            };
+            olc_display_table_row(ctx, theme, vals, 4, false);
+        }
+        iterator_stop(&it);
+        olc_display_table_end(ctx, theme);
+    }
+}
+
+static void aedit_show_dependencies_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit)
+{
+    AREA_DATA *pArea = (AREA_DATA *)pEdit;
+    const OLC_EDITOR_THEME *theme = olc_get_theme(&aedit_def);
+    AREA_DEPENDENCY *dependency;
+
+    olc_display_section(ctx, theme, "Dependencies");
+    olc_display_infof(ctx, theme, "References:", "%ld", pArea->dependency_count);
+    olc_display_infof(ctx, theme, "Known gap:",
+        "Runtime-created script refs are not statically discoverable");
+
+    if (!pArea->dependencies) {
+        olc_display_infof(ctx, theme, "(none)");
+        return;
+    }
+
+    {
+        OLC_TABLE_COL dep_cols[] = {
+            { "How",        16, false },
+            { "Source",     30, false },
+            { "Target",     40, false },
+        };
+
+        olc_display_table_begin(ctx, theme, NULL, dep_cols, 3);
+
+        for (dependency = pArea->dependencies; dependency != NULL; dependency = dependency->next) {
+            const char *vals[3] = {
+                dependency->reference_type,
+                formatf("%s %ld#%ld %s",
+                    dependency->source_type,
+                    pArea->uid,
+                    dependency->source_vnum,
+                    IS_NULLSTR(dependency->source_name) ? "" : dependency->source_name),
+                formatf("%s :: %s %ld#%ld %s",
+                    IS_NULLSTR(dependency->target_area_name) ? "(unknown area)" : dependency->target_area_name,
+                    IS_NULLSTR(dependency->target_type) ? "entity" : dependency->target_type,
+                    dependency->target_area_uid,
+                    dependency->target_vnum,
+                    IS_NULLSTR(dependency->target_name) ? "" : dependency->target_name),
+            };
+
+            olc_display_table_row(ctx, theme, vals, 3, false);
+        }
+
+        olc_display_table_end(ctx, theme);
+    }
+}
+
+static void aedit_show_scripts_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit)
+{
+    AREA_DATA *pArea = (AREA_DATA *)pEdit;
+    const OLC_EDITOR_THEME *theme = olc_get_theme(&aedit_def);
+
+    if (pArea->progs && pArea->progs->progs)
         olc_display_scripts(ctx, theme, pArea->progs->progs, PRG_APROG,
             "AreaProg Vnum", "addaprog", "delaprog");
 
     olc_display_vars(ctx, theme, pArea->index_vars, "varset", "varclear");
+}
+
+AEDIT(aedit_show)
+{
+    AREA_DATA *pArea;
+    const OLC_EDITOR_THEME *theme = olc_get_theme(&aedit_def);
+    OLC_LAYOUT_CTX *ctx;
+    int tab;
+
+    EDIT_AREA(ch, pArea);
+
+    ctx = olc_display_new(ch, theme);
+
+    olc_display_header(ctx, "AEdit", pArea->name,
+        formatf("%ld", pArea->uid), &aedit_def);
+
+    tab = olc_show_all_tabs_mode(ch) ? -1 : (ch->desc ? ch->desc->nEditTab : 0);
+    if (tab < 0) {
+        for (int i = 0; i < aedit_def.tabs.count; i++) {
+            if (aedit_def.tabs.tabs[i].show_fn)
+                aedit_def.tabs.tabs[i].show_fn(ch, ctx, (void *)pArea);
+        }
+    } else if (tab >= 0 && tab < aedit_def.tabs.count && aedit_def.tabs.tabs[tab].show_fn) {
+        aedit_def.tabs.tabs[tab].show_fn(ch, ctx, (void *)pArea);
+    } else {
+        aedit_show_general_tab(ch, ctx, (void *)pArea);
+    }
 
     olc_display_footer(ctx, theme);
     page_to_char(buf_string(ctx->buffer), ch);
@@ -476,8 +642,8 @@ AEDIT(aedit_airshipland)
     }
 
     pArea->airship_land_load.vnum = room_wnum.vnum;
-    sprintf(buf, "Set airship land spot of %s to %ld - %s\n\r",
-        pArea->name, room_wnum.vnum, pRoom->name);
+    sprintf(buf, "Set airship land spot of %s to %s - %s\n\r",
+        pArea->name, widevnum_string_room(pRoom, pArea), pRoom->name);
     send_to_char(buf, ch);
     return true;
 }
@@ -1075,7 +1241,7 @@ AEDIT(aedit_name)
     AREA_DATA *pArea;
     EDIT_AREA(ch, pArea);
     bool changed = olc_cmd_string(ch, argument, "Name", NULL, &pArea->name,
-        OLC_STR_DEFAULT, NULL, NULL);
+        OLC_STR_DEFAULT | OLC_STR_UTF8_RESTRICT, NULL, NULL);
     if (changed)
         aedit_rebuild_auto_tags(pArea);
     return changed;

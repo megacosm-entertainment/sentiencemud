@@ -1,304 +1,378 @@
 {
-  "schema_version": "1.0.0",
-  "area": {
-    "uid": 3,
-    "name": "Bootstrap Tests",
-    "filename": "tests.json",
-    "vnums": {
-      "min": 1,
-      "max": 200
-    },
-    "metadata": {
-      "builders": "Bootstrap",
-      "credits": "Bootstrap CI fixture area",
-      "security": 9,
-      "area_who": 0,
-      "levels": {
-        "min": 0,
-        "max": 120
-      }
-    },
-    "flags": [],
-    "coordinates": {
-      "x": 0,
-      "y": 0,
-      "x_land": 0,
-      "y_land": 0
-    },
-    "recall": {},
-    "wilds_uid": 1,
-    "repop": 100,
-    "post_office": 0,
-    "airship_land": 0,
-    "description": "",
-    "comments": "Fixture area for CI integration tests; deterministic entities only.",
-    "notes": "",
-    "versions": {
-      "area": 16777218,
-      "mobile": 16777217,
-      "object": 16777219,
-      "room": 16777218,
-      "token": 16777216,
-      "script": 33554432,
-      "wilds": 16777216
-    },
-    "wilderness": {
-      "uid": 1,
-      "name": "Bootstrap Test Wilds",
-      "wilds_format": 0,
-      "map_size_x": 8,
-      "map_size_y": 8,
-      "startx": 0,
-      "starty": 0,
-      "sector_size_x": 0,
-      "sector_size_y": 0,
-      "cDefaultTerrain": 83,
-      "wildgen_grid_rows": 1,
-      "wildgen_grid_cols": 1,
-      "wildgen_tile_width": 8,
-      "wildgen_tile_height": 8,
-      "wildgen_terrain_base": "",
-      "wildgen_elevation_base": "",
-      "wilderness_storage_mode": "external_v1",
-      "legacy_embedded_map": false,
-      "legacy_embedded_terrains": false,
-      "legacy_embedded_vlinks": false,
-      "storage": {
-        "provider": "wilderness_storage_v1",
+    "schema_version": "1.0.0",
+    "area": {
+        "uid": 3,
+        "name": "Bootstrap Tests",
+        "filename": "tests.json",
+        "vnums": {
+            "min": 1,
+            "max": 200
+        },
+        "metadata": {
+            "builders": "Bootstrap",
+            "credits": "Bootstrap CI fixture area",
+            "security": 9,
+            "area_who": 0,
+            "levels": {
+                "min": 0,
+                "max": 120
+            }
+        },
+        "flags": [],
+        "coordinates": {
+            "x": 0,
+            "y": 0,
+            "x_land": 0,
+            "y_land": 0
+        },
+        "recall": {},
         "wilds_uid": 1,
-        "artifact_dir": "data/world/wilderness_state/1_bootstrap_test_wilds",
-        "wmap": "wilderness.wmap",
-        "wterr": "wilderness.wterr.json",
-        "mods": "wilderness_mods.json",
-        "state": "wilderness_state.json",
-        "vlinks": "wilderness_vlinks.json",
-        "images_dir": "images"
-      }
-    }
-  },
-  "rooms": [
-    {
-      "vnum": 1,
-      "name": "Bootstrap Test Hub",
-      "description": "Bootstrap tests staging room.\\n\\r",
-      "flags": [
-        "indoors",
-        "safe"
-      ],
-      "flags2": [],
-      "sector": "inside",
-      "heal_rate": 0,
-      "mana_rate": 0,
-      "move_rate": 0
-    }
-  ],
-  "mobiles": [
-    {
-      "vnum": 101,
-      "name": "bootstrap test shopkeeper",
-      "short_descr": "a bootstrap test shopkeeper",
-      "long_descr": "A bootstrap test shopkeeper stands here.\\n\\r",
-      "description": "A deterministic fixture shopkeeper used by CI tests.\\n\\r",
-      "owner": "(no owner)",
-      "imp_sig": "(none)",
-      "creator_sig": "(none)",
-      "script_keywords": "none",
-      "race": "human",
-      "act_flags": [
-        "npc",
-        "undead",
-        "sentinel"
-      ],
-      "affected_by": [
-        "invisible",
-        "sanctuary",
-        "haste"
-      ],
-      "level": 25,
-      "alignment": 0,
-      "hitroll": 0,
-      "hit_dice": {
-        "number": 160,
-        "size": 200,
-        "bonus": 20000
-      },
-      "mana_dice": {
-        "number": 0,
-        "size": 0,
-        "bonus": 0
-      },
-      "damage_dice": {
-        "number": 20,
-        "size": 52,
-        "bonus": 200
-      },
-      "dam_type": 3,
-      "attacks": 0,
-      "off_flags": [
-        "area_attack",
-        "bash"
-      ],
-      "imm_flags": [
-        "bash"
-      ],
-      "res_flags": [
-        "magic"
-      ],
-      "vuln_flags": [
-        "light",
-        "lightning",
-        "holy",
-        "wood"
-      ],
-      "start_pos": 8,
-      "default_pos": 8,
-      "wealth": 0,
-      "body_type": 0,
-      "parts": 3213311,
-      "size": 2,
-      "movement": 2610,
-      "material": "unknown",
-      "verb_preference": 0,
-      "shop": {
-        "keeper": 101,
-        "buy_types": [
-          2
-        ],
-        "profit_buy": 100,
-        "profit_sell": 100,
-        "open_hour": 0,
-        "close_hour": 23,
-        "discount": 0,
-        "stock": [
-          {
-            "type": 2,
-            "vnum": "1#1",
-            "silver": 100,
-            "discount": 0,
-            "quantity": 0
-          },
-          {
-            "type": 3,
-            "mob_vnum": "3#102",
-            "silver": 100,
-            "discount": 0,
-            "quantity": 0
-          }
-        ]
-      }
-    },
-    {
-      "vnum": 102,
-      "name": "bootstrap test pet",
-      "short_descr": "a bootstrap test pet",
-      "long_descr": "A bootstrap test pet is here.\\n\\r",
-      "description": "A deterministic fixture pet for shop stock tests.\\n\\r",
-      "owner": "(no owner)",
-      "imp_sig": "(none)",
-      "creator_sig": "(none)",
-      "script_keywords": "none",
-      "race": "dog",
-      "act_flags": [
-        "npc",
-        "undead",
-        "sentinel"
-      ],
-      "affected_by": [
-        "invisible",
-        "sanctuary",
-        "haste"
-      ],
-      "level": 10,
-      "alignment": 0,
-      "hitroll": 0,
-      "hit_dice": {
-        "number": 160,
-        "size": 200,
-        "bonus": 20000
-      },
-      "mana_dice": {
-        "number": 0,
-        "size": 0,
-        "bonus": 0
-      },
-      "damage_dice": {
-        "number": 20,
-        "size": 52,
-        "bonus": 200
-      },
-      "dam_type": 3,
-      "attacks": 0,
-      "off_flags": [
-        "area_attack",
-        "bash"
-      ],
-      "imm_flags": [
-        "bash"
-      ],
-      "res_flags": [
-        "magic"
-      ],
-      "vuln_flags": [
-        "light",
-        "lightning",
-        "holy",
-        "wood"
-      ],
-      "start_pos": 8,
-      "default_pos": 8,
-      "wealth": 0,
-      "body_type": 0,
-      "parts": 3213311,
-      "size": 2,
-      "movement": 2610,
-      "material": "unknown",
-      "verb_preference": 0
-    }
-  ],
-  "objects": [
-    {
-      "vnum": 101,
-      "name": "bootstrap test object",
-      "short_descr": "a bootstrap test object",
-      "long_descr": "A bootstrap test object lies here.",
-      "description": "A deterministic fixture object for shop/reset tests.\\n\\r",
-      "material": "silver",
-      "imp_sig": "none",
-      "creator_sig": "none",
-      "script_keywords": "none",
-      "times_allowed_fixed": 5,
-      "fragility": 0,
-      "points": 0,
-      "update": 0,
-      "timer": 0,
-      "item_type": "trash",
-      "extra_flags": [],
-      "extra2_flags": [],
-      "extra3_flags": [],
-      "extra4_flags": [],
-      "wear_flags": [
-        "take"
-      ],
-      "values": [
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "type_data": {
-        "money": {
-          "silver": 0,
-          "gold": 0
+        "repop": 100,
+        "post_office": 0,
+        "airship_land": 0,
+        "description": "",
+        "comments": "Fixture area for CI integration tests; deterministic entities only.",
+        "notes": "",
+        "versions": {
+            "area": 16777218,
+            "mobile": 16777217,
+            "object": 16777219,
+            "room": 16777218,
+            "token": 16777216,
+            "script": 33554432,
+            "wilds": 16777216
+        },
+        "wilderness": {
+            "uid": 1,
+            "name": "Bootstrap Test Wilds",
+            "wilds_format": 0,
+            "map_size_x": 8,
+            "map_size_y": 8,
+            "startx": 0,
+            "starty": 0,
+            "sector_size_x": 0,
+            "sector_size_y": 0,
+            "cDefaultTerrain": 83,
+            "wildgen_grid_rows": 1,
+            "wildgen_grid_cols": 1,
+            "wildgen_tile_width": 8,
+            "wildgen_tile_height": 8,
+            "wildgen_terrain_base": "",
+            "wildgen_elevation_base": "",
+            "wilderness_storage_mode": "external_v1",
+            "legacy_embedded_map": false,
+            "legacy_embedded_terrains": false,
+            "legacy_embedded_vlinks": false,
+            "storage": {
+                "provider": "wilderness_storage_v1",
+                "wilds_uid": 1,
+                "artifact_dir": "data/world/wilderness_state/1_bootstrap_test_wilds",
+                "wmap": "wilderness.wmap",
+                "wterr": "wilderness.wterr.json",
+                "mods": "wilderness_mods.json",
+                "state": "wilderness_state.json",
+                "vlinks": "wilderness_vlinks.json",
+                "images_dir": "images"
+            }
         }
-      },
-      "level": 1,
-      "weight": 1,
-      "cost": 1,
-      "condition": 100
-    }
-  ]
+    },
+    "rooms": [
+        {
+            "vnum": 1,
+            "name": "Bootstrap Test Hub",
+            "description": "Bootstrap tests staging room.\\n\\r",
+            "flags": [
+                "indoors",
+                "safe"
+            ],
+            "flags2": [],
+            "sector": "inside",
+            "heal_rate": 0,
+            "mana_rate": 0,
+            "move_rate": 0
+        },
+        {
+            "vnum": 2,
+            "name": "Bootstrap Combat Ring",
+            "description": "A deterministic non-safe combat fixture room for CI telemetry tests.\\n\\r",
+            "flags": [
+                "indoors"
+            ],
+            "flags2": [],
+            "sector": "inside",
+            "heal_rate": 0,
+            "mana_rate": 0,
+            "move_rate": 0
+        }
+    ],
+    "mobiles": [
+        {
+            "vnum": 101,
+            "name": "bootstrap test shopkeeper",
+            "short_descr": "a bootstrap test shopkeeper",
+            "long_descr": "A bootstrap test shopkeeper stands here.\\n\\r",
+            "description": "A deterministic fixture shopkeeper used by CI tests.\\n\\r",
+            "owner": "(no owner)",
+            "imp_sig": "(none)",
+            "creator_sig": "(none)",
+            "script_keywords": "none",
+            "race": "human",
+            "act_flags": [
+                "npc",
+                "undead",
+                "sentinel"
+            ],
+            "affected_by": [
+                "invisible",
+                "sanctuary",
+                "haste"
+            ],
+            "level": 25,
+            "alignment": 0,
+            "hitroll": 0,
+            "hit_dice": {
+                "number": 160,
+                "size": 200,
+                "bonus": 20000
+            },
+            "mana_dice": {
+                "number": 0,
+                "size": 0,
+                "bonus": 0
+            },
+            "damage_dice": {
+                "number": 20,
+                "size": 52,
+                "bonus": 200
+            },
+            "dam_type": 3,
+            "attacks": 0,
+            "off_flags": [
+                "area_attack",
+                "bash"
+            ],
+            "imm_flags": [
+                "bash"
+            ],
+            "res_flags": [
+                "magic"
+            ],
+            "vuln_flags": [
+                "light",
+                "lightning",
+                "holy",
+                "wood"
+            ],
+            "start_pos": 8,
+            "default_pos": 8,
+            "wealth": 0,
+            "body_type": 0,
+            "parts": 3213311,
+            "size": 2,
+            "movement": 2610,
+            "material": "unknown",
+            "verb_preference": 0,
+            "shop": {
+                "keeper": 101,
+                "buy_types": [
+                    2
+                ],
+                "profit_buy": 100,
+                "profit_sell": 100,
+                "open_hour": 0,
+                "close_hour": 23,
+                "discount": 0,
+                "stock": [
+                    {
+                        "type": 2,
+                        "vnum": "1#1",
+                        "silver": 100,
+                        "discount": 0,
+                        "quantity": 0
+                    },
+                    {
+                        "type": 3,
+                        "mob_vnum": "3#102",
+                        "silver": 100,
+                        "discount": 0,
+                        "quantity": 0
+                    }
+                ]
+            }
+        },
+        {
+            "vnum": 102,
+            "name": "bootstrap test pet",
+            "short_descr": "a bootstrap test pet",
+            "long_descr": "A bootstrap test pet is here.\\n\\r",
+            "description": "A deterministic fixture pet for shop stock tests.\\n\\r",
+            "owner": "(no owner)",
+            "imp_sig": "(none)",
+            "creator_sig": "(none)",
+            "script_keywords": "none",
+            "race": "dog",
+            "act_flags": [
+                "npc",
+                "undead",
+                "sentinel"
+            ],
+            "affected_by": [
+                "invisible",
+                "sanctuary",
+                "haste"
+            ],
+            "level": 10,
+            "alignment": 0,
+            "hitroll": 0,
+            "hit_dice": {
+                "number": 160,
+                "size": 200,
+                "bonus": 20000
+            },
+            "mana_dice": {
+                "number": 0,
+                "size": 0,
+                "bonus": 0
+            },
+            "damage_dice": {
+                "number": 20,
+                "size": 52,
+                "bonus": 200
+            },
+            "dam_type": 3,
+            "attacks": 0,
+            "off_flags": [
+                "area_attack",
+                "bash"
+            ],
+            "imm_flags": [
+                "bash"
+            ],
+            "res_flags": [
+                "magic"
+            ],
+            "vuln_flags": [
+                "light",
+                "lightning",
+                "holy",
+                "wood"
+            ],
+            "start_pos": 8,
+            "default_pos": 8,
+            "wealth": 0,
+            "body_type": 0,
+            "parts": 3213311,
+            "size": 2,
+            "movement": 2610,
+            "material": "unknown",
+            "verb_preference": 0
+        },
+        {
+            "vnum": 103,
+            "name": "bootstrap combat dummy",
+            "short_descr": "a bootstrap combat dummy",
+            "long_descr": "A bootstrap combat dummy waits here.\\n\\r",
+            "description": "A deterministic fixture NPC used for combat telemetry branch validation.\\n\\r",
+            "owner": "(no owner)",
+            "imp_sig": "(none)",
+            "creator_sig": "(none)",
+            "script_keywords": "none",
+            "race": "human",
+            "act_flags": [
+                "npc",
+                "sentinel"
+            ],
+            "affected_by": [],
+            "level": 40,
+            "alignment": 0,
+            "hitroll": 0,
+            "hit_dice": {
+                "number": 40,
+                "size": 40,
+                "bonus": 4000
+            },
+            "mana_dice": {
+                "number": 0,
+                "size": 0,
+                "bonus": 0
+            },
+            "damage_dice": {
+                "number": 8,
+                "size": 8,
+                "bonus": 80
+            },
+            "dam_type": 3,
+            "attacks": 0,
+            "off_flags": [],
+            "imm_flags": [],
+            "res_flags": [],
+            "vuln_flags": [],
+            "start_pos": 8,
+            "default_pos": 8,
+            "wealth": 0,
+            "body_type": 0,
+            "parts": 3213311,
+            "size": 2,
+            "movement": 2610,
+            "material": "unknown",
+            "verb_preference": 0
+        }
+    ],
+    "objects": [
+        {
+            "vnum": 101,
+            "name": "bootstrap test object",
+            "short_descr": "a bootstrap test object",
+            "long_descr": "A bootstrap test object lies here.",
+            "description": "A deterministic fixture object for shop/reset tests.\\n\\r",
+            "material": "silver",
+            "imp_sig": "none",
+            "creator_sig": "none",
+            "script_keywords": "none",
+            "times_allowed_fixed": 5,
+            "fragility": 0,
+            "points": 0,
+            "update": 0,
+            "timer": 0,
+            "item_type": "trash",
+            "extra_flags": [],
+            "extra2_flags": [],
+            "extra3_flags": [],
+            "extra4_flags": [],
+            "wear_flags": [
+                "take"
+            ],
+            "values": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+            ],
+            "type_data": {
+                "money": {
+                    "silver": 0,
+                    "gold": 0
+                }
+            },
+            "level": 1,
+            "weight": 1,
+            "cost": 1,
+            "condition": 100
+        }
+    ],
+    "quests_v2": [
+        {
+            "vnum": 150,
+            "name": "Mock Test Quest",
+            "description": "A minimal quest for CI test fixture validation.",
+            "enabled": true,
+            "entry_stage_id": 0,
+            "stages": [],
+            "rewards": []
+        }
+    ]
 }

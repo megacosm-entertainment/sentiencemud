@@ -2,8 +2,7 @@
  *  Skill Group System - Implementation                                    *
  *                                                                         *
  *  Named collections of skills loaded from JSON files in                  *
- *  data/skill_groups/, or bootstrapped from the legacy group_table[]      *
- *  static array on first run.                                             *
+ *  data/skill_groups/.                                                    *
  *                                                                         *
  *  Groups are used by REWARD_GROUP to grant batches of skills at once.    *
  *  They are a lightweight organizational convenience, not a complex       *
@@ -17,6 +16,7 @@
 #include <dirent.h>
 #include <sys/stat.h>
 #include <jansson.h>
+#include "io/json/json_common.h"
 #include "merc.h"
 #include "tables.h"
 #include "skill_group.h"
@@ -234,7 +234,7 @@ static SKILL_GROUP *group_load_json(const char *filename)
     group = new_skill_group();
 
     /* Name */
-    str = json_string_value(json_object_get(root, "name"));
+    str = json_get_string(root, "name", "");
     if (str && str[0]) {
         free_string(group->name);
         group->name = str_dup(str);
@@ -333,53 +333,19 @@ void save_all_skill_groups(void)
 }
 
 /***************************************************************************
- * Bootstrap from Legacy group_table[]                                     *
+ * Bootstrap (legacy — group_table[] removed in Phase 9)                    *
  ***************************************************************************/
 
 /**
- * bootstrap_groups_from_table - Create SKILL_GROUP entries from group_table[]
+ * bootstrap_groups_from_table - Stub (group_table[] removed in Phase 9)
  *
- * Called on first boot when no data/skill_groups/ directory exists.
- * Creates one SKILL_GROUP per group_table entry.
+ * Previously created SKILL_GROUP entries from the static group_table[].
+ * Now logs an error since the table no longer exists.
  */
 static void bootstrap_groups_from_table(void)
 {
-    int i, j;
-    SKILL_GROUP *group;
-
-    log_string("bootstrap_groups_from_table: Creating groups from group_table[]");
-
-    for (i = 0; i < MAX_GROUP; i++) {
-        if (!group_table[i].name)
-            break;
-
-        group = new_skill_group();
-        free_string(group->name);
-        group->name = str_dup(group_table[i].name);
-
-        /* Copy skill/spell names from the spells[] array */
-        for (j = 0; j < MAX_IN_GROUP; j++) {
-            if (!group_table[i].spells[j])
-                break;
-            list_appendlink(group->contents, str_dup(group_table[i].spells[j]));
-        }
-
-        group_register(group);
-
-        log_stringf("  Bootstrapped group: %s (%d skills)",
-                     group->name, list_size(group->contents));
-    }
-
-    log_stringf("bootstrap_groups_from_table: Created %d groups", group_total);
-
-    /* Create data directory and save JSON files */
-    {
-        struct stat st;
-        if (stat(SKILL_GROUPS_DIR, &st) != 0) {
-            mkdir(SKILL_GROUPS_DIR, 0755);
-        }
-    }
-    save_all_skill_groups();
+    log_string("bootstrap_groups_from_table: ERROR — group_table[] removed in Phase 9. "
+               "Skill group JSON files must exist in data/skill_groups/.");
 }
 
 /***************************************************************************
@@ -389,8 +355,8 @@ static void bootstrap_groups_from_table(void)
 /**
  * load_skill_groups - Load all skill groups from JSON files
  *
- * On first boot (no data/skill_groups/ directory), bootstraps from the
- * legacy group_table[] in const.c and saves JSON files.
+ * Loads skill group definitions from data/skill_groups/ JSON files.
+ * If no files exist, logs an error (group_table[] removed in Phase 9).
  */
 void load_skill_groups(void)
 {
@@ -407,7 +373,7 @@ void load_skill_groups(void)
 
     /* Check if data directory exists */
     if (stat(SKILL_GROUPS_DIR, &st) != 0) {
-        log_string("load_skill_groups: No skill_groups directory, bootstrapping from group_table[]");
+        log_string("load_skill_groups: No skill_groups directory — cannot bootstrap (group_table removed)");
         bootstrap_groups_from_table();
         return;
     }
@@ -415,7 +381,7 @@ void load_skill_groups(void)
     /* Load JSON files */
     dir = opendir(SKILL_GROUPS_DIR);
     if (!dir) {
-        log_stringf("load_skill_groups: Could not open %s, bootstrapping from group_table[]",
+        log_stringf("load_skill_groups: Could not open %s — cannot bootstrap (group_table removed)",
                      SKILL_GROUPS_DIR);
         bootstrap_groups_from_table();
         return;
@@ -438,7 +404,7 @@ void load_skill_groups(void)
     closedir(dir);
 
     if (loaded == 0) {
-        log_string("load_skill_groups: No JSON files found, bootstrapping from group_table[]");
+        log_string("load_skill_groups: No JSON files found — cannot bootstrap (group_table removed)");
         bootstrap_groups_from_table();
     } else {
         log_stringf("load_skill_groups: Loaded %d skill groups from JSON", loaded);

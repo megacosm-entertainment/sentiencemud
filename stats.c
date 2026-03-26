@@ -16,6 +16,7 @@
 #include <ctype.h>
 #include <dirent.h>
 #include <jansson.h>
+#include "io/json/json_common.h"
 #include "merc.h"
 #include "db.h"
 #include "recycle.h"
@@ -516,7 +517,7 @@ bool leaderboard_load_backup(void)
             if (!json_is_object(entry))
                 continue;
 
-            name = json_string_value(json_object_get(entry, "name"));
+            name = json_get_string(entry, "name", "");
             if (!name || name[0] == '\0')
                 continue;
 
@@ -887,7 +888,7 @@ static bool read_stats_from_json_pfile(const char *path, CHAR_LEADERBOARD_STATS 
         return false;
     }
 
-    name = json_string_value(json_object_get(character, "name"));
+    name = json_get_string(character, "name", "");
     if (!name || name[0] == '\0') {
         json_decref(root);
         return false;

@@ -171,12 +171,14 @@ int           expire_penalties(ACCOUNT_DATA *account);
 /* Type name lookups */
 int           penalty_type_lookup(const char *name);
 const char   *penalty_type_name(int type);
+const char   *penalty_type_name_localized(int type);
 int           penalty_scope_lookup(const char *name);
 const char   *penalty_scope_name(int scope);
+const char   *penalty_scope_name_localized(int scope);
 
 /* Duration parsing */
 time_t        parse_duration(const char *str);
-const char   *penalty_format_duration(time_t seconds, char *buf, size_t buflen);
+const char   *penalty_format_duration(DESCRIPTOR_DATA *d, time_t seconds, char *buf, size_t buflen);
 const char   *format_timestamp(time_t t, char *buf, size_t buflen);
 
 /* Legacy flag migration */
@@ -223,8 +225,10 @@ bool        assign_bonus_to_character(ACCOUNT_DATA *account,
 /* Type name lookups */
 int         bonus_type_lookup(const char *name);
 const char *bonus_type_name(int type);
+const char *bonus_type_name_localized(int type);
 int         bonus_scope_lookup(const char *name);
 const char *bonus_scope_name(int scope);
+const char *bonus_scope_name_localized(int scope);
 
 /***************************************************************************
  * JSON Serialization                                                      *

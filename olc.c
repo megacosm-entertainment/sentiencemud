@@ -23,6 +23,8 @@
 #include "editors/common/olc_editor.h"
 #include "traits.h"
 #include "class_data.h"
+#include "skill_data.h"
+#include "utils/utf8.h"
 
 extern const char *medit_tab_names[];
 extern GLOBAL_DATA gconfig;
@@ -1348,47 +1350,58 @@ void do_alist(CHAR_DATA *ch, char *argument)
 
     buffer = new_buf();
 
-     sprintf(buf, "[%-7s] [%-26.26s] (%-7s-%7s) [%-12s] [%-5s] %3s [%-10s]\n\r",
-         "UID", "Area Name", "lvnum", "uvnum", "Filename", "Fmt", "Sec", "Builders");
+    sprintf(buf, "[%-7s] [%-26.26s] (%-7s-%7s) [%-12s] [%-5s] %3s [%-10s]\n\r",
+    "UID", "Area Name", "lvnum", "uvnum", "Filename", "Fmt", "Sec", "Builders");
     add_buf(buffer, buf);
 
-    if (argument[0] != '\0'
-    && (place_type = flag_value(place_flags, argument)) == NO_FLAG)
+    if (argument[0] != '\0' && (place_type = flag_value(place_flags, argument)) == NO_FLAG)
     {
-    send_to_char("Syntax: alist\n\r"
-                 "        alist <placetype>\n\r", ch);
-    return;
+        send_to_char("Syntax: alist\n\r"
+                     "        alist <placetype>\n\r", ch);
+        return;
     }
 
     for (pArea = area_first; pArea; pArea = pArea->next)
     {
-    if (place_type == 0 || (pArea->place_flags == place_type))
-    {
-    long display_min = 0;
-    long display_max = 0;
-    olc_area_display_bounds(pArea, &display_min, &display_max);
+        if (place_type == 0 || (pArea->place_flags == place_type))
+        {
+            long display_min = 0;
+            long display_max = 0;
+            olc_area_display_bounds(pArea, &display_min, &display_max);
 
-    dot = pArea->file_name ? strrchr(pArea->file_name, '.') : NULL;
-    if (dot && !str_cmp(dot, ".json"))
-        fmt = "JSON";
-    else if (dot && !str_cmp(dot, ".are"))
-        fmt = "ARE";
-    else
-        fmt = "?";
+            dot = pArea->file_name ? strrchr(pArea->file_name, '.') : NULL;
+            if (dot && !str_cmp(dot, ".json"))
+                fmt = "JSON";
+            else if (dot && !str_cmp(dot, ".are"))
+                fmt = "ARE";
+            else
+                fmt = "?";
 
-    sprintf(buf, "{D[{x%7ld{D]{x %s%-26.26s%s {D({x%-7ld{D-{x%7ld{D){x %-12.12s {D[{x%-5.5s{D]{x {D[{x{B%d{x{D]{x {D[{x%-10.10s{D]{x \n\r",
-         pArea->uid,
-         pArea->open ? "{G" : "{R",
-         pArea->name,
-         "{x",
-         display_min,
-         display_max,
-         pArea->file_name,
-         fmt,
-         pArea->security,
-         pArea->builders);
-    add_buf(buffer, buf);
-    }
+#define ALIST_NAME_WIDTH    26
+            size_t name_width = ALIST_NAME_WIDTH;
+            size_t name_bytes;
+            if (utf8_skip_len(pArea->name, &name_width, &name_bytes))
+            {
+                // Pad the number of bytes with the leftover allotment (in spaces).
+                name_bytes += ALIST_NAME_WIDTH - name_width;
+            }
+            else
+                name_bytes = ALIST_NAME_WIDTH;
+
+            sprintf(buf, "{D[{x%7ld{D]{x %s%-*.*s%s {D({x%-7ld{D-{x%7ld{D){x %-12.12s {D[{x%-5.5s{D]{x {D[{x{B%d{x{D]{x {D[{x%-10.10s{D]{x \n\r",
+                pArea->uid,
+                pArea->open ? "{G" : "{R",
+                (int)name_bytes, (int)name_bytes,
+                pArea->name,
+                "{x",
+                display_min,
+                display_max,
+                pArea->file_name,
+                fmt,
+                pArea->security,
+                pArea->builders);
+            add_buf(buffer, buf);
+        }
     }
 
     page_to_char(buf_string(buffer), ch);
@@ -1748,6 +1761,7 @@ void do_ocopy(CHAR_DATA *ch, char *argument)
     new_af->modifier = af->modifier;
     new_af->where = af->where;
     new_af->type  = af->type;
+    new_af->skill = af->skill;
     new_af->duration = af->duration;
     new_af->bitvector = af->bitvector;
     new_af->level	 = af->level;

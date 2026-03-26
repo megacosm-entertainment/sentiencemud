@@ -1,6 +1,6 @@
 # Sentience MUD Roadmap
 
-**Last Updated:** February 26, 2026
+**Last Updated:** March 24, 2026
 
 This document tracks the project's development trajectory: what's been completed, what's in progress, and what's planned. Each section links to detailed design documents where they exist.
 
@@ -72,6 +72,24 @@ Region backport tranche is complete for the current milestone and archived.
 
 **Docs:** [done/PLAN_regions_backport.md](done/PLAN_regions_backport.md) | [done/WORKLOG_regions_backport.md](done/WORKLOG_regions_backport.md)
 
+### Legacy I/O Removal
+Removed ~7,142 lines of legacy `.dat` format readers. Deleted `pfile_migrate.c` entirely and stripped legacy readers from `save.c`, `db.c`, `olc_save.c`, `note.c`, `mail.c`, `ban.c`, `help.c`, `blueprint.c`, `boat.c`, and `dungeon.c`. All player/world data now loads exclusively from JSON.
+
+### Skills/Classes Phase 9
+Removed `skill_table[]`, `struct skill_type`, `music_table`, `group_table`, `class_table`, and `sub_class_table`. Migrated ~320 indexed accesses to the `SKILL_DATA` API. Net -2,475 lines across 53 files. Skills now boot exclusively from JSON.
+
+**Docs:** [PLAN_backport_skills_classes.md](PLAN_backport_skills_classes.md)
+
+### Object Multi-typing Phase 5
+Converted 9 `merc.h` macros to type accessors and added missing `CORPSE_DATA` fields. Phase marked mostly complete.
+
+**Docs:** [PLAN_backport_object_multityping.md](PLAN_backport_object_multityping.md)
+
+### Traits System
+Character trait system for races and classes, using JSON definitions in `data/traits/`.
+
+**Docs:** [done/PLAN_TRAITS.md](done/PLAN_TRAITS.md)
+
 ---
 
 ## In Progress
@@ -82,6 +100,31 @@ Region backport tranche is complete for the current milestone and archived.
 **Docs:** [PLAN_BOOTSTRAP.md](PLAN_BOOTSTRAP.md)
 
 Automated setup for fresh deployments. Directory creation is implemented in `bootstrap/bootstrap_files.c`. Remaining: minimal data file generation, package download support.
+
+### Skills/Classes Backport
+
+**Status:** Phases 0-9 complete. Phase 10 needed for final field removal (~900 active callers remain across `learned[]`, class fields, `AFFECT_DATA.type`).
+**Docs:** [PLAN_backport_skills_classes.md](PLAN_backport_skills_classes.md)
+
+### Object Multi-typing
+
+**Status:** Phase 5 mostly complete (9 macros converted, missing `CORPSE_DATA` fields added). Phases 6-7 (OLC refactor, script accessors) not yet started.
+**Docs:** [PLAN_backport_object_multityping.md](PLAN_backport_object_multityping.md)
+
+### C Hardening
+
+**Status:** Phase 1 complete. Branch merged via PRs #43, #44 into `legacy_testport`. Phases 2-5 pending with 7,300+ unsafe calls remaining.
+**Docs:** [PLAN_C_HARDENING.md](PLAN_C_HARDENING.md) | [TODO_BUFFER_CALLSITE_CHECKLIST.md](TODO_BUFFER_CALLSITE_CHECKLIST.md)
+
+### Logging Migration
+
+**Status:** 2,773 legacy logging call sites identified. Needs phased migration to zlog categories.
+**Docs:** [TODO_LOGGING_MIGRATION.md](TODO_LOGGING_MIGRATION.md)
+
+### Ship System
+
+**Status:** Core ship/boat system has 6,000+ lines of active code with incomplete persistence (destinations, waypoints, cannons not saved). Needs gap analysis and persistence completion.
+**Docs:** [PLAN_SHIP_SYSTEM.md](PLAN_SHIP_SYSTEM.md)
 
 ---
 
@@ -133,23 +176,11 @@ Tiered NPC companion system replacing the flat follower/pet model. Five tiers fr
 
 Depends on group refactor (for `GROUP_DATA` foundation), skill refactor (for companion skill subsets), and class/job system (for companion classes).
 
-### Skill System Refactor
-
-**Docs:** [done/PLAN_SKILL_REFACTOR.md](done/PLAN_SKILL_REFACTOR.md) | [PLAN_backport_skills_classes.md](PLAN_backport_skills_classes.md)
-
-Base skill refactor tranche is archived as complete; active follow-on migration remains tracked in the skills/classes backport plan.
-
 ### Class/Job System Backport
 
 **Docs:** [PLAN_CLASS_JOB_SYSTEM_BACKPORT.md](PLAN_CLASS_JOB_SYSTEM_BACKPORT.md)
 
 Backport the class and job progression system from the `src_20_dev` reference codebase. Supports the party system's Tier 2-3 companions and general class design improvements.
-
-### Traits System
-
-**Docs:** [done/PLAN_TRAITS.md](done/PLAN_TRAITS.md)
-
-Character trait system for races and classes, using JSON definitions in `data/traits/`.
 
 ---
 

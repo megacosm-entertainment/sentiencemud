@@ -1,0 +1,75 @@
+{
+  "type": "test_suite",
+  "test_suite": "olc_framework",
+  "description": "Tests for the Online Creation (OLC) framework including editor registry, command table integrity, and editor lookup functions",
+  "version": "1.0",
+  "requires_mud_environment": true,
+  "dependencies": [],
+  "timeout_seconds": 30,
+  "tests": [
+    {
+      "name": "olcfw_editor_table_count",
+      "description": "Test editor table has minimum expected entries",
+      "dependencies": [],
+      "test_type": "olcfw_editor_table_count",
+      "input": {
+        "min_editor_count": 20
+      },
+      "expected_output": {
+        "count_sufficient": true
+      }
+    },
+    {
+      "name": "olcfw_editor_table_integrity", 
+      "description": "Test all editor table entries have valid names and function pointers",
+      "dependencies": [],
+      "test_type": "olcfw_editor_table_integrity",
+      "input": {},
+      "expected_output": {
+        "all_entries_valid": true
+      }
+    },
+    {
+      "name": "olcfw_editor_name_table_sync",
+      "description": "Test editor name table is synchronized with editor constants",
+      "dependencies": [],
+      "test_type": "olcfw_editor_name_table_sync",
+      "input": {},
+      "expected_output": {
+        "tables_synchronized": true
+      }
+    },
+    {
+      "name": "olcfw_editor_lookup_known",
+      "description": "Test lookup of known editor commands",
+      "dependencies": [],
+      "test_type": "olcfw_editor_lookup_known",
+      "input": {
+        "known_editors": ["area", "room", "object", "mobile", "help", "race", "skill", "class"]
+      },
+      "expected_output": {
+        "all_editors_found": true
+      }
+    },
+    {
+      "name": "olcfw_editor_registry_basic",
+      "description": "Test basic editor registry functionality",
+      "dependencies": [],
+      "test_type": "olcfw_editor_registry_basic",
+      "input": {},
+      "expected_output": {
+        "constants_valid": true
+      }
+    },
+    {
+      "name": "olcfw_state_management_basic",
+      "description": "Test OLC editor state management functions",
+      "dependencies": [],
+      "test_type": "olcfw_state_management_basic",
+      "input": {},
+      "expected_output": {
+        "state_functions_work": true
+      }
+    }
+  ]
+}

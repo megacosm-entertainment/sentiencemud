@@ -122,12 +122,12 @@ bool json_load_changesets(const char *path)
 
         cs->id = (int)json_integer_value(json_object_get(cs_json, "id"));
 
-        str = json_string_value(json_object_get(cs_json, "author"));
+        str = json_get_string(cs_json, "author", "");
         cs->author = str_dup(str ? str : "");
 
         cs->timestamp = (time_t)json_integer_value(json_object_get(cs_json, "timestamp"));
 
-        str = json_string_value(json_object_get(cs_json, "comment"));
+        str = json_get_string(cs_json, "comment", "");
         cs->comment = str_dup(str ? str : "");
 
         cs->changes = list_create(false);
@@ -135,9 +135,9 @@ bool json_load_changesets(const char *path)
         changes_arr = json_object_get(cs_json, "changes");
         if (json_is_array(changes_arr)) {
             json_array_foreach(changes_arr, j, ch_json) {
-                const char *setting_name = json_string_value(json_object_get(ch_json, "setting"));
-                const char *old_val = json_string_value(json_object_get(ch_json, "old_value"));
-                const char *new_val = json_string_value(json_object_get(ch_json, "new_value"));
+                const char *setting_name = json_get_string(ch_json, "setting", "");
+                const char *old_val = json_get_string(ch_json, "old_value", "");
+                const char *new_val = json_get_string(ch_json, "new_value", "");
 
                 if (!setting_name || !*setting_name)
                     continue;

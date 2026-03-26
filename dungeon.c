@@ -35,7 +35,6 @@
 #include "mxp_links.h"
 
 
-INSTANCE *instance_load(FILE *fp);
 void update_instance(INSTANCE *instance);
 void reset_instance(INSTANCE *instance);
 SCRIPT_DATA *read_script_new( FILE *fp, AREA_DATA *area, int type);
@@ -2182,7 +2181,15 @@ void do_dungeon(CHAR_DATA *ch, char *argument)
             while((dungeon = (DUNGEON *)iterator_nextdata(&it)))
             {
                 sprintf(buf, "dungeon list: %ld, %s", dungeon->index->vnum, dungeon->index->name);
-                wiznet(buf,NULL,NULL,WIZ_TESTING,0,0);
+                log_event_t ev = {
+                    .severity = EVENT_SEV_INFO,
+                    .category = LOG_DEBUG,
+                    .plain_message = buf,
+                    .staff_message = buf,
+                    .wiznet_flag = WIZ_TESTING,
+                    .source_file = __FILE__, .source_line = __LINE__, .source_func = __func__,
+                };
+                log_emit_event(&ev, NULL);
 
                 char plr_str[21];
                 char idle_str[21];
@@ -2509,119 +2516,6 @@ void dungeon_tallyentities(DUNGEON *dungeon, INSTANCE *instance)
     list_appendlist(dungeon->bosses, instance->bosses);
 }
 
-DUNGEON *dungeon_load(FILE *fp)
-{
-    char *word;
-    bool fMatch;
-    AREA_DATA *area = NULL;
-
-    DUNGEON *dungeon = new_dungeon();
-    long vnum = fread_number(fp);
-    DUNGEON_INDEX_DATA *index = NULL;
-
-    while (str_cmp((word = fread_word(fp)), "#-DUNGEON"))
-    {
-        fMatch = false;
-
-        switch(word[0])
-        {
-        case '#':
-            if( !str_cmp(word, "#INSTANCE") )
-            {
-                INSTANCE *instance = instance_load(fp);
-
-                if( instance )
-                {
-                    instance->dungeon = dungeon;
-                    list_appendlink(dungeon->floors, instance);
-
-                    dungeon_tallyentities(dungeon, instance);
-                }
-
-                fMatch = true;
-                break;
-            }
-
-            break;
-
-        case 'A':
-            if( !str_cmp(word, "AreaUid") )
-            {
-                long area_uid = fread_number(fp);
-                area = get_area_from_uid(area_uid);
-                fMatch = true;
-                break;
-            }
-            break;
-
-        case 'F':
-            KEY("Flags", dungeon->flags, fread_number(fp));
-            break;
-
-        case 'I':
-            KEY("IdleTimer", dungeon->idle_timer, fread_number(fp));
-            break;
-
-        case 'P':
-            if( !str_cmp(word, "Player") )
-            {
-                unsigned long id1 = fread_number(fp);
-                unsigned long id2 = fread_number(fp);
-
-                dungeon_addowner_playerid(dungeon, id1, id2);
-
-                fMatch = true;
-                break;
-            }
-            break;
-
-        case 'U':
-            if( !str_cmp(word, "Uid") )
-            {
-                dungeon->uid[0] = fread_number(fp);
-                dungeon->uid[1] = fread_number(fp);
-
-                fMatch = true;
-                break;
-            }
-
-            break;
-        }
-
-        if (!fMatch) {
-            pbugf(LOG_ERROR, "dungeon_load: no match for word %.50s", word);
-        }
-    }
-
-    /* Resolve dungeon index - try area-scoped first, fall back to global */
-    if (area) {
-        index = get_dungeon_index_for_area(area, vnum);
-    }
-    if (!index) {
-        index = get_dungeon_index(vnum);
-    }
-
-    if (!index) {
-        log_stringf("dungeon_load: dungeon index %ld not found", vnum);
-        free_dungeon(dungeon);
-        return NULL;
-    }
-
-    dungeon->index = index;
-    dungeon->progs = new_prog_data();
-    dungeon->progs->progs = index->progs;
-    variable_copylist(&index->index_vars, &dungeon->progs->vars, false);
-
-    /* Use the resolved room pointers from the index */
-    dungeon->entry_room = index->entry_room;
-    dungeon->exit_room = index->exit_room;
-
-    log_stringf("dungeon_load: dungeon %ld loaded", dungeon->index->vnum);
-
-
-
-    return dungeon;
-}
 
 void resolve_dungeon_player(DUNGEON *dungeon, CHAR_DATA *ch)
 {

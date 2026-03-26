@@ -62,7 +62,7 @@ CHAT_OP_DATA *json_chat_op_deserialize(json_t *json)
     
     CHAT_OP_DATA *op = new_chat_op();
     
-    const char *name = json_string_value(json_object_get(json, "name"));
+    const char *name = json_get_string(json, "name", "");
     op->name = str_dup(name ? name : "");
     
     return op;
@@ -98,10 +98,10 @@ CHAT_BAN_DATA *json_chat_ban_deserialize(json_t *json)
     
     CHAT_BAN_DATA *ban = new_chat_ban();
     
-    const char *name = json_string_value(json_object_get(json, "name"));
+    const char *name = json_get_string(json, "name", "");
     ban->name = str_dup(name ? name : "");
     
-    const char *banned_by = json_string_value(json_object_get(json, "banned_by"));
+    const char *banned_by = json_get_string(json, "banned_by", "");
     ban->banned_by = str_dup(banned_by ? banned_by : "");
     
     return ban;
@@ -169,16 +169,16 @@ CHAT_ROOM_DATA *json_chat_room_deserialize(json_t *json)
     CHAT_ROOM_DATA *chat = new_chat_room();
     
     // Basic fields
-    const char *name = json_string_value(json_object_get(json, "name"));
+    const char *name = json_get_string(json, "name", "");
     chat->name = str_dup(name ? name : "");
     
-    const char *topic = json_string_value(json_object_get(json, "topic"));
+    const char *topic = json_get_string(json, "topic", "");
     chat->topic = str_dup(topic ? topic : "<not set>");
     
-    const char *password = json_string_value(json_object_get(json, "password"));
+    const char *password = json_get_string(json, "password", "");
     chat->password = str_dup(password ? password : "none");
     
-    const char *created_by = json_string_value(json_object_get(json, "created_by"));
+    const char *created_by = json_get_string(json, "created_by", "");
     chat->created_by = str_dup(created_by ? created_by : "");
     
     chat->max_people = json_integer_value(json_object_get(json, "max_people"));

@@ -1402,7 +1402,6 @@ void load_wilds( FILE *fp, AREA_DATA *pArea )
                     if (pWilds->defaultPlaceFlags == NO_FLAG)
                         pWilds->defaultPlaceFlags = PLACE_NOWHERE;
                 }
-
                 break;
 
             case 'N':
@@ -1448,7 +1447,6 @@ void load_wilds( FILE *fp, AREA_DATA *pArea )
                     free_string(pWilds->wildgen_elevation_base);
                     pWilds->wildgen_elevation_base = fread_string(fp);
                 }
-
                 break;
 
             case 'U':
@@ -2788,16 +2786,36 @@ void show_map_to_char_wyx(WILDS_DATA *pWilds, int wx, int wy,
     const int row_size = (col_size * cols);
 
     char **map_str = malloc(rows * sizeof(char *));
-    for( int r = 0; r < rows; r++)
+    if (!map_str) return;
+    for( int r = 0; r < rows; r++) {
         map_str[r] = malloc(row_size);
+        if (!map_str[r]) {
+            for (int j = 0; j < r; j++) free(map_str[j]);
+            free(map_str);
+            return;
+        }
+    }
 
     char **olc_str = NULL;
 
     if( olc )
     {
         olc_str = malloc(rows * sizeof(char *));
-        for( int r = 0; r < rows; r++)
+        if (!olc_str) {
+            for (int r = 0; r < rows; r++) free(map_str[r]);
+            free(map_str);
+            return;
+        }
+        for( int r = 0; r < rows; r++) {
             olc_str[r] = malloc(cols + 1);
+            if (!olc_str[r]) {
+                for (int j = 0; j < r; j++) free(olc_str[j]);
+                free(olc_str);
+                for (int j = 0; j < rows; j++) free(map_str[j]);
+                free(map_str);
+                return;
+            }
+        }
     }
 
     // Create map data
@@ -3266,6 +3284,232 @@ void show_map_to_char_wyx(WILDS_DATA *pWilds, int wx, int wy,
     }
 
     return;
+}
+
+bool render_wilds_map_to_buffer(WILDS_DATA *pWilds, int wx, int wy,
+                                CHAR_DATA *ch, int bonus_view_x, int bonus_view_y,
+                                BUFFER **out_buf, int *out_width, int *out_height)
+{
+    WILDS_TERRAIN *pTerrain;
+    WILDS_VLINK *pVLink;
+    int x, y;
+    DESCRIPTOR_DATA *d;
+    bool foundterrain = false;
+    char j[6];
+    char last_terrain[6];
+    char temp[6];
+    int squares_to_show_x;
+    int squares_to_show_y;
+    char last_colour_char;
+    int vp_startx, vp_starty, vp_endx, vp_endy;
+    ITERATOR it;
+    SHIP_DATA *ship;
+    extern LLIST *loaded_ships;
+
+    if (!pWilds || !ch || !out_buf)
+        return false;
+
+    BUFFER *output = new_buf();
+
+    squares_to_show_x = get_squares_to_show_x(bonus_view_x);
+    squares_to_show_y = get_squares_to_show_y(bonus_view_y);
+    last_colour_char = ' ';
+
+    vp_startx = wx - squares_to_show_x;
+    vp_endx   = wx + squares_to_show_x;
+    vp_starty = wy - squares_to_show_y;
+    vp_endy   = wy + squares_to_show_y;
+
+    const int cols = 2 * squares_to_show_x + 1;
+    const int rows = 2 * squares_to_show_y + 1;
+    const int col_size = 2;
+    const int row_size = (col_size * cols);
+
+    char **map_str = malloc(rows * sizeof(char *));
+    if (!map_str) {
+        free_buf(output);
+        return false;
+    }
+    for (int r = 0; r < rows; r++) {
+        map_str[r] = malloc(row_size);
+        if (!map_str[r]) {
+            for (int fj = 0; fj < r; fj++) free(map_str[fj]);
+            free(map_str);
+            free_buf(output);
+            return false;
+        }
+    }
+
+    last_terrain[0] = '\0';
+
+    /* Create map data — terrain */
+    for (y = vp_starty; y <= vp_endy; y++) {
+        char *mp = map_str[y - vp_starty];
+
+        for (x = vp_startx; x <= vp_endx; x++) {
+            if (x >= 0 && x < pWilds->map_size_x && y >= 0 && y < pWilds->map_size_y) {
+                {
+                    char tile = get_wilds_effective_tile(pWilds, x, y);
+                    sprintf(j, "%c", tile);
+                }
+                if (!str_cmp(j, last_terrain)) {
+                    sprintf(temp, last_terrain);
+                } else {
+                    foundterrain = false;
+                    for (pTerrain = pWilds->pTerrain; pTerrain; pTerrain = pTerrain->next) {
+                        if (j[0] == pTerrain->mapchar) {
+                            sprintf(temp, pTerrain->showchar);
+                            sprintf(last_terrain, temp);
+                            foundterrain = true;
+                        }
+                    }
+
+                    if (!foundterrain) {
+                        if (!strcmp(j, "0"))
+                            sprintf(temp, "{YO");
+                        else
+                            sprintf(temp, j);
+                    }
+                }
+
+                *mp++ = temp[1];
+                *mp++ = temp[2];
+            } else {
+                *mp++ = 'x';
+                if (x % 5 + y % 6 == 0 && x % 2 + y % 3 == 0)
+                    *mp++ = '.';
+                else
+                    *mp++ = ' ';
+            }
+        }
+    }
+
+    /* Overlay markers — vlinks */
+    for (pVLink = pWilds->pVLink; pVLink; pVLink = pVLink->next) {
+        int vx = get_wilds_vroom_x_by_dir(pWilds, pVLink->wildsorigin_x, pVLink->wildsorigin_y, pVLink->door);
+        int vy = get_wilds_vroom_y_by_dir(pWilds, pVLink->wildsorigin_x, pVLink->wildsorigin_y, pVLink->door);
+
+        if ((vx >= vp_startx && vx <= vp_endx) &&
+            (vy >= vp_starty && vy <= vp_endy)) {
+            set_map_tile(map_str, vx - vp_startx, vy - vp_starty, pVLink->map_tile[1], pVLink->map_tile[2]);
+        }
+    }
+
+    /* Overlay markers — objects and mobiles */
+    {
+        ROOM_INDEX_DATA *pVroom;
+        iterator_start(&it, pWilds->loaded_vrooms);
+        while ((pVroom = (ROOM_INDEX_DATA *)iterator_nextdata(&it))) {
+            if ((pVroom->x >= vp_startx && pVroom->x <= vp_endx) &&
+                (pVroom->y >= vp_starty && pVroom->y <= vp_endy)) {
+                bool found = false;
+                for (CHAR_DATA *mob = pVroom->people; mob; mob = mob->next_in_room) {
+                    if (IS_NPC(mob) && IS_SET(mob->act[1], ACT2_SHOW_IN_WILDS)) {
+                        found = true;
+                        break;
+                    }
+                }
+
+                if (found) {
+                    set_map_tile(map_str, pVroom->x - vp_startx, pVroom->y - vp_starty, 'Y', '@');
+                    continue;
+                }
+
+                for (OBJ_DATA *obj = pVroom->contents; obj; obj = obj->next_content) {
+                    if (IS_SET(obj->extra[2], ITEM_SHOW_IN_WILDS)) {
+                        found = true;
+                        break;
+                    }
+                }
+
+                if (found) {
+                    set_map_tile(map_str, pVroom->x - vp_startx, pVroom->y - vp_starty, 'Y', '*');
+                }
+            }
+        }
+        iterator_stop(&it);
+    }
+
+    /* Overlay markers — players */
+    for (d = descriptor_list; d != NULL; d = d->next) {
+        if (d->connected == CON_PLAYING && d->character != ch &&
+            can_see(ch, d->character) &&
+            (d->character->in_room->wilds == pWilds ||
+                (d->character->in_room->viewwilds == pWilds && IS_SET(d->character->in_room->room_flag[1], ROOM_VISIBLE_ON_MAP))) &&
+            (d->character->in_room->x >= vp_startx && d->character->in_room->x <= vp_endx) &&
+            (d->character->in_room->y >= vp_starty && d->character->in_room->y <= vp_endy)) {
+            set_map_tile(map_str, d->character->in_room->x - vp_startx, d->character->in_room->y - vp_starty, 'W', '@');
+        }
+    }
+
+    /* Overlay markers — ships */
+    iterator_start(&it, loaded_ships);
+    while ((ship = (SHIP_DATA *)iterator_nextdata(&it))) {
+        if (!ship->ship || !ship->ship->in_room)
+            continue;
+
+        if (ship->ship->in_room->wilds == pWilds &&
+            (ship->ship->in_room->x >= vp_startx && ship->ship->in_room->x <= vp_endx) &&
+            (ship->ship->in_room->y >= vp_starty && ship->ship->in_room->y <= vp_endy)) {
+            get_ship_wildsicon(ship, temp, sizeof(temp) - 1);
+            set_map_tile(map_str, ship->ship->in_room->x - vp_startx, ship->ship->in_room->y - vp_starty, temp[1], temp[2]);
+        }
+
+        for (int i = 0; i < 3; i++) {
+            WILDS_COORD wc = ship->last_coords[i];
+            if (wc.wilds == pWilds &&
+                (wc.x >= vp_startx && wc.x <= vp_endx) &&
+                (wc.y >= vp_starty && wc.y <= vp_endy)) {
+                set_map_tile(map_str, wc.x - vp_startx, wc.y - vp_starty, 'C', '~');
+            }
+        }
+    }
+    iterator_stop(&it);
+
+    /* Overlay viewer position */
+    if ((wx >= vp_startx && wx <= vp_endx) &&
+        (wy >= vp_starty && wy <= vp_endy)) {
+        set_map_tile(map_str, wx - vp_startx, wy - vp_starty, 'M', '@');
+    }
+
+    /* Render to buffer with color optimization */
+    last_colour_char = ' ';
+    for (y = 0; y < rows; y++) {
+        char *mp = map_str[y];
+
+        for (x = 0; x < cols; x++, mp += col_size) {
+            char color = mp[0];
+            char tile = mp[1];
+
+            if (color != last_colour_char) {
+                temp[0] = '{';
+                temp[1] = color;
+                temp[2] = tile;
+                temp[3] = '\0';
+                last_colour_char = color;
+            } else {
+                temp[0] = tile;
+                temp[1] = '\0';
+            }
+
+            add_buf(output, temp);
+        }
+
+        add_buf(output, "\n\r");
+    }
+
+    add_buf(output, "{x");
+
+    /* Cleanup map arrays */
+    for (int r = 0; r < rows; r++)
+        free(map_str[r]);
+    free(map_str);
+
+    /* Return buffer and dimensions */
+    *out_buf = output;
+    if (out_width)  *out_width = cols;
+    if (out_height) *out_height = rows;
+    return true;
 }
 
 void show_map_to_char(CHAR_DATA * ch, CHAR_DATA * to, int bonus_view_x, int bonus_view_y, bool olc)
@@ -3989,6 +4233,8 @@ WILDS_DATA *new_wilds (void)
     pWilds->wildgen_tile_height = 0;
     pWilds->wildgen_terrain_base = str_dup("");
     pWilds->wildgen_elevation_base = str_dup("");
+    pWilds->wildgen_bitdepth = 0;
+    pWilds->default_elevation = 0;
     VALIDATE (pWilds);
 
     return pWilds;
@@ -4106,6 +4352,27 @@ void char_to_vroom (CHAR_DATA *ch, WILDS_DATA *pWilds, int x, int y)
     && MOUNTED(ch)->in_room == NULL)
     char_to_vroom(MOUNTED(ch), pWilds, x, y);
 
+
+    /* Safety: if the character is already on a room's people list, remove
+     * them first. char_to_vroom bypasses char_from_room, so without this
+     * guard a character could end up on two rooms' people lists. */
+    if (ch->in_room != NULL)
+    {
+        CHAR_DATA *scan;
+        bool on_list = false;
+        for (scan = ch->in_room->people; scan; scan = scan->next_in_room)
+        {
+            if (scan == ch) { on_list = true; break; }
+        }
+        if (on_list)
+        {
+            pbugf(LOG_ERROR,
+                "char_to_vroom: %s already on people list of room %ld, removing first.",
+                IS_NPC(ch) ? ch->short_descr : ch->name,
+                ch->in_room->vnum);
+            char_from_room(ch);
+        }
+    }
 
     ch->in_wilds = pWilds;
     ch->at_wilds_x = x;

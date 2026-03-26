@@ -204,6 +204,18 @@ Collect and monitor:
 - Flee frequency and re-engage timing
 - Dispel impact on win/loss outcomes
 
+Data sources for Phase 0 (priority order during low-population periods):
+
+1. **Synthetic combat suites** (scripted PvE/PvP scenarios with fixed seeds and controlled loadouts)
+2. **Automated bot-vs-bot/party-vs-party runs** in test harness mode
+3. **Targeted staff playtests** with scenario templates
+4. **Live telemetry** (when population supports statistically meaningful samples)
+
+Operational note:
+
+- Live player telemetry is valuable but **not required** to proceed through early tuning gates while the game is dormant or while progression systems are in active rebalance.
+- Phase gates should accept synthetic baselines first, then tighten with live validation once population recovers.
+
 ## Phase 1 - Stability Patches
 
 - Fix known flee-retaliation/threat continuity issues.
@@ -227,6 +239,8 @@ Collect and monitor:
 - Introduce encounter/participant tracking model.
 - Add NPC threat tracking and pursuit/disengage logic.
 - Prepare for attack-table-driven NPC behavior and party role AI.
+
+See `PLAN_COMBAT_ENTITY.md` for the detailed design of the `COMBAT_DATA` / `ENGAGEMENT_DATA` structure that implements this phase.
 
 ## Phase 5 - Progression/Scaling Alignment
 

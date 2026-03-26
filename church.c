@@ -1842,18 +1842,16 @@ void do_chtalk(CHAR_DATA *ch, char *argument)
  */
 char *get_chrank(CHURCH_PLAYER_DATA *member)
 {
-    // Check for null pointers to avoid crashes
     if (member == NULL || member->church == NULL || member->rank == NULL)
         return "Unknown";
 
-    // Return the appropriate gender-specific rank name
-    // TODO: Migrate to pronoun system
-    if (member->sex == SEX_FEMALE && member->rank->title_female)
-        return member->rank->title_female;
-    else if (member->sex == SEX_NEUTRAL && member->rank->title_neutral)
-        return member->rank->title_neutral;
-    else
-        return member->rank->title_male;
+    // Use the rank's base name as the display title.
+    // Legacy sex-based titles (title_male/female/neutral) are no longer
+    // populated by JSON loading, so we always use rank_name.
+    if (member->rank->rank_name)
+        return member->rank->rank_name;
+
+    return "Unknown";
 }
 
 

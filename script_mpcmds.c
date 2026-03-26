@@ -947,7 +947,13 @@ SCRIPT_CMD(do_mpcast)
     default: sn = 0; break;
     }
 
-    if (sn < 1 || skill_table[sn].spell_fun == spell_null || sn > MAX_SKILL) {
+    if (sn < 1 || sn > MAX_SKILL) {
+        pbugf(LOG_SCRIPTS, "MpCast - No such spell from vnum %d.", VNUM(info->mob));
+        return;
+    }
+
+    SKILL_DATA *cast_sk = skill_find_uid(sn);
+    if (!cast_sk || cast_sk->spell_fun == spell_null) {
         pbugf(LOG_SCRIPTS, "MpCast - No such spell from vnum %d.", VNUM(info->mob));
         return;
     }
@@ -969,7 +975,7 @@ SCRIPT_CMD(do_mpcast)
         }
     }
 
-    switch (skill_table[sn].target) {
+    switch (cast_sk->target) {
     default: return;
     case TAR_IGNORE: break;
     case TAR_CHAR_OFFENSIVE:
@@ -988,7 +994,7 @@ SCRIPT_CMD(do_mpcast)
         if (!obj) return;
         to = obj;
     }
-    (*skill_table[sn].spell_fun)(skill_find_uid(sn), info->mob->level, info->mob, to, skill_table[sn].target, WEAR_NONE, INVOC_INTERNAL);
+    (*cast_sk->spell_fun)(cast_sk, info->mob->level, info->mob, to, cast_sk->target, WEAR_NONE, INVOC_INTERNAL);
     return;
 }
 
@@ -3592,6 +3598,7 @@ SCRIPT_CMD(do_mpaddaffectname)
     af.group	= group;
     af.where     = where;
     af.type      = -1;
+    af.skill     = NULL;
     af.location  = loc;
     af.modifier  = mod;
     af.level     = level;
@@ -3880,7 +3887,15 @@ SCRIPT_CMD(do_mpalterexit)
 
     if(script_security < min_sec) {
         sprintf(buf,"MpAlterExit - Attempting to alter '%s' with security %d.\n\r", field, script_security);
-        wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
+        log_event_t ev = {
+            .severity = EVENT_SEV_WARN,
+            .category = LOG_SCRIPTS,
+            .plain_message = buf,
+            .staff_message = buf,
+            .wiznet_flag = WIZ_SCRIPTS,
+            .source_file = __FILE__, .source_line = __LINE__, .source_func = __func__,
+        };
+        log_emit_event(&ev, NULL);
         pbug(LOG_SCRIPTS, buf);
         return;
     }
@@ -4664,7 +4679,6 @@ SCRIPT_CMD(do_mpskillgroup)
 
     char *rest;
     CHAR_DATA *mob = NULL;
-    int gn;
     bool fAdd = false;
 
     if(!info || !info->mob || IS_NULLSTR(argument)) return;
@@ -4695,18 +4709,16 @@ SCRIPT_CMD(do_mpskillgroup)
 
     if(arg->type != ENT_STRING) return;
 
-    gn = group_lookup(arg->d.str);
-    if( gn != -1)
     {
-        if( fAdd )
-        {
-            if( !mob->pcdata->group_known[gn] )
-                gn_add(mob,gn);
-        }
-        else
-        {
-            if( mob->pcdata->group_known[gn] )
-                gn_remove(mob,gn);
+        SKILL_GROUP *sg = group_lookup(arg->d.str);
+        if (sg) {
+            if (fAdd) {
+                if (!char_knows_group(mob, sg))
+                    gn_add(mob, sg);
+            } else {
+                if (char_knows_group(mob, sg))
+                    gn_remove(mob, sg);
+            }
         }
     }
 
