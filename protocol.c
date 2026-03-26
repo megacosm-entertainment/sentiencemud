@@ -4405,13 +4405,15 @@ void SendGMCPRaw( descriptor_t *apDescriptor, const char *package, const char *j
    /* WebSocket: send as plain text frame (no telnet IAC framing) */
    if ( !descriptor_uses_telnet_iac(apDescriptor) )
    {
-      /* "package json\n\r\0" */
-      size_t need = pkg_len + 1 + json_len + 2 + 1;
+      /* "package json\0" — no trailing \n\r; the web client parses
+       * GMCP lines by package prefix, and a newline here would appear
+       * as a visible blank line in the output stream. */
+      size_t need = pkg_len + 1 + json_len + 1;
       char *buf = alloc_mem(need);
 
       if ( !apDescriptor->fcommand && apDescriptor->pProtocol->WriteOOB <= 0 )
          apDescriptor->pProtocol->WriteOOB = 2;
-      snprintf( buf, need, "%s %s\n\r", package, json_body );
+      snprintf( buf, need, "%s %s", package, json_body );
       write_to_buffer( apDescriptor, buf, 0 );
       free_mem( buf, need );
       return;
