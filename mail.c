@@ -189,7 +189,7 @@ void do_mailshow(CHAR_DATA *ch, char *argument)
         sprintf(buf, "{Y%2d{x %-36s %-4d\n\r", i, obj->short_descr, get_obj_weight(obj));
         else
     {
-        sprintf(buf, "{Y%2d{x %-30.30s{Y[{x%-2d{Y]{x   %-4ld\n\r", i, obj->short_descr,
+        sprintf(buf, "{Y%2d{x %-30.30s{Y[{x%-2d{Y]{x   %-4d\n\r", i, obj->short_descr,
             count_items_list_nest(obj->contains), (get_obj_weight_container(obj) * WEIGHT_MULT(obj))/100);
     }
 
