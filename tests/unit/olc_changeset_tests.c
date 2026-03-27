@@ -145,6 +145,7 @@ static test_result_t test_olccs_clear(test_case_t *test)
 
     olc_changeset_clear(cs);
     TEST_ASSERT_INT_EQ(0, olc_changeset_count(cs));
+    TEST_ASSERT_FALSE(cs->is_dirty);
 
     json_decref(old_val);
     json_decref(new_val);

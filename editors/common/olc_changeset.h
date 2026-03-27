@@ -15,7 +15,7 @@
 
 /* Safety limits */
 #define OLC_MAX_PENDING_PER_ENTITY  100
-#define OLC_MAX_PENDING_PER_BUILDER 500
+#define OLC_MAX_PENDING_PER_BUILDER 500  /* enforced at staging call sites */
 #define OLC_MAX_DRAFT_SIZE          (64 * 1024)
 
 /**
@@ -63,6 +63,7 @@ typedef struct olc_changeset {
 
 /**
  * A group of committed changesets with metadata.
+ * Lifecycle functions added in commit flow (Task 7).
  */
 typedef struct olc_changeset_group {
     int              group_id;

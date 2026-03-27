@@ -273,6 +273,9 @@ void olc_changeset_clear(olc_changeset_t *cs)
         olc_pending_change_destroy(change);
     }
     iterator_stop(&it);
+
+    cs->updated_at = current_time;
+    cs->is_dirty = false;
 }
 
 /*
