@@ -1,0 +1,87 @@
+{
+    "type": "test_suite",
+    "test_suite": "gmcp_editor_tests",
+    "description": "GMCP Editor Protocol message builder and entity ID tests",
+    "version": "1.0",
+    "requires_mud_environment": false,
+    "test_level": "integration",
+    "tests": [
+        {
+            "name": "gmcped_build_field",
+            "test_type": "gmcped_build_field",
+            "description": "Build Editor.Field JSON message",
+            "input": {},
+            "expected_output": { "success": true }
+        },
+        {
+            "name": "gmcped_build_close",
+            "test_type": "gmcped_build_close",
+            "description": "Build Editor.Close JSON message",
+            "input": {},
+            "expected_output": { "success": true }
+        },
+        {
+            "name": "gmcped_build_error",
+            "test_type": "gmcped_build_error",
+            "description": "Build Editor.Error JSON message",
+            "input": {},
+            "expected_output": { "success": true }
+        },
+        {
+            "name": "gmcped_build_commit_result",
+            "test_type": "gmcped_build_commit_result",
+            "description": "Build Editor.CommitResult JSON message",
+            "input": {},
+            "expected_output": { "success": true }
+        },
+        {
+            "name": "gmcped_build_state",
+            "test_type": "gmcped_build_state",
+            "description": "Build Editor.State JSON with pending changes",
+            "input": {},
+            "expected_output": { "success": true }
+        },
+        {
+            "name": "gmcped_build_state_empty",
+            "test_type": "gmcped_build_state_empty",
+            "description": "Build Editor.State JSON with no changeset",
+            "input": {},
+            "expected_output": { "success": true }
+        },
+        {
+            "name": "gmcped_build_group_commit",
+            "test_type": "gmcped_build_group_commit",
+            "description": "Build group commit result JSON message",
+            "input": {},
+            "expected_output": { "success": true }
+        },
+        {
+            "name": "gmcped_entity_id_room",
+            "test_type": "gmcped_entity_id_room",
+            "description": "Format entity ID for room (type:auid#vnum)",
+            "input": {},
+            "expected_output": { "success": true }
+        },
+        {
+            "name": "gmcped_entity_id_area",
+            "test_type": "gmcped_entity_id_area",
+            "description": "Format entity ID for area (area:auid)",
+            "input": {},
+            "expected_output": { "success": true }
+        },
+        {
+            "name": "gmcped_entity_id_parse",
+            "test_type": "gmcped_entity_id_parse",
+            "description": "Parse entity ID roundtrip and error cases",
+            "input": {},
+            "expected_output": { "success": true }
+        },
+        {
+            "name": "gmcped_build_field_null",
+            "test_type": "gmcped_build_field_null",
+            "description": "Build Editor.Field with NULL value",
+            "input": {},
+            "expected_output": { "success": true }
+        }
+    ]
+}

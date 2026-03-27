@@ -77,7 +77,8 @@
             "reset_cross_area_tests",
             "gmcp_sentience_unit_tests",
             "sentience_link_unit_tests",
-            "olc_changeset_unit_tests"
+            "olc_changeset_unit_tests",
+            "gmcp_editor_tests"
         ],
         "unit_only_suites": [
             "core_string_unit_tests",

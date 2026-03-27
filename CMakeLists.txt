@@ -131,6 +131,7 @@ set(SOURCE_FILES
     protocol_telnet.c
     protocol_websocket.c
     gmcp_sentience.c
+    gmcp_editor.c
     sentience_link.c
     db.c
     db2.c
@@ -330,6 +331,7 @@ if(BUILD_TESTS)
         tests/unit/gmcp_sentience_tests.c
         tests/unit/sentience_link_tests.c
         tests/unit/olc_changeset_tests.c
+        tests/integration/gmcp_editor_tests.c
         tests/framework/test_framework.c
         tests/framework/test_loader.c
         tests/framework/test_dispatcher.c

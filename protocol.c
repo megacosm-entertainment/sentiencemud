@@ -28,6 +28,7 @@
 
 #include "protocol.h"
 #include "gmcp_sentience.h"
+#include "gmcp_editor.h"
 #include "account/preferences.h"
 
 /******************************************************************************
@@ -3371,6 +3372,14 @@ const struct gmcp_receive_struct GMCPReceiveTable[GMCP_RECEIVE_MAX+1] =
    { GMCP_EXTERNAL_DISCORD_GET,		"External.Discord.Get"				},
    { GMCP_SENTIENCE_CLIENT_PREFERENCES,	"Sentience.Client.Preferences"		},
    { GMCP_SENTIENCE_CLIENT_LAYOUT,      "Sentience.Client.Layout"           },
+   { GMCP_SENTIENCE_EDITOR_SET,          "Sentience.Editor.Set"              },
+   { GMCP_SENTIENCE_EDITOR_COMMIT,       "Sentience.Editor.Commit"           },
+   { GMCP_SENTIENCE_EDITOR_REVERT,       "Sentience.Editor.Revert"           },
+   { GMCP_SENTIENCE_EDITOR_REQUEST,      "Sentience.Editor.Request"          },
+   { GMCP_SENTIENCE_EDITOR_STRING_SAVE,  "Sentience.Editor.StringEdit.Save"  },
+   { GMCP_SENTIENCE_EDITOR_STRING_CANCEL,"Sentience.Editor.StringEdit.Cancel"},
+   { GMCP_SENTIENCE_EDITOR_DRAFT_SAVE,   "Sentience.Editor.Draft.Save"       },
+   { GMCP_SENTIENCE_EDITOR_DRAFT_LOAD,   "Sentience.Editor.Draft.Load"       },
 
    { GMCP_RECEIVE_MAX,					"",									}
 };
@@ -4235,6 +4244,23 @@ cleanup_account:
              break;
          if (tokens > 1 && t[1].type == JSMN_OBJECT)
              sentience_handle_client_layout(apDescriptor, string + t[1].start);
+      }
+      break;
+
+      case GMCP_SENTIENCE_EDITOR_SET:
+      case GMCP_SENTIENCE_EDITOR_COMMIT:
+      case GMCP_SENTIENCE_EDITOR_REVERT:
+      case GMCP_SENTIENCE_EDITOR_REQUEST:
+      case GMCP_SENTIENCE_EDITOR_STRING_SAVE:
+      case GMCP_SENTIENCE_EDITOR_STRING_CANCEL:
+      case GMCP_SENTIENCE_EDITOR_DRAFT_SAVE:
+      case GMCP_SENTIENCE_EDITOR_DRAFT_LOAD:
+      {
+         if (!apDescriptor->character || IS_NPC(apDescriptor->character))
+             break;
+         if (tokens > 1 && t[1].type == JSMN_OBJECT)
+             sentience_handle_editor(apDescriptor, GMCPReceiveTable[i].module,
+                                     string + t[1].start);
       }
       break;
    }

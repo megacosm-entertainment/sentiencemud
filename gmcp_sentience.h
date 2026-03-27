@@ -37,9 +37,10 @@ typedef enum {
     SENTIENCE_DIRTY_REPUTATIONS = (1 << 11),
     SENTIENCE_DIRTY_CHURCH      = (1 << 12),
     SENTIENCE_DIRTY_RACE        = (1 << 13),
+    SENTIENCE_DIRTY_EDITOR      = (1 << 14),
 } sentience_dirty_t;
 
-#define SENTIENCE_DIRTY_ALL  0x3FFF
+#define SENTIENCE_DIRTY_ALL  0x7FFF
 
 #define SENTIENCE_PACKAGE_VERSION 1
 
