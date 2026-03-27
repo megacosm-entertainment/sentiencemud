@@ -40,4 +40,42 @@ bool olc_is_field_staged(olc_changeset_t *cs, const char *field);
 /** Pending marker prefix: "{Y*{x " if field is staged, "" if not. */
 const char *olc_staged_marker(olc_changeset_t *cs, const char *field);
 
+/* =========================================================================
+ * Active Changeset Lookup
+ * ========================================================================= */
+
+struct olc_editor_def;  /* forward declaration to avoid circular include */
+
+/**
+ * Get the active changeset for the current editor session.
+ * Returns NULL if not in staged mode or no changeset found.
+ */
+olc_changeset_t *olc_get_active_changeset(CHAR_DATA *ch,
+    const struct olc_editor_def *def);
+
+/**
+ * Check staging safety limits. Returns true if OK, false if limit hit
+ * (and sends error message to ch).
+ */
+bool olc_check_staging_limits(CHAR_DATA *ch, olc_changeset_t *cs);
+
+/* =========================================================================
+ * Staged Editor Commands
+ * ========================================================================= */
+
+/** Handle 'commit [comment]' — apply all pending, save entity, record history. */
+void olc_staged_cmd_commit(CHAR_DATA *ch, const struct olc_editor_def *def,
+    void *pEdit, char *argument);
+
+/** Handle 'commit group [comment]' — commit all open staged editors atomically. */
+void olc_staged_cmd_commit_group(CHAR_DATA *ch, char *argument);
+
+/** Handle 'revert [field]' — discard pending changes. */
+void olc_staged_cmd_revert(CHAR_DATA *ch, const struct olc_editor_def *def,
+    void *pEdit, char *argument);
+
+/** Handle 'pending' — show table of pending changes. */
+void olc_staged_cmd_pending(CHAR_DATA *ch, const struct olc_editor_def *def,
+    void *pEdit);
+
 #endif /* !def __OLC_STAGED_H__ */

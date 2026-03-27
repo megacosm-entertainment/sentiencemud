@@ -6,6 +6,8 @@
  */
 
 #include "olc_commands.h"
+#include "olc_editor.h"
+#include "olc_staged.h"
 #include "../common.h"
 
 #include <limits.h>
@@ -55,6 +57,25 @@ bool olc_cmd_string(CHAR_DATA *ch, char *argument, const char *label,
 
     /* Handle "clear" */
     if ((str_flags & OLC_STR_CLEARABLE) && !str_cmp(argument, "clear")) {
+        /* Staged mode: record clear as setting to empty string */
+        const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+        if (edef && edef->change_mode == OLC_CHANGE_STAGED) {
+            olc_changeset_t *cs = olc_get_active_changeset(ch, edef);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                json_t *old_val = json_string(*field_ptr ? *field_ptr : "");
+                json_t *new_val = json_string("");
+                olc_pending_change_t *result = olc_changeset_add_change(
+                    cs, label, OLC_FIELD_STRING, old_val, new_val);
+                json_decref(old_val);
+                json_decref(new_val);
+                if (result)
+                    printf_to_char(ch, "{G[STAGED]{x %s cleared.\n\r", label);
+                else
+                    printf_to_char(ch, "%s reverted to original value.\n\r", label);
+                return result != NULL;
+            }
+        }
         cmd_record(record_fn, ctx, ch, label, *field_ptr, "(cleared)");
         free_string(*field_ptr);
         *field_ptr = (str_flags & OLC_STR_CLEAR_NULL) ? NULL : &str_empty[0];
@@ -69,6 +90,28 @@ bool olc_cmd_string(CHAR_DATA *ch, char *argument, const char *label,
             return false;
 
         // Name has been validated according to game settings.
+    }
+
+    /* Staged mode: store change in overlay instead of writing directly */
+    {
+        const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+        if (edef && edef->change_mode == OLC_CHANGE_STAGED) {
+            olc_changeset_t *cs = olc_get_active_changeset(ch, edef);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                json_t *old_val = json_string(*field_ptr ? *field_ptr : "");
+                json_t *new_val = json_string(argument);
+                olc_pending_change_t *result = olc_changeset_add_change(
+                    cs, label, OLC_FIELD_STRING, old_val, new_val);
+                json_decref(old_val);
+                json_decref(new_val);
+                if (result)
+                    printf_to_char(ch, "{G[STAGED]{x %s set.\n\r", label);
+                else
+                    printf_to_char(ch, "%s reverted to original value.\n\r", label);
+                return result != NULL;
+            }
+        }
     }
 
     /* Set new value */
@@ -130,6 +173,28 @@ bool olc_cmd_number(CHAR_DATA *ch, char *argument, const char *label,
         return false;
     }
 
+    /* Staged mode: store change in overlay */
+    {
+        const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+        if (edef && edef->change_mode == OLC_CHANGE_STAGED) {
+            olc_changeset_t *cs = olc_get_active_changeset(ch, edef);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                json_t *old_val = json_integer(*field_ptr);
+                json_t *new_val = json_integer(value);
+                olc_pending_change_t *result = olc_changeset_add_change(
+                    cs, label, OLC_FIELD_INT, old_val, new_val);
+                json_decref(old_val);
+                json_decref(new_val);
+                if (result)
+                    printf_to_char(ch, "{G[STAGED]{x %s set to %d.\n\r", label, value);
+                else
+                    printf_to_char(ch, "%s reverted to original value.\n\r", label);
+                return result != NULL;
+            }
+        }
+    }
+
     cmd_record(record_fn, ctx, ch, label,
         formatf("%d", *field_ptr), formatf("%d", value));
     *field_ptr = value;
@@ -167,6 +232,28 @@ bool olc_cmd_number_i16(CHAR_DATA *ch, char *argument, const char *label,
         return false;
     }
 
+    /* Staged mode: store change in overlay */
+    {
+        const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+        if (edef && edef->change_mode == OLC_CHANGE_STAGED) {
+            olc_changeset_t *cs = olc_get_active_changeset(ch, edef);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                json_t *old_val = json_integer((int)*field_ptr);
+                json_t *new_val = json_integer(value);
+                olc_pending_change_t *result = olc_changeset_add_change(
+                    cs, label, OLC_FIELD_INT16, old_val, new_val);
+                json_decref(old_val);
+                json_decref(new_val);
+                if (result)
+                    printf_to_char(ch, "{G[STAGED]{x %s set to %d.\n\r", label, value);
+                else
+                    printf_to_char(ch, "%s reverted to original value.\n\r", label);
+                return result != NULL;
+            }
+        }
+    }
+
     cmd_record(record_fn, ctx, ch, label,
         formatf("%d", (int)*field_ptr), formatf("%d", value));
     *field_ptr = (int16_t)value;
@@ -200,6 +287,31 @@ bool olc_cmd_flag_toggle(CHAR_DATA *ch, char *argument, const char *label,
         send_to_char(label, ch);
         send_to_char("' for a list.\n\r", ch);
         return false;
+    }
+
+    /* Staged mode: compute toggle against staged (or live) value */
+    {
+        const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+        if (edef && edef->change_mode == OLC_CHANGE_STAGED) {
+            olc_changeset_t *cs = olc_get_active_changeset(ch, edef);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                long current = olc_staged_flags(cs, label, *field_ptr);
+                long toggled = current ^ value;
+                json_t *old_val = json_integer(*field_ptr);
+                json_t *new_val = json_integer(toggled);
+                olc_pending_change_t *result = olc_changeset_add_change(
+                    cs, label, OLC_FIELD_FLAGS, old_val, new_val);
+                json_decref(old_val);
+                json_decref(new_val);
+                if (result)
+                    printf_to_char(ch, "{G[STAGED]{x %s toggled. Current: %s\n\r",
+                        label, flag_string(flag_table, toggled));
+                else
+                    printf_to_char(ch, "%s reverted to original value.\n\r", label);
+                return result != NULL;
+            }
+        }
     }
 
     {
@@ -245,6 +357,29 @@ bool olc_cmd_type_set(CHAR_DATA *ch, char *argument, const char *label,
         return false;
     }
 
+    /* Staged mode */
+    {
+        const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+        if (edef && edef->change_mode == OLC_CHANGE_STAGED) {
+            olc_changeset_t *cs = olc_get_active_changeset(ch, edef);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                json_t *old_val = json_integer(*field_ptr);
+                json_t *new_val = json_integer(value);
+                olc_pending_change_t *result = olc_changeset_add_change(
+                    cs, label, OLC_FIELD_INT, old_val, new_val);
+                json_decref(old_val);
+                json_decref(new_val);
+                if (result)
+                    printf_to_char(ch, "{G[STAGED]{x %s set to: %s\n\r",
+                        label, flag_name(flag_table, value));
+                else
+                    printf_to_char(ch, "%s reverted to original value.\n\r", label);
+                return result != NULL;
+            }
+        }
+    }
+
     cmd_record(record_fn, ctx, ch, label,
         flag_name(flag_table, *field_ptr),
         flag_name(flag_table, value));
@@ -281,6 +416,29 @@ bool olc_cmd_type_set_i16(CHAR_DATA *ch, char *argument, const char *label,
         return false;
     }
 
+    /* Staged mode */
+    {
+        const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+        if (edef && edef->change_mode == OLC_CHANGE_STAGED) {
+            olc_changeset_t *cs = olc_get_active_changeset(ch, edef);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                json_t *old_val = json_integer((int)*field_ptr);
+                json_t *new_val = json_integer(value);
+                olc_pending_change_t *result = olc_changeset_add_change(
+                    cs, label, OLC_FIELD_INT16, old_val, new_val);
+                json_decref(old_val);
+                json_decref(new_val);
+                if (result)
+                    printf_to_char(ch, "{G[STAGED]{x %s set to: %s\n\r",
+                        label, flag_name(flag_table, value));
+                else
+                    printf_to_char(ch, "%s reverted to original value.\n\r", label);
+                return result != NULL;
+            }
+        }
+    }
+
     cmd_record(record_fn, ctx, ch, label,
         flag_name(flag_table, (int)*field_ptr),
         flag_name(flag_table, value));
@@ -301,8 +459,14 @@ bool olc_cmd_bool(CHAR_DATA *ch, char *argument, const char *label,
     bool new_val;
 
     if (IS_NULLSTR(argument)) {
-        /* Toggle */
-        new_val = !(*field_ptr);
+        /* Toggle — use staged value if in staged mode for correct toggle */
+        const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+        if (edef && edef->change_mode == OLC_CHANGE_STAGED) {
+            olc_changeset_t *cs = olc_get_active_changeset(ch, edef);
+            new_val = !olc_staged_bool(cs, label, *field_ptr);
+        } else {
+            new_val = !(*field_ptr);
+        }
     } else if (!str_cmp(argument, "yes") || !str_cmp(argument, "true")
             || !str_cmp(argument, "on")) {
         new_val = true;
@@ -317,6 +481,29 @@ bool olc_cmd_bool(CHAR_DATA *ch, char *argument, const char *label,
                                  "        %s          (toggles)\n\r",
                                  label, label), ch);
         return false;
+    }
+
+    /* Staged mode: store change in overlay */
+    {
+        const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+        if (edef && edef->change_mode == OLC_CHANGE_STAGED) {
+            olc_changeset_t *cs = olc_get_active_changeset(ch, edef);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                json_t *old_val = json_boolean(*field_ptr);
+                json_t *new_val_j = json_boolean(new_val);
+                olc_pending_change_t *result = olc_changeset_add_change(
+                    cs, label, OLC_FIELD_BOOL, old_val, new_val_j);
+                json_decref(old_val);
+                json_decref(new_val_j);
+                if (result)
+                    printf_to_char(ch, "{G[STAGED]{x %s set to %s.\n\r",
+                        label, new_val ? "Yes" : "No");
+                else
+                    printf_to_char(ch, "%s reverted to original value.\n\r", label);
+                return result != NULL;
+            }
+        }
     }
 
     cmd_record(record_fn, ctx, ch, label,

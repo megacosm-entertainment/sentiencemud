@@ -26,6 +26,7 @@
 #include "../../account/preferences.h"
 #include "../common.h"
 #include "olc_editor.h"
+#include "olc_staged.h"
 
 /* Internal helper: check if MXP is available for a character */
 static bool display_use_mxp(CHAR_DATA *ch)
@@ -903,11 +904,55 @@ void olc_editor_interp(CHAR_DATA *ch, char *argument, const OLC_EDITOR_DEF *def)
 
     /* --- "done" command --- */
     if (!str_cmp(command, "done")) {
+        if (def->change_mode == OLC_CHANGE_STAGED) {
+            olc_changeset_t *cs = olc_get_active_changeset(ch, def);
+            if (cs && olc_changeset_count(cs) > 0) {
+                printf_to_char(ch,
+                    "{YWarning:{x You have %d uncommitted change%s. "
+                    "Use '{Wcommit{x' to save or '{Wrevert{x' to discard.\n\r",
+                    olc_changeset_count(cs),
+                    olc_changeset_count(cs) == 1 ? "" : "s");
+                return;
+            }
+        }
         if (def->done_fn)
             def->done_fn(ch);
         else
             edit_done(ch);
         return;
+    }
+
+    /* --- Staged mode built-in commands --- */
+    if (def->change_mode == OLC_CHANGE_STAGED) {
+        if (!str_cmp(command, "commit")) {
+            char first_arg[MAX_INPUT_LENGTH];
+            char *commit_rest = one_argument(rest, first_arg);
+            if (!str_cmp(first_arg, "group"))
+                olc_staged_cmd_commit_group(ch, commit_rest);
+            else
+                olc_staged_cmd_commit(ch, def, ch->desc->pEdit, rest);
+            return;
+        }
+        if (!str_cmp(command, "revert")) {
+            olc_staged_cmd_revert(ch, def, ch->desc->pEdit, rest);
+            return;
+        }
+        if (!str_cmp(command, "pending")) {
+            olc_staged_cmd_pending(ch, def, ch->desc->pEdit);
+            return;
+        }
+        if (!str_cmp(command, "savedraft")) {
+            send_to_char("Draft saving not yet implemented.\n\r", ch);
+            return;
+        }
+        if (!str_cmp(command, "loaddraft")) {
+            send_to_char("Draft loading not yet implemented.\n\r", ch);
+            return;
+        }
+        if (!str_cmp(command, "discardraft")) {
+            send_to_char("Draft discarding not yet implemented.\n\r", ch);
+            return;
+        }
     }
 
     /* --- Built-in "history" command --- */
