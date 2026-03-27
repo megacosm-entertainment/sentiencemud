@@ -370,6 +370,11 @@ void olc_mark_changed(CHAR_DATA *ch, const OLC_EDITOR_DEF *def)
 
         case OLC_CHANGE_NONE:
             break;
+
+        case OLC_CHANGE_STAGED:
+            /* Staged mode: no automatic dirty marking. Changes accumulate in
+             * the changeset and are only applied on commit. */
+            break;
     }
 }
 
@@ -417,6 +422,61 @@ void olc_audit_logf(CHAR_DATA *ch, const OLC_EDITOR_DEF *def,
  * Editor Lifecycle
  * ========================================================================= */
 
+/**
+ * Extract entity WNUM from the edit pointer based on editor type.
+ */
+static WNUM_LOAD olc_get_entity_wnum(const OLC_EDITOR_DEF *def, void *pEdit)
+{
+    WNUM_LOAD wnum = { 0, 0 };
+    if (!pEdit) return wnum;
+
+    switch (def->editor_type) {
+        case ED_ROOM: {
+            ROOM_INDEX_DATA *r = (ROOM_INDEX_DATA *)pEdit;
+            wnum.auid = r->area->uid;
+            wnum.vnum = r->vnum;
+            break;
+        }
+        case ED_MOBILE: {
+            MOB_INDEX_DATA *m = (MOB_INDEX_DATA *)pEdit;
+            wnum.auid = m->area->uid;
+            wnum.vnum = m->vnum;
+            break;
+        }
+        case ED_OBJECT: {
+            OBJ_INDEX_DATA *o = (OBJ_INDEX_DATA *)pEdit;
+            wnum.auid = o->area->uid;
+            wnum.vnum = o->vnum;
+            break;
+        }
+        case ED_AREA: {
+            AREA_DATA *a = (AREA_DATA *)pEdit;
+            wnum.auid = a->uid;
+            wnum.vnum = 0;
+            break;
+        }
+        default:
+            break;
+    }
+    return wnum;
+}
+
+/**
+ * Extract a display label for the entity being edited.
+ */
+static const char *olc_get_entity_label(const OLC_EDITOR_DEF *def, void *pEdit)
+{
+    if (!pEdit) return "unknown";
+
+    switch (def->editor_type) {
+        case ED_ROOM:   return ((ROOM_INDEX_DATA *)pEdit)->name;
+        case ED_MOBILE: return ((MOB_INDEX_DATA *)pEdit)->short_descr;
+        case ED_OBJECT: return ((OBJ_INDEX_DATA *)pEdit)->short_descr;
+        case ED_AREA:   return ((AREA_DATA *)pEdit)->name;
+        default:        return "unknown";
+    }
+}
+
 void olc_editor_enter(CHAR_DATA *ch, const OLC_EDITOR_DEF *def,
                       void *pEdit, bool show_initial)
 {
@@ -439,6 +499,21 @@ void olc_editor_enter(CHAR_DATA *ch, const OLC_EDITOR_DEF *def,
 
     /* Set max tabs from the definition */
     ch->desc->nMaxEditTabs = def->tabs.count;
+
+    /* Initialize staged editing state if needed */
+    if (def->change_mode == OLC_CHANGE_STAGED && pEdit) {
+        if (!ch->desc->olc_state)
+            ch->desc->olc_state = olc_edit_state_create();
+
+        WNUM_LOAD wnum = olc_get_entity_wnum(def, pEdit);
+        olc_changeset_t *cs = olc_edit_state_find_changeset(
+            ch->desc->olc_state, def->editor_type, wnum);
+        if (!cs) {
+            const char *label = olc_get_entity_label(def, pEdit);
+            cs = olc_changeset_create(def->editor_type, wnum, label, ch->name);
+            list_addlink(ch->desc->olc_state->active_changesets, cs);
+        }
+    }
 
     /* Show initial display if requested */
     if (show_initial && def->show_fn) {

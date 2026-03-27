@@ -18,6 +18,7 @@
 #include "interp.h"
 #include "scripts.h"
 #include "skill_data.h"
+#include "editors/common/olc_changeset.h"
 #include "class_data.h"
 #include "traits.h"
 
@@ -387,6 +388,10 @@ void free_descriptor(DESCRIPTOR_DATA *d)
     if(d->input_var) free_string(d->input_var);
     if(d->input_prompt) free_string(d->input_prompt);
     if(d->inputString) free_string(d->inputString);
+    if (d->olc_state) {
+        olc_edit_state_destroy(d->olc_state);
+        d->olc_state = NULL;
+    }
     INVALIDATE(d);
     d->next = descriptor_free;
     descriptor_free = d;

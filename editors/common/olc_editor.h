@@ -25,6 +25,7 @@
 
 #include "../../merc.h"
 #include "../../olc.h"
+#include "olc_field_handlers.h"
 
 /* =========================================================================
  * Constants
@@ -168,7 +169,11 @@ typedef enum {
     OLC_CHANGE_CUSTOM,
 
     /** No change tracking (read-only or handled elsewhere). */
-    OLC_CHANGE_NONE
+    OLC_CHANGE_NONE,
+
+    /** Field-level overlay with commit semantics. Changes are staged
+     *  in memory and only applied to the live entity on commit. */
+    OLC_CHANGE_STAGED
 } olc_change_mode_t;
 
 /**
@@ -325,6 +330,9 @@ struct olc_editor_def {
      * If NULL, history/view are not available for this editor.
      */
     olc_get_history_fn      get_history_fn;
+
+    /* --- Staged mode configuration --- */
+    const struct olc_field_handler *field_handlers;  /**< Field handlers for staged commit (NULL-terminated, may be NULL) */
 };
 
 /* =========================================================================

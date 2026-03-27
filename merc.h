@@ -2025,6 +2025,7 @@ struct	descriptor_data
     char **             pString;	/* OLC */
     int			editor;		/* OLC */
     void *editor_ptr;    // For general use
+    struct olc_edit_state *olc_state;  /* Staged editing state (changesets, string sessions) */
 
 
     /* Input function */
