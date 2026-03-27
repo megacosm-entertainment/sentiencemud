@@ -1,199 +1,239 @@
 {
-    "type": "test_suite",
-    "test_suite": "olc_changeset_unit_tests",
-    "description": "Unit tests for OLC changeset core types and CRUD operations",
-    "version": "1.0",
-    "requires_mud_environment": false,
-    "test_level": "unit",
-    "tests": [
-        {
-            "name": "olccs_create_destroy",
-            "description": "Create a changeset, verify all fields, then destroy it",
-            "test_type": "olccs_create_destroy",
-            "input": {},
-            "expected_output": {
-                "success": true
-            }
-        },
-        {
-            "name": "olccs_add_find_remove",
-            "description": "Add a change, find it by field path, remove it, verify counts",
-            "test_type": "olccs_add_find_remove",
-            "input": {},
-            "expected_output": {
-                "success": true
-            }
-        },
-        {
-            "name": "olccs_update_in_place",
-            "description": "Update same field twice, verify original old_value is preserved",
-            "test_type": "olccs_update_in_place",
-            "input": {},
-            "expected_output": {
-                "success": true
-            }
-        },
-        {
-            "name": "olccs_noop_detection",
-            "description": "Verify no-op detection: same old/new and collapse back to original",
-            "test_type": "olccs_noop_detection",
-            "input": {},
-            "expected_output": {
-                "success": true
-            }
-        },
-        {
-            "name": "olccs_clear",
-            "description": "Add multiple changes, clear all, verify count is zero",
-            "test_type": "olccs_clear",
-            "input": {},
-            "expected_output": {
-                "success": true
-            }
-        },
-        {
-            "name": "olccs_safety_limit",
-            "description": "Fill to OLC_MAX_PENDING_PER_ENTITY and verify next add returns NULL",
-            "test_type": "olccs_safety_limit",
-            "input": {},
-            "expected_output": {
-                "success": true
-            }
-        },
-        {
-            "name": "olccs_edit_state_lifecycle",
-            "description": "Create edit state, add changesets, find, total pending, destroy",
-            "test_type": "olccs_edit_state_lifecycle",
-            "input": {},
-            "expected_output": {
-                "success": true
-            }
-        },
-        {
-            "name": "olccs_numeric_types",
-            "description": "Test integer, boolean, and flags field types with JSON values",
-            "test_type": "olccs_numeric_types",
-            "input": {},
-            "expected_output": {
-                "success": true
-            }
-        },
-        {
-            "name": "olccs_list_add_remove",
-            "description": "ADD then REMOVE for same list item collapses to no-op",
-            "test_type": "olccs_list_add_remove",
-            "input": {},
-            "expected_output": {
-                "success": true
-            }
-        },
-        {
-            "name": "olccs_list_add_update",
-            "description": "ADD then UPDATE for same item collapses to ADD with updated value",
-            "test_type": "olccs_list_add_update",
-            "input": {},
-            "expected_output": {
-                "success": true
-            }
-        },
-        {
-            "name": "olccs_list_remove_add",
-            "description": "REMOVE then ADD for same key collapses to UPDATE",
-            "test_type": "olccs_list_remove_add",
-            "input": {},
-            "expected_output": {
-                "success": true
-            }
-        },
-        {
-            "name": "olccs_list_update_update",
-            "description": "UPDATE then UPDATE keeps original old_value, updates new_value",
-            "test_type": "olccs_list_update_update",
-            "input": {},
-            "expected_output": {
-                "success": true
-            }
-        },
-        {
-            "name": "olccs_list_update_remove",
-            "description": "UPDATE then REMOVE collapses to REMOVE with original old_value",
-            "test_type": "olccs_list_update_remove",
-            "input": {},
-            "expected_output": {
-                "success": true
-            }
-        },
-        {
-            "name": "olccs_fh_lookup",
-            "description": "Look up field handlers by exact path",
-            "test_type": "olccs_fh_lookup",
-            "input": {},
-            "expected_output": {
-                "success": true
-            }
-        },
-        {
-            "name": "olccs_wildcard_match",
-            "description": "Wildcard field path matching (exits/* matches exits/north)",
-            "test_type": "olccs_wildcard_match",
-            "input": {},
-            "expected_output": {
-                "success": true
-            }
-        },
-        {
-            "name": "olccs_apply_string",
-            "description": "Generic string apply with free_string/str_dup",
-            "test_type": "olccs_apply_string",
-            "input": {},
-            "expected_output": {
-                "success": true
-            }
-        },
-        {
-            "name": "olccs_apply_int",
-            "description": "Generic int apply from JSON integer",
-            "test_type": "olccs_apply_int",
-            "input": {},
-            "expected_output": {
-                "success": true
-            }
-        },
-        {
-            "name": "olccs_apply_bool",
-            "description": "Generic bool apply from JSON boolean",
-            "test_type": "olccs_apply_bool",
-            "input": {},
-            "expected_output": {
-                "success": true
-            }
-        },
-        {
-            "name": "olccs_apply_flags",
-            "description": "Generic flags apply from JSON integer",
-            "test_type": "olccs_apply_flags",
-            "input": {},
-            "expected_output": {
-                "success": true
-            }
-        },
-        {
-            "name": "olccs_commit_basic",
-            "description": "Commit changeset applies all changes to entity",
-            "test_type": "olccs_commit_basic",
-            "input": {},
-            "expected_output": {
-                "success": true
-            }
-        },
-        {
-            "name": "olccs_revert",
-            "description": "Revert single field and revert all pending changes",
-            "test_type": "olccs_revert",
-            "input": {},
-            "expected_output": {
-                "success": true
-            }
-        }
-    ]
+  "type": "test_suite",
+  "test_suite": "olc_changeset_unit_tests",
+  "description": "Unit tests for OLC changeset core types and CRUD operations",
+  "version": "1.0",
+  "requires_mud_environment": false,
+  "test_level": "unit",
+  "tests": [
+    {
+      "name": "olccs_create_destroy",
+      "description": "Create a changeset, verify all fields, then destroy it",
+      "test_type": "olccs_create_destroy",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "olccs_add_find_remove",
+      "description": "Add a change, find it by field path, remove it, verify counts",
+      "test_type": "olccs_add_find_remove",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "olccs_update_in_place",
+      "description": "Update same field twice, verify original old_value is preserved",
+      "test_type": "olccs_update_in_place",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "olccs_noop_detection",
+      "description": "Verify no-op detection: same old/new and collapse back to original",
+      "test_type": "olccs_noop_detection",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "olccs_clear",
+      "description": "Add multiple changes, clear all, verify count is zero",
+      "test_type": "olccs_clear",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "olccs_safety_limit",
+      "description": "Fill to OLC_MAX_PENDING_PER_ENTITY and verify next add returns NULL",
+      "test_type": "olccs_safety_limit",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "olccs_edit_state_lifecycle",
+      "description": "Create edit state, add changesets, find, total pending, destroy",
+      "test_type": "olccs_edit_state_lifecycle",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "olccs_numeric_types",
+      "description": "Test integer, boolean, and flags field types with JSON values",
+      "test_type": "olccs_numeric_types",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "olccs_list_add_remove",
+      "description": "ADD then REMOVE for same list item collapses to no-op",
+      "test_type": "olccs_list_add_remove",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "olccs_list_add_update",
+      "description": "ADD then UPDATE for same item collapses to ADD with updated value",
+      "test_type": "olccs_list_add_update",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "olccs_list_remove_add",
+      "description": "REMOVE then ADD for same key collapses to UPDATE",
+      "test_type": "olccs_list_remove_add",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "olccs_list_update_update",
+      "description": "UPDATE then UPDATE keeps original old_value, updates new_value",
+      "test_type": "olccs_list_update_update",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "olccs_list_update_remove",
+      "description": "UPDATE then REMOVE collapses to REMOVE with original old_value",
+      "test_type": "olccs_list_update_remove",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "olccs_fh_lookup",
+      "description": "Look up field handlers by exact path",
+      "test_type": "olccs_fh_lookup",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "olccs_wildcard_match",
+      "description": "Wildcard field path matching (exits/* matches exits/north)",
+      "test_type": "olccs_wildcard_match",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "olccs_apply_string",
+      "description": "Generic string apply with free_string/str_dup",
+      "test_type": "olccs_apply_string",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "olccs_apply_int",
+      "description": "Generic int apply from JSON integer",
+      "test_type": "olccs_apply_int",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "olccs_apply_bool",
+      "description": "Generic bool apply from JSON boolean",
+      "test_type": "olccs_apply_bool",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "olccs_apply_flags",
+      "description": "Generic flags apply from JSON integer",
+      "test_type": "olccs_apply_flags",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "olccs_commit_basic",
+      "description": "Commit changeset applies all changes to entity",
+      "test_type": "olccs_commit_basic",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "olccs_revert",
+      "description": "Revert single field and revert all pending changes",
+      "test_type": "olccs_revert",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "olccs_staged_string",
+      "test_type": "olccs_staged_string",
+      "description": "Staged string preview returns staged value when pending",
+      "expected_result": "PASS",
+      "input": {},
+      "expected_output": {}
+    },
+    {
+      "name": "olccs_staged_int",
+      "test_type": "olccs_staged_int",
+      "description": "Staged int preview returns staged value when pending",
+      "expected_result": "PASS",
+      "input": {},
+      "expected_output": {}
+    },
+    {
+      "name": "olccs_staged_flags",
+      "test_type": "olccs_staged_flags",
+      "description": "Staged flags preview returns staged value when pending",
+      "expected_result": "PASS",
+      "input": {},
+      "expected_output": {}
+    },
+    {
+      "name": "olccs_staged_bool",
+      "test_type": "olccs_staged_bool",
+      "description": "Staged bool preview returns staged value when pending",
+      "expected_result": "PASS",
+      "input": {},
+      "expected_output": {}
+    },
+    {
+      "name": "olccs_is_field_staged",
+      "test_type": "olccs_is_field_staged",
+      "description": "olc_is_field_staged returns true only for changed fields",
+      "expected_result": "PASS",
+      "input": {},
+      "expected_output": {}
+    }
+  ]
 }

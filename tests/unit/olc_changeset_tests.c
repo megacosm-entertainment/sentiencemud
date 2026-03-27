@@ -7,6 +7,7 @@
 #include "../../olc.h"
 #include "../../editors/common/olc_changeset.h"
 #include "../../editors/common/olc_field_handlers.h"
+#include "../../editors/common/olc_staged.h"
 
 static test_result_t test_olccs_create_destroy(test_case_t *test)
 {
@@ -803,6 +804,115 @@ static test_result_t test_olccs_revert(test_case_t *test)
     return TEST_SUCCESS;
 }
 
+/* =========================================================================
+ * Preview Helper Tests
+ * ========================================================================= */
+
+static test_result_t test_staged_string(test_case_t *test)
+{
+    WNUM_LOAD wnum = { .auid = 5, .vnum = 3001 };
+    olc_changeset_t *cs = olc_changeset_create(ED_ROOM, wnum, "Test", "Builder");
+
+    /* No pending change → returns live value */
+    const char *result = olc_staged_string(cs, "name", "Live Name");
+    TEST_ASSERT_STR_EQ("Live Name", result);
+
+    /* Add pending change → returns staged value */
+    json_t *old_v = json_string("Live Name");
+    json_t *new_v = json_string("Staged Name");
+    olc_changeset_add_change(cs, "name", OLC_FIELD_STRING, old_v, new_v);
+
+    result = olc_staged_string(cs, "name", "Live Name");
+    TEST_ASSERT_STR_EQ("Staged Name", result);
+
+    /* NULL changeset → returns live value */
+    result = olc_staged_string(NULL, "name", "Live Name");
+    TEST_ASSERT_STR_EQ("Live Name", result);
+
+    json_decref(old_v);
+    json_decref(new_v);
+    olc_changeset_destroy(cs);
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_staged_int(test_case_t *test)
+{
+    WNUM_LOAD wnum = { .auid = 5, .vnum = 3001 };
+    olc_changeset_t *cs = olc_changeset_create(ED_ROOM, wnum, "Test", "Builder");
+
+    /* No change → live */
+    TEST_ASSERT_INT_EQ(100, olc_staged_int(cs, "heal_rate", 100));
+
+    /* With pending change */
+    json_t *old_v = json_integer(100);
+    json_t *new_v = json_integer(200);
+    olc_changeset_add_change(cs, "heal_rate", OLC_FIELD_INT, old_v, new_v);
+
+    TEST_ASSERT_INT_EQ(200, olc_staged_int(cs, "heal_rate", 100));
+
+    json_decref(old_v);
+    json_decref(new_v);
+    olc_changeset_destroy(cs);
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_staged_flags(test_case_t *test)
+{
+    WNUM_LOAD wnum = { .auid = 5, .vnum = 3001 };
+    olc_changeset_t *cs = olc_changeset_create(ED_ROOM, wnum, "Test", "Builder");
+
+    json_t *old_v = json_integer(0x03);
+    json_t *new_v = json_integer(0x0F);
+    olc_changeset_add_change(cs, "room_flags", OLC_FIELD_FLAGS, old_v, new_v);
+
+    long result = olc_staged_flags(cs, "room_flags", 0x03);
+    TEST_ASSERT_INT_EQ(0x0F, (int)result);
+
+    json_decref(old_v);
+    json_decref(new_v);
+    olc_changeset_destroy(cs);
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_staged_bool(test_case_t *test)
+{
+    WNUM_LOAD wnum = { .auid = 5, .vnum = 3001 };
+    olc_changeset_t *cs = olc_changeset_create(ED_ROOM, wnum, "Test", "Builder");
+
+    TEST_ASSERT_FALSE(olc_staged_bool(cs, "no_recall", false));
+
+    json_t *old_v = json_false();
+    json_t *new_v = json_true();
+    olc_changeset_add_change(cs, "no_recall", OLC_FIELD_BOOL, old_v, new_v);
+
+    TEST_ASSERT_TRUE(olc_staged_bool(cs, "no_recall", false));
+
+    json_decref(old_v);
+    json_decref(new_v);
+    olc_changeset_destroy(cs);
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_is_field_staged(test_case_t *test)
+{
+    WNUM_LOAD wnum = { .auid = 5, .vnum = 3001 };
+    olc_changeset_t *cs = olc_changeset_create(ED_ROOM, wnum, "Test", "Builder");
+
+    TEST_ASSERT_FALSE(olc_is_field_staged(cs, "name"));
+
+    json_t *old_v = json_string("Old");
+    json_t *new_v = json_string("New");
+    olc_changeset_add_change(cs, "name", OLC_FIELD_STRING, old_v, new_v);
+
+    TEST_ASSERT_TRUE(olc_is_field_staged(cs, "name"));
+    TEST_ASSERT_FALSE(olc_is_field_staged(cs, "description"));
+
+    json_decref(old_v);
+    json_decref(new_v);
+    olc_changeset_destroy(cs);
+    return TEST_SUCCESS;
+}
+
 /*
  * Test dispatcher — routes test_type to specific test functions.
  */
@@ -856,6 +966,16 @@ test_result_t run_olc_changeset_test_case(test_case_t *test)
         return test_olccs_commit_basic(test);
     if (strcmp(test->test_type, "olccs_revert") == 0)
         return test_olccs_revert(test);
+    if (strcmp(test->test_type, "olccs_staged_string") == 0)
+        return test_staged_string(test);
+    if (strcmp(test->test_type, "olccs_staged_int") == 0)
+        return test_staged_int(test);
+    if (strcmp(test->test_type, "olccs_staged_flags") == 0)
+        return test_staged_flags(test);
+    if (strcmp(test->test_type, "olccs_staged_bool") == 0)
+        return test_staged_bool(test);
+    if (strcmp(test->test_type, "olccs_is_field_staged") == 0)
+        return test_is_field_staged(test);
 
     log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
                   "Unknown OLC changeset test type: %s", test->test_type);
