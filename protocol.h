@@ -858,6 +858,7 @@ void UnicodeAdd( char **apString, int aValue );
 extern const char GoAheadStr[];
 extern const char iac_sb_gmcp[];
 extern const char iac_se[];
+extern void ParseGMCP( descriptor_t *apDescriptor, char *string );
 extern void SendUpdatedGMCP( descriptor_t *apDescriptor );
 extern void SendGMCPRaw( descriptor_t *apDescriptor, const char *package, const char *json_body );
 extern void UpdateGMCPString( descriptor_t *apDescriptor, GMCP_VARIABLE var, const char *string );

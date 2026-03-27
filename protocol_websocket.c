@@ -170,6 +170,12 @@ static void process_gmcp_input(protocol_websocket_t *ws_proto, const char *input
 
         // TODO: Parse JSON and store client_name, client_version
     }
+    else {
+        // Route all other GMCP messages through the main dispatcher
+        // (Sentience.Editor.*, Sentience.Link.*, etc.)
+        if (ws_proto->base.descriptor)
+            ParseGMCP(ws_proto->base.descriptor, (char *)input);
+    }
 }
 
 /*

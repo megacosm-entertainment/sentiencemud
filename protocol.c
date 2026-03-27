@@ -132,7 +132,7 @@ static void CompressEnd( descriptor_t *apDescriptor )
 }
 
 /*************** START GMCP ***************/
-static void ParseGMCP( descriptor_t *apDescriptor, char *string );
+void ParseGMCP( descriptor_t *apDescriptor, char *string );
 static char *OneArg( char *fStr, char *bStr );
 static char *GMCPStrip( char *text );
 static void WriteGMCP( descriptor_t *apDescriptor, GMCP_PACKAGE package );
