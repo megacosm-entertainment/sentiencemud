@@ -265,16 +265,238 @@ void gmcp_editor_send_commit_result(descriptor_t *d, const char *entity_id,
 }
 
 /* =========================================================================
- * Incoming Message Handler (stub — full implementation in Task 9)
+ * Incoming Message Handlers
  * ========================================================================= */
+
+/**
+ * Validate a GMCP editor request: entity must match current editor session.
+ * Returns the active changeset, or NULL (with error sent to client).
+ */
+static olc_changeset_t *validate_editor_request(descriptor_t *d,
+    const char *entity_id, const char *field)
+{
+    if (!entity_id) {
+        gmcp_editor_send_error(d, "", field ? field : "",
+            "invalid_request", "Missing entity_id.");
+        return NULL;
+    }
+
+    int editor_type;
+    WNUM_LOAD wnum;
+    if (!gmcp_editor_parse_entity_id(entity_id, &editor_type, &wnum)) {
+        gmcp_editor_send_error(d, entity_id, field ? field : "",
+            "invalid_entity", "Invalid entity ID format.");
+        return NULL;
+    }
+
+    if (!d->olc_state) {
+        gmcp_editor_send_error(d, entity_id, field ? field : "",
+            "not_editing", "No editor session active.");
+        return NULL;
+    }
+
+    olc_changeset_t *cs = olc_edit_state_find_changeset(
+        d->olc_state, editor_type, wnum);
+    if (!cs) {
+        gmcp_editor_send_error(d, entity_id, field ? field : "",
+            "not_editing", "Entity is not open for editing.");
+        return NULL;
+    }
+
+    return cs;
+}
+
+/**
+ * Handle Sentience.Editor.Set — client sets a field value.
+ *
+ * Payload: { "entity_id": "room:5#3001", "field": "name", "value": "..." }
+ */
+static void handle_editor_set(descriptor_t *d, json_t *payload)
+{
+    const char *entity_id = json_string_value(json_object_get(payload, "entity_id"));
+    const char *field = json_string_value(json_object_get(payload, "field"));
+    json_t *value = json_object_get(payload, "value");
+
+    if (!field || !value) {
+        gmcp_editor_send_error(d, entity_id ? entity_id : "",
+            field ? field : "", "invalid_request", "Missing required fields.");
+        return;
+    }
+
+    olc_changeset_t *cs = validate_editor_request(d, entity_id, field);
+    if (!cs) return;
+
+    CHAR_DATA *ch = d->character;
+    if (!olc_check_staging_limits(ch, cs)) {
+        gmcp_editor_send_error(d, entity_id, field,
+            "limit_reached", "Too many pending changes.");
+        return;
+    }
+
+    /* Determine field type from JSON value type */
+    olc_field_type_t ftype = OLC_FIELD_STRING;
+    if (json_is_integer(value))      ftype = OLC_FIELD_INT;
+    else if (json_is_boolean(value)) ftype = OLC_FIELD_BOOL;
+
+    /* Get current live value for old_value if this is the first edit */
+    json_t *old_value = NULL;
+    olc_pending_change_t *existing = olc_changeset_find_change(cs, field);
+    if (!existing) {
+        const olc_field_handler_t *handler = olc_find_field_handler(
+            olc_find_editor_by_type(cs->editor_type)->field_handlers,
+            field, ftype);
+        if (handler && handler->serialize_fn) {
+            old_value = handler->serialize_fn(d->pEdit, field);
+        }
+    }
+
+    /* Stage the change (collapsing logic handles duplicates/no-ops) */
+    olc_pending_change_t *result = olc_changeset_add_change(
+        cs, field, ftype, old_value, value);
+    if (old_value) json_decref(old_value);
+
+    if (result) {
+        /* Change staged — send confirmation with pending=true */
+        gmcp_editor_send_field(d, entity_id, field, value, "string", true);
+    } else {
+        /* Collapsed to no-op (reverted to original) — send current live value */
+        gmcp_editor_send_field(d, entity_id, field, json_null(), "string", false);
+    }
+}
+
+/**
+ * Handle Sentience.Editor.Commit — client requests commit of pending changes.
+ *
+ * Payload: { "entity_id": "room:5#3001", "comment": "optional" }
+ */
+static void handle_editor_commit(descriptor_t *d, json_t *payload)
+{
+    const char *entity_id = json_string_value(json_object_get(payload, "entity_id"));
+
+    olc_changeset_t *cs = validate_editor_request(d, entity_id, NULL);
+    if (!cs) return;
+
+    if (olc_changeset_count(cs) == 0) {
+        gmcp_editor_send_error(d, entity_id, NULL,
+            "no_changes", "No pending changes to commit.");
+        return;
+    }
+
+    const OLC_EDITOR_DEF *def = olc_find_editor_by_type(cs->editor_type);
+    if (!def) {
+        gmcp_editor_send_error(d, entity_id, NULL,
+            "internal_error", "Editor definition not found.");
+        return;
+    }
+
+    const char *error_field = NULL;
+    int applied = olc_changeset_commit(cs, d->pEdit,
+        def->field_handlers, &error_field);
+
+    if (applied < 0) {
+        gmcp_editor_send_error(d, entity_id, error_field,
+            "commit_failed", "Error applying changes.");
+        return;
+    }
+
+    /* Mark entity area as changed */
+    if (def->get_area_fn && d->pEdit) {
+        AREA_DATA *area = def->get_area_fn(d->pEdit);
+        if (area)
+            SET_BIT(area->area_flags, AREA_CHANGED);
+    }
+
+    if (def->editor_type == ED_ROOM
+        || def->editor_type == ED_MOBILE
+        || def->editor_type == ED_OBJECT) {
+        fix_index_inheritance();
+    }
+
+    gmcp_editor_send_commit_result(d, entity_id, "success", applied);
+}
+
+/**
+ * Handle Sentience.Editor.Revert — client requests revert.
+ *
+ * Payload: { "entity_id": "room:5#3001", "field": "name" }  (field is optional)
+ */
+static void handle_editor_revert(descriptor_t *d, json_t *payload)
+{
+    const char *entity_id = json_string_value(json_object_get(payload, "entity_id"));
+    const char *field = json_string_value(json_object_get(payload, "field"));
+
+    olc_changeset_t *cs = validate_editor_request(d, entity_id, field);
+    if (!cs) return;
+
+    if (field) {
+        if (!olc_changeset_revert_field(cs, field)) {
+            gmcp_editor_send_error(d, entity_id, field,
+                "not_found", "No pending change for this field.");
+            return;
+        }
+    } else {
+        if (olc_changeset_count(cs) == 0) {
+            gmcp_editor_send_error(d, entity_id, NULL,
+                "no_changes", "No pending changes to revert.");
+            return;
+        }
+        olc_changeset_revert(cs);
+    }
+
+    /* Send updated state */
+    gmcp_editor_send_state(d, entity_id, cs, false);
+}
+
+/**
+ * Handle Sentience.Editor.Request — client requests current state.
+ *
+ * Payload: { "entity_id": "room:5#3001" }
+ */
+static void handle_editor_request(descriptor_t *d, json_t *payload)
+{
+    const char *entity_id = json_string_value(json_object_get(payload, "entity_id"));
+
+    olc_changeset_t *cs = validate_editor_request(d, entity_id, NULL);
+    if (!cs) return;
+
+    gmcp_editor_send_state(d, entity_id, cs, false);
+}
 
 void sentience_handle_editor(descriptor_t *d, int module, const char *json_str)
 {
-    /* Incoming GMCP editor messages will be implemented in Task 9.
-     * For now, just validate basic prerequisites. */
     if (!d || !d->character || IS_NPC(d->character))
         return;
 
-    (void)module;
-    (void)json_str;
+    json_error_t error;
+    json_t *payload = json_loads(json_str, 0, &error);
+    if (!payload) {
+        gmcp_editor_send_error(d, "", NULL,
+            "parse_error", "Invalid JSON payload.");
+        return;
+    }
+
+    switch (module) {
+        case GMCP_SENTIENCE_EDITOR_SET:
+            handle_editor_set(d, payload);
+            break;
+        case GMCP_SENTIENCE_EDITOR_COMMIT:
+            handle_editor_commit(d, payload);
+            break;
+        case GMCP_SENTIENCE_EDITOR_REVERT:
+            handle_editor_revert(d, payload);
+            break;
+        case GMCP_SENTIENCE_EDITOR_REQUEST:
+            handle_editor_request(d, payload);
+            break;
+        case GMCP_SENTIENCE_EDITOR_STRING_SAVE:
+        case GMCP_SENTIENCE_EDITOR_STRING_CANCEL:
+            /* Phase 5: non-blocking string editor */
+            break;
+        case GMCP_SENTIENCE_EDITOR_DRAFT_SAVE:
+        case GMCP_SENTIENCE_EDITOR_DRAFT_LOAD:
+            /* Phase 5: draft persistence */
+            break;
+    }
+
+    json_decref(payload);
 }

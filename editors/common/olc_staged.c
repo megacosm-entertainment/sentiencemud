@@ -4,6 +4,9 @@
  */
 
 #include "olc_staged.h"
+#include "olc_editor.h"
+#include "olc_field_handlers.h"
+#include "../../gmcp_editor.h"
 #include <string.h>
 
 const char *olc_staged_string(olc_changeset_t *cs, const char *field, const char *live)
@@ -246,7 +249,15 @@ void olc_staged_cmd_revert(CHAR_DATA *ch, const OLC_EDITOR_DEF *def,
             printf_to_char(ch, "{G[REVERTED]{x Change to '%s' discarded.\n\r", argument);
         } else {
             printf_to_char(ch, "No pending change for '%s'.\n\r", argument);
+            return;
         }
+    }
+
+    /* Notify web client via GMCP */
+    if (ch->desc) {
+        const char *eid = gmcp_editor_entity_id(
+            cs->editor_type, cs->entity_wnum);
+        gmcp_editor_send_state(ch->desc, eid, cs, false);
     }
 }
 
@@ -293,6 +304,13 @@ void olc_staged_cmd_commit(CHAR_DATA *ch, const OLC_EDITOR_DEF *def,
         applied, applied == 1 ? "" : "s",
         IS_NULLSTR(argument) ? "" : ": ",
         IS_NULLSTR(argument) ? "" : argument);
+
+    /* Notify web client via GMCP */
+    if (ch->desc) {
+        const char *eid = gmcp_editor_entity_id(
+            cs->editor_type, cs->entity_wnum);
+        gmcp_editor_send_commit_result(ch->desc, eid, "success", applied);
+    }
 }
 
 void olc_staged_cmd_commit_group(CHAR_DATA *ch, char *argument)
