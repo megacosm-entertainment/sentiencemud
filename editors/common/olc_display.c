@@ -15,6 +15,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
+#include <limits.h>
 #include <jansson.h>
 
 #include "../../strings.h"
@@ -920,4 +921,108 @@ void olc_display_entity_list(CHAR_DATA *ch, const OLC_EDITOR_THEME *theme,
 
     page_to_char(buf_string(buffer), ch);
     free_buf(buffer);
+}
+
+/**
+ * Merge constraint annotations into captured field descriptors.
+ */
+static void merge_annotations(json_t *fields,
+                               const olc_field_annotation_t *annotations)
+{
+    if (!annotations || !fields) return;
+
+    for (size_t i = 0; i < json_array_size(fields); i++) {
+        json_t *field = json_array_get(fields, i);
+        const char *cmd = json_string_value(json_object_get(field, "command"));
+        if (!cmd) continue;
+
+        for (const olc_field_annotation_t *a = annotations; a->command; a++) {
+            if (strcmp(a->command, cmd) == 0) {
+                if (a->min != INT_MIN)
+                    json_object_set_new(field, "min", json_integer(a->min));
+                if (a->max != INT_MAX)
+                    json_object_set_new(field, "max", json_integer(a->max));
+                if (a->max_length > 0)
+                    json_object_set_new(field, "max_length", json_integer(a->max_length));
+                break;
+            }
+        }
+    }
+}
+
+json_t *olc_schema_capture(CHAR_DATA *ch, const OLC_EDITOR_DEF *def,
+                           void *entity, struct olc_changeset *cs)
+{
+    if (!def) return NULL;
+
+    json_t *tabs = json_array();
+    if (!tabs) return NULL;
+
+    int tab_count = def->tabs.count;
+
+    /* No tabs: all current editors use tabs, so this is a defensive fallback.
+     * The top-level show_fn (OLC_FUN *) has a different signature than tab
+     * show_fn and creates its own OLC_LAYOUT_CTX internally, so capture_mode
+     * is not propagated — fields will be empty. */
+    if (tab_count == 0) {
+        OLC_LAYOUT_CTX *ctx = alloc_mem(sizeof(OLC_LAYOUT_CTX));
+        memset(ctx, 0, sizeof(OLC_LAYOUT_CTX));
+        ctx->capture_mode = true;
+        ctx->captured_fields = json_array();
+        ctx->changeset = cs;
+        ctx->screen_width = 80;
+        ctx->label_width = 16;
+        ctx->value_width = 58;
+
+        if (def->show_fn && ch)
+            def->show_fn(ch, "");
+
+        if (def->annotations)
+            merge_annotations(ctx->captured_fields, def->annotations);
+
+        json_t *tab = json_object();
+        json_object_set_new(tab, "name", json_string(def->name));
+        json_object_set_new(tab, "short_name", json_string(def->name));
+        json_object_set_new(tab, "fields", ctx->captured_fields);
+        ctx->captured_fields = NULL;
+        json_array_append_new(tabs, tab);
+
+        free_mem(ctx, sizeof(OLC_LAYOUT_CTX));
+        return tabs;
+    }
+
+    /* Multi-tab: run each tab's show_fn in capture mode */
+    for (int t = 0; t < tab_count; t++) {
+        const OLC_EDITOR_TAB *tab_def = &def->tabs.tabs[t];
+        if (!tab_def->show_fn) continue;
+
+        OLC_LAYOUT_CTX *ctx = alloc_mem(sizeof(OLC_LAYOUT_CTX));
+        memset(ctx, 0, sizeof(OLC_LAYOUT_CTX));
+        ctx->capture_mode = true;
+        ctx->captured_fields = json_array();
+        ctx->changeset = cs;
+        ctx->current_tab = t;
+        ctx->ch = ch;
+        ctx->screen_width = 80;
+        ctx->label_width = 16;
+        ctx->value_width = 58;
+
+        tab_def->show_fn(ch, ctx, entity);
+
+        if (def->annotations)
+            merge_annotations(ctx->captured_fields, def->annotations);
+
+        json_t *tab = json_object();
+        json_object_set_new(tab, "name",
+            json_string(tab_def->name ? tab_def->name : ""));
+        json_object_set_new(tab, "short_name",
+            json_string(tab_def->short_name ? tab_def->short_name : ""));
+        json_object_set_new(tab, "fields", ctx->captured_fields);
+        ctx->captured_fields = NULL;
+        json_array_append_new(tabs, tab);
+
+        free_mem(ctx, sizeof(OLC_LAYOUT_CTX));
+    }
+
+    return tabs;
 }

@@ -268,10 +268,62 @@ static test_result_t test_flag_options_json(test_case_t *test)
     return TEST_SUCCESS;
 }
 
+/* Mock show function that captures fields for annotation merge testing */
+static void mock_tab_show_for_annotations(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *entity)
+{
+    (void)ch; (void)entity;
+    olc_display_number(ctx, &olc_theme_default, "Heal:", "heal", 100);
+    olc_display_number(ctx, &olc_theme_default, "Mana:", "mana", 200);
+    olc_display_string(ctx, &olc_theme_default, "Name:", "name", "Test");
+}
+
 static test_result_t test_annotation_merge(test_case_t *test)
 {
     (void)test;
-    return TEST_SKIP;
+
+    static const olc_field_annotation_t test_annotations[] = {
+        { "heal", .min = 0, .max = 10000, .max_length = 0 },
+        { "name", .min = INT_MIN, .max = INT_MAX, .max_length = 80 },
+        { NULL }
+    };
+
+    OLC_EDITOR_DEF mock_def = {
+        .name = "MockEdit",
+        .tabs = {
+            .count = 1,
+            .tabs = {
+                { "Test", "T", mock_tab_show_for_annotations },
+            }
+        },
+        .annotations = test_annotations,
+    };
+
+    json_t *tabs = olc_schema_capture(NULL, &mock_def, NULL, NULL);
+    TEST_ASSERT_NOT_NULL(tabs);
+    TEST_ASSERT_INT_EQ(1, (int)json_array_size(tabs));
+
+    json_t *tab = json_array_get(tabs, 0);
+    json_t *fields = json_object_get(tab, "fields");
+    TEST_ASSERT_INT_EQ(3, (int)json_array_size(fields));
+
+    /* "heal" should have min=0, max=10000 from annotation */
+    json_t *heal = json_array_get(fields, 0);
+    TEST_ASSERT_STR_EQ("Heal:", json_string_value(json_object_get(heal, "label")));
+    TEST_ASSERT_INT_EQ(0, (int)json_integer_value(json_object_get(heal, "min")));
+    TEST_ASSERT_INT_EQ(10000, (int)json_integer_value(json_object_get(heal, "max")));
+
+    /* "mana" has no annotation — should NOT have min/max keys */
+    json_t *mana = json_array_get(fields, 1);
+    TEST_ASSERT_NULL(json_object_get(mana, "min"));
+    TEST_ASSERT_NULL(json_object_get(mana, "max"));
+
+    /* "name" should have max_length=80 from annotation */
+    json_t *name_field = json_array_get(fields, 2);
+    TEST_ASSERT_INT_EQ(80, (int)json_integer_value(json_object_get(name_field, "max_length")));
+    TEST_ASSERT_NULL(json_object_get(name_field, "min"));
+
+    json_decref(tabs);
+    return TEST_SUCCESS;
 }
 
 static test_result_t test_build_open(test_case_t *test)
