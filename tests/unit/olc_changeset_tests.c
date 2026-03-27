@@ -6,6 +6,7 @@
 #include "../../merc.h"
 #include "../../olc.h"
 #include "../../editors/common/olc_changeset.h"
+#include "../../editors/common/olc_field_handlers.h"
 
 static test_result_t test_olccs_create_destroy(test_case_t *test)
 {
@@ -412,6 +413,396 @@ static test_result_t test_list_update_then_remove(test_case_t *test)
     return TEST_SUCCESS;
 }
 
+/* ========================================================================
+ * Field handler framework tests
+ * ======================================================================== */
+
+/* Dummy apply function for handler lookup tests */
+static bool dummy_apply_fn(void *entity, olc_pending_change_t *change)
+{
+    (void)entity;
+    (void)change;
+    return true;
+}
+
+static test_result_t test_olccs_fh_lookup(test_case_t *test)
+{
+    (void)test;
+
+    olc_field_handler_t handlers[] = {
+        { "name",    OLC_FIELD_STRING, NULL, dummy_apply_fn, NULL },
+        { "level",   OLC_FIELD_INT,    NULL, dummy_apply_fn, NULL },
+        { "exits/*", OLC_FIELD_EXIT,   NULL, dummy_apply_fn, NULL },
+        { NULL, 0, NULL, NULL, NULL }
+    };
+
+    /* Exact match */
+    const olc_field_handler_t *h = olc_find_field_handler(handlers, "name", OLC_FIELD_STRING);
+    TEST_ASSERT_NOT_NULL(h);
+    TEST_ASSERT_STR_EQ("name", h->field_path);
+
+    h = olc_find_field_handler(handlers, "level", OLC_FIELD_INT);
+    TEST_ASSERT_NOT_NULL(h);
+    TEST_ASSERT_STR_EQ("level", h->field_path);
+
+    /* Miss */
+    h = olc_find_field_handler(handlers, "nonexistent", OLC_FIELD_STRING);
+    TEST_ASSERT_NULL(h);
+
+    /* NULL handlers array */
+    h = olc_find_field_handler(NULL, "name", OLC_FIELD_STRING);
+    TEST_ASSERT_NULL(h);
+
+    /* NULL field_path */
+    h = olc_find_field_handler(handlers, NULL, OLC_FIELD_STRING);
+    TEST_ASSERT_NULL(h);
+
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_olccs_wildcard_match(test_case_t *test)
+{
+    (void)test;
+
+    olc_field_handler_t handlers[] = {
+        { "exits/north", OLC_FIELD_EXIT,   NULL, dummy_apply_fn, NULL },
+        { "exits/*",     OLC_FIELD_EXIT,   NULL, dummy_apply_fn, NULL },
+        { "extra/*",     OLC_FIELD_STRING, NULL, dummy_apply_fn, NULL },
+        { NULL, 0, NULL, NULL, NULL }
+    };
+
+    /* Wildcard matches */
+    const olc_field_handler_t *h = olc_find_field_handler(handlers, "exits/south", OLC_FIELD_EXIT);
+    TEST_ASSERT_NOT_NULL(h);
+    TEST_ASSERT_STR_EQ("exits/*", h->field_path);
+
+    h = olc_find_field_handler(handlers, "extra/statue", OLC_FIELD_STRING);
+    TEST_ASSERT_NOT_NULL(h);
+    TEST_ASSERT_STR_EQ("extra/*", h->field_path);
+
+    /* Exact match takes priority over wildcard */
+    h = olc_find_field_handler(handlers, "exits/north", OLC_FIELD_EXIT);
+    TEST_ASSERT_NOT_NULL(h);
+    TEST_ASSERT_STR_EQ("exits/north", h->field_path);
+
+    /* Wildcard does not match deeper paths */
+    h = olc_find_field_handler(handlers, "exits/north/key", OLC_FIELD_EXIT);
+    TEST_ASSERT_NULL(h);
+
+    /* Wildcard does not match the prefix alone */
+    h = olc_find_field_handler(handlers, "exits/", OLC_FIELD_EXIT);
+    TEST_ASSERT_NULL(h);
+
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_olccs_apply_string(test_case_t *test)
+{
+    (void)test;
+
+    char *field = str_dup("original value");
+    json_t *new_val = json_string("updated value");
+
+    olc_pending_change_t change = {
+        .field_path = str_dup("name"),
+        .field_type = OLC_FIELD_STRING,
+        .old_value  = NULL,
+        .new_value  = new_val
+    };
+
+    TEST_ASSERT_TRUE(olc_apply_generic_string(&field, &change));
+    TEST_ASSERT_STR_EQ("updated value", field);
+
+    /* NULL field_ptr */
+    TEST_ASSERT_FALSE(olc_apply_generic_string(NULL, &change));
+
+    /* NULL change */
+    TEST_ASSERT_FALSE(olc_apply_generic_string(&field, NULL));
+
+    /* NULL new_value */
+    olc_pending_change_t change_null = {
+        .field_path = str_dup("name"),
+        .field_type = OLC_FIELD_STRING,
+        .old_value  = NULL,
+        .new_value  = NULL
+    };
+    TEST_ASSERT_FALSE(olc_apply_generic_string(&field, &change_null));
+
+    /* Non-string JSON value */
+    olc_pending_change_t change_bad = {
+        .field_path = str_dup("name"),
+        .field_type = OLC_FIELD_STRING,
+        .old_value  = NULL,
+        .new_value  = json_integer(42)
+    };
+    TEST_ASSERT_FALSE(olc_apply_generic_string(&field, &change_bad));
+
+    free_string(field);
+    json_decref(new_val);
+    free_string(change.field_path);
+    free_string(change_null.field_path);
+    json_decref(change_bad.new_value);
+    free_string(change_bad.field_path);
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_olccs_apply_int(test_case_t *test)
+{
+    (void)test;
+
+    int field = 5;
+    json_t *new_val = json_integer(42);
+
+    olc_pending_change_t change = {
+        .field_path = str_dup("level"),
+        .field_type = OLC_FIELD_INT,
+        .old_value  = NULL,
+        .new_value  = new_val
+    };
+
+    TEST_ASSERT_TRUE(olc_apply_generic_int(&field, &change));
+    TEST_ASSERT_INT_EQ(42, field);
+
+    /* NULL field_ptr */
+    TEST_ASSERT_FALSE(olc_apply_generic_int(NULL, &change));
+
+    /* Non-integer JSON value */
+    olc_pending_change_t change_bad = {
+        .field_path = str_dup("level"),
+        .field_type = OLC_FIELD_INT,
+        .old_value  = NULL,
+        .new_value  = json_string("not a number")
+    };
+    TEST_ASSERT_FALSE(olc_apply_generic_int(&field, &change_bad));
+    TEST_ASSERT_INT_EQ(42, field); /* Unchanged after failed apply */
+
+    json_decref(new_val);
+    free_string(change.field_path);
+    json_decref(change_bad.new_value);
+    free_string(change_bad.field_path);
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_olccs_apply_bool(test_case_t *test)
+{
+    (void)test;
+
+    bool field = false;
+    json_t *new_val = json_true();
+
+    olc_pending_change_t change = {
+        .field_path = str_dup("is_aggressive"),
+        .field_type = OLC_FIELD_BOOL,
+        .old_value  = NULL,
+        .new_value  = new_val
+    };
+
+    TEST_ASSERT_TRUE(olc_apply_generic_bool(&field, &change));
+    TEST_ASSERT_TRUE(field);
+
+    /* Set back to false */
+    json_t *false_val = json_false();
+    olc_pending_change_t change2 = {
+        .field_path = str_dup("is_aggressive"),
+        .field_type = OLC_FIELD_BOOL,
+        .old_value  = NULL,
+        .new_value  = false_val
+    };
+    TEST_ASSERT_TRUE(olc_apply_generic_bool(&field, &change2));
+    TEST_ASSERT_FALSE(field);
+
+    /* Non-boolean JSON value */
+    olc_pending_change_t change_bad = {
+        .field_path = str_dup("is_aggressive"),
+        .field_type = OLC_FIELD_BOOL,
+        .old_value  = NULL,
+        .new_value  = json_integer(1)
+    };
+    TEST_ASSERT_FALSE(olc_apply_generic_bool(&field, &change_bad));
+
+    json_decref(new_val);
+    json_decref(false_val);
+    free_string(change.field_path);
+    free_string(change2.field_path);
+    json_decref(change_bad.new_value);
+    free_string(change_bad.field_path);
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_olccs_apply_flags(test_case_t *test)
+{
+    (void)test;
+
+    long field = 0x01;
+    json_t *new_val = json_integer(0x05);
+
+    olc_pending_change_t change = {
+        .field_path = str_dup("act_flags"),
+        .field_type = OLC_FIELD_FLAGS,
+        .old_value  = NULL,
+        .new_value  = new_val
+    };
+
+    TEST_ASSERT_TRUE(olc_apply_generic_flags(&field, &change));
+    TEST_ASSERT_INT_EQ(0x05, (int)field);
+
+    /* NULL field_ptr */
+    TEST_ASSERT_FALSE(olc_apply_generic_flags(NULL, &change));
+
+    /* Non-integer JSON value */
+    olc_pending_change_t change_bad = {
+        .field_path = str_dup("act_flags"),
+        .field_type = OLC_FIELD_FLAGS,
+        .old_value  = NULL,
+        .new_value  = json_string("not flags")
+    };
+    TEST_ASSERT_FALSE(olc_apply_generic_flags(&field, &change_bad));
+
+    json_decref(new_val);
+    free_string(change.field_path);
+    json_decref(change_bad.new_value);
+    free_string(change_bad.field_path);
+    return TEST_SUCCESS;
+}
+
+/* Test entity struct for commit/revert tests */
+typedef struct test_entity {
+    char    *name;
+    int      level;
+    bool     is_aggressive;
+} test_entity_t;
+
+/* Apply functions that use generic helpers with typed offsets */
+static bool test_apply_name(void *entity, olc_pending_change_t *change)
+{
+    test_entity_t *e = (test_entity_t *)entity;
+    return olc_apply_generic_string(&e->name, change);
+}
+
+static bool test_apply_level(void *entity, olc_pending_change_t *change)
+{
+    test_entity_t *e = (test_entity_t *)entity;
+    return olc_apply_generic_int(&e->level, change);
+}
+
+static bool test_apply_aggressive(void *entity, olc_pending_change_t *change)
+{
+    test_entity_t *e = (test_entity_t *)entity;
+    return olc_apply_generic_bool(&e->is_aggressive, change);
+}
+
+static test_result_t test_olccs_commit_basic(test_case_t *test)
+{
+    (void)test;
+
+    olc_field_handler_t handlers[] = {
+        { "name",          OLC_FIELD_STRING, NULL, test_apply_name,       NULL },
+        { "level",         OLC_FIELD_INT,    NULL, test_apply_level,      NULL },
+        { "is_aggressive", OLC_FIELD_BOOL,   NULL, test_apply_aggressive, NULL },
+        { NULL, 0, NULL, NULL, NULL }
+    };
+
+    test_entity_t entity = {
+        .name          = str_dup("Old Name"),
+        .level         = 1,
+        .is_aggressive = false
+    };
+
+    WNUM_LOAD wnum = { .auid = 10, .vnum = 100 };
+    olc_changeset_t *cs = olc_changeset_create(ED_MOBILE, wnum, "Mob", "Builder");
+
+    json_t *old_name = json_string("Old Name");
+    json_t *new_name = json_string("New Name");
+    json_t *old_level = json_integer(1);
+    json_t *new_level = json_integer(50);
+    json_t *old_aggr = json_false();
+    json_t *new_aggr = json_true();
+
+    olc_changeset_add_change(cs, "name", OLC_FIELD_STRING, old_name, new_name);
+    olc_changeset_add_change(cs, "level", OLC_FIELD_INT, old_level, new_level);
+    olc_changeset_add_change(cs, "is_aggressive", OLC_FIELD_BOOL, old_aggr, new_aggr);
+    TEST_ASSERT_INT_EQ(3, olc_changeset_count(cs));
+
+    const char *error_field = NULL;
+    int result = olc_changeset_commit(cs, &entity, handlers, &error_field);
+    TEST_ASSERT_INT_EQ(3, result);
+    TEST_ASSERT_NULL(error_field);
+
+    /* Verify entity was updated */
+    TEST_ASSERT_STR_EQ("New Name", entity.name);
+    TEST_ASSERT_INT_EQ(50, entity.level);
+    TEST_ASSERT_TRUE(entity.is_aggressive);
+
+    /* Changeset should be cleared after commit */
+    TEST_ASSERT_INT_EQ(0, olc_changeset_count(cs));
+
+    /* Commit with no handler → error */
+    olc_changeset_add_change(cs, "unknown_field", OLC_FIELD_STRING,
+                              json_string("a"), json_string("b"));
+    result = olc_changeset_commit(cs, &entity, handlers, &error_field);
+    TEST_ASSERT_INT_EQ(-1, result);
+    TEST_ASSERT_NOT_NULL(error_field);
+    TEST_ASSERT_STR_EQ("unknown_field", error_field);
+
+    /* Commit with NULL apply_fn handler → skip, not crash */
+    olc_changeset_clear(cs);
+    olc_field_handler_t handlers_null_apply[] = {
+        { "name", OLC_FIELD_STRING, NULL, NULL, NULL },
+        { NULL, 0, NULL, NULL, NULL }
+    };
+    olc_changeset_add_change(cs, "name", OLC_FIELD_STRING,
+                              json_string("x"), json_string("y"));
+    error_field = NULL;
+    result = olc_changeset_commit(cs, &entity, handlers_null_apply, &error_field);
+    TEST_ASSERT_INT_EQ(0, result);  /* skipped, not applied */
+    TEST_ASSERT_NULL(error_field);
+
+    free_string(entity.name);
+    json_decref(old_name);
+    json_decref(new_name);
+    json_decref(old_level);
+    json_decref(new_level);
+    json_decref(old_aggr);
+    json_decref(new_aggr);
+    olc_changeset_destroy(cs);
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_olccs_revert(test_case_t *test)
+{
+    (void)test;
+
+    WNUM_LOAD wnum = { .auid = 10, .vnum = 200 };
+    olc_changeset_t *cs = olc_changeset_create(ED_ROOM, wnum, "Room", "Builder");
+
+    json_t *old_val = json_string("old");
+    json_t *new_val = json_string("new");
+
+    olc_changeset_add_change(cs, "name", OLC_FIELD_STRING, old_val, new_val);
+    olc_changeset_add_change(cs, "desc", OLC_FIELD_STRING, old_val, new_val);
+    olc_changeset_add_change(cs, "level", OLC_FIELD_INT,
+                              json_integer(1), json_integer(10));
+    TEST_ASSERT_INT_EQ(3, olc_changeset_count(cs));
+
+    /* Revert single field */
+    TEST_ASSERT_TRUE(olc_changeset_revert_field(cs, "name"));
+    TEST_ASSERT_INT_EQ(2, olc_changeset_count(cs));
+    TEST_ASSERT_NULL(olc_changeset_find_change(cs, "name"));
+
+    /* Revert nonexistent field returns false */
+    TEST_ASSERT_FALSE(olc_changeset_revert_field(cs, "nonexistent"));
+    TEST_ASSERT_INT_EQ(2, olc_changeset_count(cs));
+
+    /* Revert all */
+    olc_changeset_revert(cs);
+    TEST_ASSERT_INT_EQ(0, olc_changeset_count(cs));
+
+    json_decref(old_val);
+    json_decref(new_val);
+    olc_changeset_destroy(cs);
+    return TEST_SUCCESS;
+}
+
 /*
  * Test dispatcher — routes test_type to specific test functions.
  */
@@ -449,6 +840,22 @@ test_result_t run_olc_changeset_test_case(test_case_t *test)
         return test_list_update_then_update(test);
     if (strcmp(test->test_type, "olccs_list_update_remove") == 0)
         return test_list_update_then_remove(test);
+    if (strcmp(test->test_type, "olccs_fh_lookup") == 0)
+        return test_olccs_fh_lookup(test);
+    if (strcmp(test->test_type, "olccs_wildcard_match") == 0)
+        return test_olccs_wildcard_match(test);
+    if (strcmp(test->test_type, "olccs_apply_string") == 0)
+        return test_olccs_apply_string(test);
+    if (strcmp(test->test_type, "olccs_apply_int") == 0)
+        return test_olccs_apply_int(test);
+    if (strcmp(test->test_type, "olccs_apply_bool") == 0)
+        return test_olccs_apply_bool(test);
+    if (strcmp(test->test_type, "olccs_apply_flags") == 0)
+        return test_olccs_apply_flags(test);
+    if (strcmp(test->test_type, "olccs_commit_basic") == 0)
+        return test_olccs_commit_basic(test);
+    if (strcmp(test->test_type, "olccs_revert") == 0)
+        return test_olccs_revert(test);
 
     log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
                   "Unknown OLC changeset test type: %s", test->test_type);

@@ -174,6 +174,7 @@ set(SOURCE_FILES
     editors/common/olc_commands.c
     editors/common/olc_display.c
     editors/common/olc_changeset.c
+    editors/common/olc_field_handlers.c
     effects.c
     event_types.c
     events.c
