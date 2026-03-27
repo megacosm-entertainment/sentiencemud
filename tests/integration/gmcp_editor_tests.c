@@ -232,6 +232,74 @@ static test_result_t test_build_field_null_value(test_case_t *test)
 }
 
 /* =========================================================================
+ * StringEdit Tests
+ * ========================================================================= */
+
+static test_result_t test_build_string_open(test_case_t *test)
+{
+    (void)test;
+    json_t *msg = gmcp_editor_build_string_open("room:5#100", "description",
+        "Some text", 4096, 1);
+
+    TEST_ASSERT_NOT_NULL(msg);
+    TEST_ASSERT_STR_EQ("se_1", json_string_value(json_object_get(msg, "session_id")));
+    TEST_ASSERT_STR_EQ("room:5#100", json_string_value(json_object_get(msg, "entity_id")));
+    TEST_ASSERT_STR_EQ("description", json_string_value(json_object_get(msg, "field")));
+    TEST_ASSERT_STR_EQ("Some text", json_string_value(json_object_get(msg, "value")));
+    TEST_ASSERT_INT_EQ(4096, json_integer_value(json_object_get(msg, "max_length")));
+
+    json_decref(msg);
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_build_string_close(test_case_t *test)
+{
+    (void)test;
+    json_t *msg = gmcp_editor_build_string_close(3, "saved");
+
+    TEST_ASSERT_NOT_NULL(msg);
+    TEST_ASSERT_STR_EQ("se_3", json_string_value(json_object_get(msg, "session_id")));
+    TEST_ASSERT_STR_EQ("saved", json_string_value(json_object_get(msg, "status")));
+
+    json_decref(msg);
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_string_session_lifecycle(test_case_t *test)
+{
+    (void)test;
+    olc_edit_state_t *state = olc_edit_state_create();
+
+    /* Create two sessions */
+    static char *dummy_ptr1 = NULL;
+    static char *dummy_ptr2 = NULL;
+    olc_string_edit_session_t *s1 = olc_string_session_create(
+        state, "room:1#100", "name", &dummy_ptr1, NULL);
+    olc_string_edit_session_t *s2 = olc_string_session_create(
+        state, "room:1#101", "desc", &dummy_ptr2, NULL);
+
+    TEST_ASSERT_NOT_NULL(s1);
+    TEST_ASSERT_NOT_NULL(s2);
+    TEST_ASSERT_INT_EQ(1, s1->session_id);
+    TEST_ASSERT_INT_EQ(2, s2->session_id);
+    TEST_ASSERT_STR_EQ("room:1#100", s1->entity_id);
+    TEST_ASSERT_STR_EQ("desc", s2->field_path);
+
+    /* Find by ID */
+    TEST_ASSERT_NOT_NULL(olc_string_session_find(state, 1));
+    TEST_ASSERT_NOT_NULL(olc_string_session_find(state, 2));
+    TEST_ASSERT_NULL(olc_string_session_find(state, 99));
+
+    /* Remove one */
+    olc_string_session_remove(state, 1);
+    TEST_ASSERT_NULL(olc_string_session_find(state, 1));
+    TEST_ASSERT_NOT_NULL(olc_string_session_find(state, 2));
+
+    olc_edit_state_destroy(state);
+    return TEST_SUCCESS;
+}
+
+/* =========================================================================
  * Dispatcher
  * ========================================================================= */
 
@@ -251,6 +319,9 @@ test_result_t run_gmcp_editor_test_case(test_case_t *test)
     if (!strcmp(type, "gmcped_entity_id_area"))       return test_entity_id_area(test);
     if (!strcmp(type, "gmcped_entity_id_parse"))      return test_entity_id_parse_roundtrip(test);
     if (!strcmp(type, "gmcped_build_field_null"))     return test_build_field_null_value(test);
+    if (!strcmp(type, "gmcped_build_string_open"))    return test_build_string_open(test);
+    if (!strcmp(type, "gmcped_build_string_close"))   return test_build_string_close(test);
+    if (!strcmp(type, "gmcped_string_session"))       return test_string_session_lifecycle(test);
 
     return TEST_SKIP;
 }

@@ -74,6 +74,18 @@ typedef struct olc_changeset_group {
 } olc_changeset_group_t;
 
 /**
+ * Non-blocking string edit session for WebSocket clients.
+ * Each open string edit gets its own session_id and panel in the web client.
+ */
+typedef struct olc_string_edit_session {
+    int              session_id;     /**< Integer internally, "se_N" in GMCP */
+    char            *entity_id;      /**< GMCP entity ID string */
+    char            *field_path;     /**< Which field is being edited */
+    char           **field_ptr;      /**< Direct pointer (for non-staged mode) */
+    olc_changeset_t *changeset;      /**< For staged mode (NULL if direct) */
+} olc_string_edit_session_t;
+
+/**
  * Per-builder edit state tracking active changesets and string edit sessions.
  */
 typedef struct olc_edit_state {
@@ -108,6 +120,16 @@ olc_pending_change_t   *olc_pending_change_create(const char *field_path,
                                                    olc_field_type_t field_type,
                                                    json_t *old_value, json_t *new_value);
 void                    olc_pending_change_destroy(olc_pending_change_t *change);
+
+/* String edit session API */
+olc_string_edit_session_t *olc_string_session_create(olc_edit_state_t *state,
+                                                      const char *entity_id,
+                                                      const char *field_path,
+                                                      char **field_ptr,
+                                                      olc_changeset_t *changeset);
+void                    olc_string_session_destroy(olc_string_edit_session_t *session);
+olc_string_edit_session_t *olc_string_session_find(olc_edit_state_t *state, int session_id);
+void                    olc_string_session_remove(olc_edit_state_t *state, int session_id);
 
 /* =========================================================================
  * Draft Persistence API

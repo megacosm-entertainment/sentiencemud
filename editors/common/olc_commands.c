@@ -9,6 +9,8 @@
 #include "olc_editor.h"
 #include "olc_staged.h"
 #include "../common.h"
+#include "../../sentience_link.h"
+#include "../../gmcp_editor.h"
 
 #include <limits.h>
 
@@ -138,6 +140,37 @@ bool olc_cmd_string_append(CHAR_DATA *ch, char *argument, const char *label,
         return false;
     }
 
+    /* Non-blocking for WebSocket clients with GMCP support */
+    if (ch->desc && is_websocket_connection(ch->desc)
+        && ch->desc->pProtocol && ch->desc->pProtocol->bGMCP) {
+        const OLC_EDITOR_DEF *def = olc_find_editor_by_type(ch->desc->editor);
+        if (def) {
+            if (!ch->desc->olc_state)
+                ch->desc->olc_state = olc_edit_state_create();
+
+            olc_changeset_t *cs = (def->change_mode == OLC_CHANGE_STAGED)
+                ? olc_get_active_changeset(ch, def)
+                : NULL;
+
+            WNUM_LOAD wnum = olc_get_entity_wnum(def, ch->desc->pEdit);
+            const char *entity_id = gmcp_editor_entity_id(def->editor_type, wnum);
+
+            olc_string_edit_session_t *session = olc_string_session_create(
+                ch->desc->olc_state, entity_id, label, field_ptr, cs);
+
+            if (session) {
+                gmcp_editor_send_string_open(ch->desc, entity_id,
+                    label, field_ptr && *field_ptr ? *field_ptr : "",
+                    4096, session->session_id);
+
+                send_to_char("{GString editor opened in web client panel.{x\n\r", ch);
+                cmd_record(record_fn, ctx, ch, label, "(editing)", "(editing)");
+                return true;
+            }
+        }
+    }
+
+    /* Fallback: existing modal string_append() for telnet */
     cmd_record(record_fn, ctx, ch, label, "(edited)", "(edited)");
     string_append(ch, field_ptr);
     return true;

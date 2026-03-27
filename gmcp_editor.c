@@ -265,6 +265,55 @@ void gmcp_editor_send_commit_result(descriptor_t *d, const char *entity_id,
 }
 
 /* =========================================================================
+ * StringEdit Message Builders
+ * ========================================================================= */
+
+json_t *gmcp_editor_build_string_open(const char *entity_id, const char *field,
+    const char *current_value, int max_length, int session_id)
+{
+    char session_str[32];
+    snprintf(session_str, sizeof(session_str), "se_%d", session_id);
+
+    json_t *msg = json_object();
+    json_object_set_new(msg, "session_id", json_string(session_str));
+    json_object_set_new(msg, "entity_id", json_string(entity_id ? entity_id : ""));
+    json_object_set_new(msg, "field", json_string(field ? field : ""));
+    json_object_set_new(msg, "value", json_string(current_value ? current_value : ""));
+    json_object_set_new(msg, "max_length", json_integer(max_length));
+    return msg;
+}
+
+json_t *gmcp_editor_build_string_close(int session_id, const char *status)
+{
+    char session_str[32];
+    snprintf(session_str, sizeof(session_str), "se_%d", session_id);
+
+    json_t *msg = json_object();
+    json_object_set_new(msg, "session_id", json_string(session_str));
+    json_object_set_new(msg, "status", json_string(status ? status : "done"));
+    return msg;
+}
+
+void gmcp_editor_send_string_open(descriptor_t *d, const char *entity_id,
+    const char *field, const char *current_value, int max_length, int session_id)
+{
+    if (!can_send_gmcp(d)) return;
+    json_t *msg = gmcp_editor_build_string_open(entity_id, field,
+        current_value, max_length, session_id);
+    if (msg)
+        sentience_send_package(d, "Sentience.Editor.StringEdit.Open", msg);
+}
+
+void gmcp_editor_send_string_close(descriptor_t *d, int session_id,
+    const char *status)
+{
+    if (!can_send_gmcp(d)) return;
+    json_t *msg = gmcp_editor_build_string_close(session_id, status);
+    if (msg)
+        sentience_send_package(d, "Sentience.Editor.StringEdit.Close", msg);
+}
+
+/* =========================================================================
  * Incoming Message Handlers
  * ========================================================================= */
 
@@ -462,6 +511,167 @@ static void handle_editor_request(descriptor_t *d, json_t *payload)
     gmcp_editor_send_state(d, entity_id, cs, false);
 }
 
+/**
+ * Parse session_id string "se_N" to integer N.
+ * Returns -1 on invalid format.
+ */
+static int parse_session_id(const char *session_str)
+{
+    if (!session_str || strncmp(session_str, "se_", 3) != 0)
+        return -1;
+    char *endp;
+    long val = strtol(session_str + 3, &endp, 10);
+    if (*endp != '\0' || val < 0)
+        return -1;
+    return (int)val;
+}
+
+/**
+ * Handle Sentience.Editor.StringEdit.Save — client submits edited text.
+ *
+ * Payload: { "session_id": "se_1", "value": "new text content" }
+ */
+static void handle_editor_string_save(descriptor_t *d, json_t *payload)
+{
+    const char *session_str = json_string_value(json_object_get(payload, "session_id"));
+    const char *value = json_string_value(json_object_get(payload, "value"));
+
+    int session_id = parse_session_id(session_str);
+    if (session_id < 0 || !value) {
+        gmcp_editor_send_error(d, "", NULL,
+            "invalid_request", "Missing session_id or value.");
+        return;
+    }
+
+    if (!d->olc_state) {
+        gmcp_editor_send_error(d, "", NULL,
+            "no_session", "No active editing state.");
+        return;
+    }
+
+    olc_string_edit_session_t *session = olc_string_session_find(d->olc_state, session_id);
+    if (!session) {
+        gmcp_editor_send_error(d, "", NULL,
+            "invalid_session", "String edit session not found.");
+        return;
+    }
+
+    if (session->changeset) {
+        /* Staged mode: store in changeset overlay */
+        json_t *old_val = json_string(
+            session->field_ptr && *session->field_ptr ? *session->field_ptr : "");
+        json_t *new_val = json_string(value);
+        olc_changeset_add_change(session->changeset, session->field_path,
+            OLC_FIELD_MULTILINE, old_val, new_val);
+        json_decref(old_val);
+        json_decref(new_val);
+    } else if (session->field_ptr) {
+        /* Direct mode: write immediately */
+        free_string(*session->field_ptr);
+        *session->field_ptr = str_dup(value);
+    }
+
+    gmcp_editor_send_string_close(d, session_id, "saved");
+    olc_string_session_remove(d->olc_state, session_id);
+}
+
+/**
+ * Handle Sentience.Editor.StringEdit.Cancel — client cancels editing.
+ *
+ * Payload: { "session_id": "se_1" }
+ */
+static void handle_editor_string_cancel(descriptor_t *d, json_t *payload)
+{
+    const char *session_str = json_string_value(json_object_get(payload, "session_id"));
+
+    int session_id = parse_session_id(session_str);
+    if (session_id < 0) {
+        gmcp_editor_send_error(d, "", NULL,
+            "invalid_request", "Missing or invalid session_id.");
+        return;
+    }
+
+    if (!d->olc_state) {
+        gmcp_editor_send_error(d, "", NULL,
+            "no_session", "No active editing state.");
+        return;
+    }
+
+    olc_string_edit_session_t *session = olc_string_session_find(d->olc_state, session_id);
+    if (!session) {
+        gmcp_editor_send_error(d, "", NULL,
+            "invalid_session", "String edit session not found.");
+        return;
+    }
+
+    gmcp_editor_send_string_close(d, session_id, "cancelled");
+    olc_string_session_remove(d->olc_state, session_id);
+}
+
+/**
+ * Handle Sentience.Editor.Draft.Save — client saves current changeset as draft.
+ *
+ * Payload: { "entity_id": "room:5#3001" }
+ */
+static void handle_editor_draft_save(descriptor_t *d, json_t *payload)
+{
+    const char *entity_id = json_string_value(json_object_get(payload, "entity_id"));
+
+    olc_changeset_t *cs = validate_editor_request(d, entity_id, NULL);
+    if (!cs) return;
+
+    if (olc_changeset_count(cs) == 0) {
+        gmcp_editor_send_error(d, entity_id, NULL,
+            "no_changes", "No pending changes to save.");
+        return;
+    }
+
+    if (olc_draft_save(cs))
+        gmcp_editor_send_state(d, entity_id, cs, false);
+    else
+        gmcp_editor_send_error(d, entity_id, NULL,
+            "save_failed", "Failed to save draft.");
+}
+
+/**
+ * Handle Sentience.Editor.Draft.Load — client loads a saved draft.
+ *
+ * Payload: { "entity_id": "room:5#3001" }
+ */
+static void handle_editor_draft_load(descriptor_t *d, json_t *payload)
+{
+    const char *entity_id = json_string_value(json_object_get(payload, "entity_id"));
+
+    olc_changeset_t *cs = validate_editor_request(d, entity_id, NULL);
+    if (!cs) return;
+
+    CHAR_DATA *ch = d->character;
+    const OLC_EDITOR_DEF *def = olc_find_editor_by_type(d->editor);
+    if (!def || !d->olc_state) return;
+
+    WNUM_LOAD wnum = olc_get_entity_wnum(def, d->pEdit);
+
+    if (!olc_draft_exists(ch->name, def->editor_type, wnum)) {
+        gmcp_editor_send_error(d, entity_id, NULL,
+            "no_draft", "No saved draft found.");
+        return;
+    }
+
+    olc_changeset_t *loaded = olc_draft_load(ch->name, def->editor_type, wnum);
+    if (!loaded) {
+        gmcp_editor_send_error(d, entity_id, NULL,
+            "load_failed", "Failed to load draft (may be corrupt).");
+        return;
+    }
+
+    /* Replace current changeset with loaded one */
+    list_remlink(d->olc_state->active_changesets, cs, false);
+    olc_changeset_destroy(cs);
+    list_addlink(d->olc_state->active_changesets, loaded);
+
+    gmcp_editor_send_state(d, entity_id, loaded, true);
+}
+
 void sentience_handle_editor(descriptor_t *d, int module, const char *json_str)
 {
     if (!d || !d->character || IS_NPC(d->character))
@@ -489,12 +699,16 @@ void sentience_handle_editor(descriptor_t *d, int module, const char *json_str)
             handle_editor_request(d, payload);
             break;
         case GMCP_SENTIENCE_EDITOR_STRING_SAVE:
+            handle_editor_string_save(d, payload);
+            break;
         case GMCP_SENTIENCE_EDITOR_STRING_CANCEL:
-            /* Phase 5: non-blocking string editor */
+            handle_editor_string_cancel(d, payload);
             break;
         case GMCP_SENTIENCE_EDITOR_DRAFT_SAVE:
+            handle_editor_draft_save(d, payload);
+            break;
         case GMCP_SENTIENCE_EDITOR_DRAFT_LOAD:
-            /* Phase 5: draft persistence */
+            handle_editor_draft_load(d, payload);
             break;
     }
 

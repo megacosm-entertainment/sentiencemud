@@ -71,6 +71,25 @@ void gmcp_editor_send_commit_result(descriptor_t *d, const char *entity_id,
     const char *status, int changes_applied);
 
 /* =========================================================================
+ * StringEdit Messages (Server → Client)
+ * ========================================================================= */
+
+/** Build Sentience.Editor.StringEdit.Open JSON. */
+json_t *gmcp_editor_build_string_open(const char *entity_id, const char *field,
+    const char *current_value, int max_length, int session_id);
+
+/** Build Sentience.Editor.StringEdit.Close JSON. */
+json_t *gmcp_editor_build_string_close(int session_id, const char *status);
+
+/** Send Editor.StringEdit.Open to descriptor. */
+void gmcp_editor_send_string_open(descriptor_t *d, const char *entity_id,
+    const char *field, const char *current_value, int max_length, int session_id);
+
+/** Send Editor.StringEdit.Close to descriptor. */
+void gmcp_editor_send_string_close(descriptor_t *d, int session_id,
+    const char *status);
+
+/* =========================================================================
  * Incoming Message Handler (Client → Server)
  * ========================================================================= */
 

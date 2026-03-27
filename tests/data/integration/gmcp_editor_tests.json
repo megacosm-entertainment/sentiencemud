@@ -82,6 +82,27 @@
             "description": "Build Editor.Field with NULL value",
             "input": {},
             "expected_output": { "success": true }
+        },
+        {
+            "name": "gmcped_build_string_open",
+            "test_type": "gmcped_build_string_open",
+            "description": "Build StringEdit.Open message with session ID and field info",
+            "input": {},
+            "expected_output": { "success": true }
+        },
+        {
+            "name": "gmcped_build_string_close",
+            "test_type": "gmcped_build_string_close",
+            "description": "Build StringEdit.Close message with session ID and status",
+            "input": {},
+            "expected_output": { "success": true }
+        },
+        {
+            "name": "gmcped_string_session",
+            "test_type": "gmcped_string_session",
+            "description": "String edit session create, find, remove lifecycle",
+            "input": {},
+            "expected_output": { "success": true }
         }
     ]
 }

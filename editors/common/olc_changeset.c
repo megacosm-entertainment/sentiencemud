@@ -298,7 +298,7 @@ olc_edit_state_t *olc_edit_state_create(void)
 
     state->active_changesets    = list_create(false);
     state->string_edit_sessions = list_create(false);
-    state->next_string_session_id = 1;
+    state->next_string_session_id = 0;
 
     return state;
 }
@@ -317,6 +317,14 @@ void olc_edit_state_destroy(olc_edit_state_t *state)
     while ((cs = (olc_changeset_t *)iterator_nextdata(&it)) != NULL) {
         iterator_remcurrent(&it);
         olc_changeset_destroy(cs);
+    }
+    iterator_stop(&it);
+
+    iterator_start(&it, state->string_edit_sessions);
+    olc_string_edit_session_t *session;
+    while ((session = (olc_string_edit_session_t *)iterator_nextdata(&it)) != NULL) {
+        iterator_remcurrent(&it);
+        olc_string_session_destroy(session);
     }
     iterator_stop(&it);
 
@@ -368,6 +376,64 @@ int olc_edit_state_total_pending(olc_edit_state_t *state)
     iterator_stop(&it);
 
     return total;
+}
+
+/* =========================================================================
+ * String Edit Sessions
+ * ========================================================================= */
+
+olc_string_edit_session_t *olc_string_session_create(olc_edit_state_t *state,
+    const char *entity_id, const char *field_path,
+    char **field_ptr, olc_changeset_t *changeset)
+{
+    if (!state) return NULL;
+
+    olc_string_edit_session_t *session = alloc_mem(sizeof(*session));
+    session->session_id = ++state->next_string_session_id;
+    session->entity_id = str_dup(entity_id ? entity_id : "");
+    session->field_path = str_dup(field_path ? field_path : "");
+    session->field_ptr = field_ptr;
+    session->changeset = changeset;
+
+    list_addlink(state->string_edit_sessions, session);
+    return session;
+}
+
+void olc_string_session_destroy(olc_string_edit_session_t *session)
+{
+    if (!session) return;
+    if (session->entity_id) free_string(session->entity_id);
+    if (session->field_path) free_string(session->field_path);
+    free_mem(session, sizeof(*session));
+}
+
+olc_string_edit_session_t *olc_string_session_find(olc_edit_state_t *state,
+    int session_id)
+{
+    if (!state || !state->string_edit_sessions) return NULL;
+
+    ITERATOR it;
+    iterator_start(&it, state->string_edit_sessions);
+    olc_string_edit_session_t *session;
+    while ((session = (olc_string_edit_session_t *)iterator_nextdata(&it)) != NULL) {
+        if (session->session_id == session_id) {
+            iterator_stop(&it);
+            return session;
+        }
+    }
+    iterator_stop(&it);
+    return NULL;
+}
+
+void olc_string_session_remove(olc_edit_state_t *state, int session_id)
+{
+    if (!state || !state->string_edit_sessions) return;
+
+    olc_string_edit_session_t *session = olc_string_session_find(state, session_id);
+    if (!session) return;
+
+    list_remlink(state->string_edit_sessions, session, false);
+    olc_string_session_destroy(session);
 }
 
 /* =========================================================================
