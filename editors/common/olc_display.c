@@ -15,6 +15,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
+#include <jansson.h>
 
 #include "../../strings.h"
 #include "../../merc.h"
@@ -31,6 +32,38 @@
 /* =========================================================================
  * Internal helpers
  * ========================================================================= */
+
+/**
+ * Build a JSON array of settable option names from a flag_type table.
+ */
+json_t *olc_flag_options_json(const struct flag_type *table)
+{
+    json_t *arr = json_array();
+    if (!table) return arr;
+    for (int i = 0; table[i].name != NULL; i++) {
+        if (table[i].settable)
+            json_array_append_new(arr, json_string(table[i].name));
+    }
+    return arr;
+}
+
+/**
+ * Helper: Create base field descriptor with label, command, type, section.
+ */
+static json_t *capture_field_base(OLC_LAYOUT_CTX *ctx, const char *label,
+                                   const char *command, const char *type)
+{
+    json_t *field = json_object();
+    json_object_set_new(field, "label", json_string(label ? label : ""));
+    if (command)
+        json_object_set_new(field, "command", json_string(command));
+    else
+        json_object_set_new(field, "readonly", json_true());
+    json_object_set_new(field, "type", json_string(type));
+    if (ctx->current_section)
+        json_object_set_new(field, "section", json_string(ctx->current_section));
+    return field;
+}
 
 /**
  * Check if MXP is available and enabled for a character.
@@ -78,6 +111,8 @@ void olc_display_header(OLC_LAYOUT_CTX *ctx, const char *editor_name,
                         const char *entity_name, const char *entity_id,
                         const OLC_EDITOR_DEF *def)
 {
+    if (ctx && ctx->capture_mode) return;
+
     char buf[MSL];
     const OLC_EDITOR_THEME *theme;
     int title_len, pad;
@@ -127,6 +162,8 @@ void olc_display_header(OLC_LAYOUT_CTX *ctx, const char *editor_name,
 
 void olc_display_footer(OLC_LAYOUT_CTX *ctx, const OLC_EDITOR_THEME *theme)
 {
+    if (ctx && ctx->capture_mode) return;
+
     char buf[MSL];
     int dash_count;
 
@@ -150,6 +187,14 @@ void olc_display_string(OLC_LAYOUT_CTX *ctx, const OLC_EDITOR_THEME *theme,
                         const char *label, const char *command,
                         const char *value)
 {
+    if (ctx && ctx->capture_mode && ctx->captured_fields) {
+        json_t *field = capture_field_base(ctx, label, command, "string");
+        json_object_set_new(field, "value",
+            json_string(IS_NULLSTR(value) ? "" : value));
+        json_array_append_new(ctx->captured_fields, field);
+        return;
+    }
+
     char buf[MSL];
     char label_buf[MIL];
     int pad;
@@ -180,6 +225,13 @@ void olc_display_string(OLC_LAYOUT_CTX *ctx, const OLC_EDITOR_THEME *theme,
 void olc_display_number(OLC_LAYOUT_CTX *ctx, const OLC_EDITOR_THEME *theme,
                         const char *label, const char *command, long value)
 {
+    if (ctx && ctx->capture_mode && ctx->captured_fields) {
+        json_t *field = capture_field_base(ctx, label, command, "int");
+        json_object_set_new(field, "value", json_integer(value));
+        json_array_append_new(ctx->captured_fields, field);
+        return;
+    }
+
     long display_value = value;
     if (ctx && ctx->changeset && command)
         display_value = olc_staged_flags(ctx->changeset, command, value);
@@ -191,6 +243,19 @@ void olc_display_number(OLC_LAYOUT_CTX *ctx, const OLC_EDITOR_THEME *theme,
 void olc_display_dice(OLC_LAYOUT_CTX *ctx, const OLC_EDITOR_THEME *theme,
                       const char *label, const char *command, DICE_DATA *dice)
 {
+    if (ctx && ctx->capture_mode && ctx->captured_fields) {
+        json_t *field = capture_field_base(ctx, label, command, "dice");
+        if (dice) {
+            char dbuf[64];
+            snprintf(dbuf, sizeof(dbuf), "%dd%d+%d", dice->number, dice->size, dice->bonus);
+            json_object_set_new(field, "value", json_string(dbuf));
+        } else {
+            json_object_set_new(field, "value", json_string(""));
+        }
+        json_array_append_new(ctx->captured_fields, field);
+        return;
+    }
+
     if (!dice) {
         olc_display_string(ctx, theme, label, command, NULL);
         return;
@@ -203,6 +268,13 @@ void olc_display_dice(OLC_LAYOUT_CTX *ctx, const OLC_EDITOR_THEME *theme,
 void olc_display_bool(OLC_LAYOUT_CTX *ctx, const OLC_EDITOR_THEME *theme,
                       const char *label, const char *command, bool value)
 {
+    if (ctx && ctx->capture_mode && ctx->captured_fields) {
+        json_t *field = capture_field_base(ctx, label, command, "bool");
+        json_object_set_new(field, "value", json_boolean(value));
+        json_array_append_new(ctx->captured_fields, field);
+        return;
+    }
+
     char buf[MSL];
     char label_buf[MIL];
     int pad;
@@ -234,6 +306,15 @@ void olc_display_vnum(OLC_LAYOUT_CTX *ctx, const OLC_EDITOR_THEME *theme,
                       const char *label, const char *command,
                       long vnum, const char *name)
 {
+    if (ctx && ctx->capture_mode && ctx->captured_fields) {
+        json_t *field = capture_field_base(ctx, label, command, "vnum");
+        json_object_set_new(field, "value", json_integer(vnum));
+        if (name && name[0] != '\0')
+            json_object_set_new(field, "name", json_string(name));
+        json_array_append_new(ctx->captured_fields, field);
+        return;
+    }
+
     char val_buf[MIL];
 
     if (vnum <= 0) {
@@ -253,6 +334,16 @@ void olc_display_widevnum(OLC_LAYOUT_CTX *ctx, const OLC_EDITOR_THEME *theme,
                           const char *label, const char *command,
                           const char *wnum_str, const char *name)
 {
+    if (ctx && ctx->capture_mode && ctx->captured_fields) {
+        json_t *field = capture_field_base(ctx, label, command, "widevnum");
+        json_object_set_new(field, "value",
+            json_string(wnum_str ? wnum_str : ""));
+        if (name && name[0] != '\0')
+            json_object_set_new(field, "name", json_string(name));
+        json_array_append_new(ctx->captured_fields, field);
+        return;
+    }
+
     char val_buf[MIL];
 
     if (!wnum_str || wnum_str[0] == '\0') {
@@ -272,6 +363,14 @@ void olc_display_percent(OLC_LAYOUT_CTX *ctx, const OLC_EDITOR_THEME *theme,
                          const char *label, const char *command,
                          int value, int scale)
 {
+    if (ctx && ctx->capture_mode && ctx->captured_fields) {
+        json_t *field = capture_field_base(ctx, label, command, "percent");
+        json_object_set_new(field, "value", json_integer(value));
+        json_object_set_new(field, "scale", json_integer(scale));
+        json_array_append_new(ctx->captured_fields, field);
+        return;
+    }
+
     char val_buf[32];
     if (scale > 1) {
         snprintf(val_buf, sizeof(val_buf), "%d.%d%%", value / scale, value % scale);
@@ -285,6 +384,16 @@ void olc_display_flags(OLC_LAYOUT_CTX *ctx, const OLC_EDITOR_THEME *theme,
                        const char *label, const char *command,
                        const struct flag_type *table, long value)
 {
+    if (ctx && ctx->capture_mode && ctx->captured_fields) {
+        json_t *field = capture_field_base(ctx, label, command, "flags");
+        json_object_set_new(field, "value",
+            json_string(flag_string(table, value)));
+        if (table)
+            json_object_set_new(field, "options", olc_flag_options_json(table));
+        json_array_append_new(ctx->captured_fields, field);
+        return;
+    }
+
     if (!ctx || !ctx->buffer || !table) return;
     if (!theme) theme = &olc_theme_default;
 
@@ -306,6 +415,16 @@ void olc_display_type(OLC_LAYOUT_CTX *ctx, const OLC_EDITOR_THEME *theme,
                       const char *label, const char *command,
                       const struct flag_type *table, int value)
 {
+    if (ctx && ctx->capture_mode && ctx->captured_fields) {
+        json_t *field = capture_field_base(ctx, label, command, "enum");
+        const char *name = table ? flag_name(table, value) : "unknown";
+        json_object_set_new(field, "value", json_string(name ? name : "unknown"));
+        if (table)
+            json_object_set_new(field, "options", olc_flag_options_json(table));
+        json_array_append_new(ctx->captured_fields, field);
+        return;
+    }
+
     char buf[MSL];
     char label_buf[MIL];
     const char *type_name = "unknown";
@@ -339,6 +458,14 @@ void olc_display_text(OLC_LAYOUT_CTX *ctx, const OLC_EDITOR_THEME *theme,
                       const char *label, const char *command,
                       const char *text)
 {
+    if (ctx && ctx->capture_mode && ctx->captured_fields) {
+        json_t *field = capture_field_base(ctx, label, command, "multiline");
+        json_object_set_new(field, "value",
+            json_string(IS_NULLSTR(text) ? "" : text));
+        json_array_append_new(ctx->captured_fields, field);
+        return;
+    }
+
     char buf[MSL];
     char label_buf[MIL];
 
@@ -372,6 +499,16 @@ void olc_display_pair(OLC_LAYOUT_CTX *ctx, const OLC_EDITOR_THEME *theme,
                       const char *label1, const char *cmd1, const char *value1,
                       const char *label2, const char *cmd2, const char *value2)
 {
+    if (ctx && ctx->capture_mode && ctx->captured_fields) {
+        json_t *f1 = capture_field_base(ctx, label1, cmd1, "string");
+        json_object_set_new(f1, "value", json_string(IS_NULLSTR(value1) ? "" : value1));
+        json_array_append_new(ctx->captured_fields, f1);
+        json_t *f2 = capture_field_base(ctx, label2, cmd2, "string");
+        json_object_set_new(f2, "value", json_string(IS_NULLSTR(value2) ? "" : value2));
+        json_array_append_new(ctx->captured_fields, f2);
+        return;
+    }
+
     char buf[MSL];
     char lbl1[MIL], lbl2[MIL];
     int pad1, half_width;
@@ -420,6 +557,17 @@ void olc_display_pair(OLC_LAYOUT_CTX *ctx, const OLC_EDITOR_THEME *theme,
 void olc_display_section(OLC_LAYOUT_CTX *ctx, const OLC_EDITOR_THEME *theme,
                          const char *title)
 {
+    if (ctx && ctx->capture_mode) {
+        ctx->current_section = (title && title[0] != '\0') ? title : NULL;
+        if (ctx->captured_fields && title && title[0] != '\0') {
+            json_t *field = json_object();
+            json_object_set_new(field, "type", json_string("_section"));
+            json_object_set_new(field, "title", json_string(title));
+            json_array_append_new(ctx->captured_fields, field);
+        }
+        return;
+    }
+
     char buf[MSL];
     int title_len, dash_count, pos;
 
@@ -449,6 +597,8 @@ void olc_display_section(OLC_LAYOUT_CTX *ctx, const OLC_EDITOR_THEME *theme,
 
 void olc_display_hr(OLC_LAYOUT_CTX *ctx, const OLC_EDITOR_THEME *theme)
 {
+    if (ctx && ctx->capture_mode) return;
+
     char buf[MSL];
     int dash_count;
 
@@ -469,6 +619,8 @@ void olc_display_hr(OLC_LAYOUT_CTX *ctx, const OLC_EDITOR_THEME *theme)
 
 void olc_display_blank(OLC_LAYOUT_CTX *ctx)
 {
+    if (ctx && ctx->capture_mode) return;
+
     if (!ctx || !ctx->buffer) return;
     add_buf(ctx->buffer, "\n\r");
 }
@@ -481,6 +633,8 @@ void olc_display_table_begin(OLC_LAYOUT_CTX *ctx, const OLC_EDITOR_THEME *theme,
                              const char *title,
                              const OLC_TABLE_COL *cols, int num_cols)
 {
+    if (ctx && ctx->capture_mode) return;
+
     char buf[MSL];
     int pos;
 
@@ -526,6 +680,8 @@ void olc_display_table_begin(OLC_LAYOUT_CTX *ctx, const OLC_EDITOR_THEME *theme,
 void olc_display_table_row(OLC_LAYOUT_CTX *ctx, const OLC_EDITOR_THEME *theme,
                            const char **values, int num_cols, bool highlight)
 {
+    if (ctx && ctx->capture_mode) return;
+
     /* We need the column definitions here but they aren't passed.
      * For now, use default widths. Users should use the col widths they defined. */
     char buf[MSL];
@@ -548,6 +704,8 @@ void olc_display_table_row(OLC_LAYOUT_CTX *ctx, const OLC_EDITOR_THEME *theme,
 
 void olc_display_table_end(OLC_LAYOUT_CTX *ctx, const OLC_EDITOR_THEME *theme)
 {
+    if (ctx && ctx->capture_mode) return;
+
     if (!ctx || !ctx->buffer) return;
     /* Just a blank line after the table */
     add_buf(ctx->buffer, "\n\r");
@@ -557,6 +715,8 @@ void olc_display_list(OLC_LAYOUT_CTX *ctx, const OLC_EDITOR_THEME *theme,
                       const char *title, const char **items, int count,
                       const char *del_command)
 {
+    if (ctx && ctx->capture_mode) return;
+
     char buf[MSL];
 
     if (!ctx || !ctx->buffer) return;
@@ -602,6 +762,21 @@ void olc_display_list(OLC_LAYOUT_CTX *ctx, const OLC_EDITOR_THEME *theme,
 void olc_display_infof(OLC_LAYOUT_CTX *ctx, const OLC_EDITOR_THEME *theme,
                        const char *fmt, ...)
 {
+    if (ctx && ctx->capture_mode && ctx->captured_fields && fmt) {
+        char capbuf[MSL];
+        va_list cap_args;
+        va_start(cap_args, fmt);
+        vsnprintf(capbuf, sizeof(capbuf) - 4, fmt, cap_args);
+        va_end(cap_args);
+        json_t *field = json_object();
+        json_object_set_new(field, "type", json_string("_info"));
+        json_object_set_new(field, "text", json_string(capbuf));
+        if (ctx->current_section)
+            json_object_set_new(field, "section", json_string(ctx->current_section));
+        json_array_append_new(ctx->captured_fields, field);
+        return;
+    }
+
     char buf[MSL];
     va_list args;
 
