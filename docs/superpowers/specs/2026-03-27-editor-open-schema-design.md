@@ -88,7 +88,7 @@ object to `ctx->captured_fields` and returns without rendering text.
 | `olc_display_vnum` | `"vnum"` | value (integer) |
 | `olc_display_widevnum` | `"widevnum"` | value (string "area#vnum") |
 | `olc_display_percent` | `"percent"` | value (integer raw), scale (integer) |
-| `olc_display_pair` | Two field entries | Each half captured as its own field |
+| `olc_display_pair` | Two field entries | Each half captured as its own field. The capture branch extracts label1/cmd1/value1 and label2/cmd2/value2 directly from the function parameters — it does not delegate to `olc_display_string()`. |
 | `olc_display_section` | `"_section"` | title (string) — structural marker |
 | `olc_display_infof` | `"_info"` | text (string) — read-only info line |
 | `olc_display_hr` | Skipped | No capture |
@@ -273,6 +273,7 @@ The `editor_type` string is derived from the `ED_*` constant:
 | ED_MOBILE | `"mobile"` |
 | ED_OBJECT | `"object"` |
 | ED_AREA | `"area"` |
+| Other ED_* | Lowercase of `def->name` as fallback |
 
 ### Integration Point
 
