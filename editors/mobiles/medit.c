@@ -38,6 +38,7 @@
 #include "../common/olc_editor.h"
 #include "../common/olc_display.h"
 #include "../common/olc_commands.h"
+#include "../common/olc_field_handlers.h"
 #include "../../skill_data.h"
 
 /* Forward declarations for tab show functions */
@@ -138,6 +139,14 @@ const struct olc_cmd_type medit_table[] =
 };
 
 /*
+ * Field Handler Table — complex fields requiring custom serialization.
+ * Simple scalar fields stage automatically through olc_cmd_* helpers.
+ */
+static const olc_field_handler_t medit_field_handlers[] = {
+    { NULL, 0, NULL, NULL, NULL }
+};
+
+/*
  * Mobile Editor Definition
  */
 static const OLC_EDITOR_DEF medit_def = {
@@ -161,9 +170,10 @@ static const OLC_EDITOR_DEF medit_def = {
     .perm           = {
         .flags          = OLC_PERM_AREA_SECURITY,
     },
-    .change_mode    = OLC_CHANGE_AREA_FLAG,
+    .change_mode    = OLC_CHANGE_STAGED,
     .get_area_fn    = medit_get_area,
     .audit_changes  = true,
+    .field_handlers = medit_field_handlers,
 };
 
 /*

@@ -22,6 +22,7 @@
 #include "../common/olc_editor.h"
 #include "../common/olc_display.h"
 #include "../common/olc_commands.h"
+#include "../common/olc_field_handlers.h"
 
 /***************************************************************************
  * Framework Helpers                                                       *
@@ -111,6 +112,14 @@ const struct olc_cmd_type aedit_table[] =
 };
 
 /***************************************************************************
+ * Field Handler Table                                                     *
+ ***************************************************************************/
+
+static const olc_field_handler_t aedit_field_handlers[] = {
+    { NULL, 0, NULL, NULL, NULL }
+};
+
+/***************************************************************************
  * Editor Definition (Unified Framework)                                   *
  ***************************************************************************/
 
@@ -133,9 +142,10 @@ static const OLC_EDITOR_DEF aedit_def = {
         .flags          = OLC_PERM_STAFF_RANK,
         .min_staff_rank = STAFF_CREATOR
     },
-    .change_mode    = OLC_CHANGE_AREA_FLAG,
+    .change_mode    = OLC_CHANGE_STAGED,
     .get_area_fn    = aedit_get_area,
     .audit_changes  = true,
+    .field_handlers = aedit_field_handlers,
 };
 
 /***************************************************************************
