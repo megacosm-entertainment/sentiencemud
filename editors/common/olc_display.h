@@ -24,6 +24,37 @@
 #include "../../olc.h"
 #include "../common.h"
 #include "olc_editor.h"
+#include <limits.h>  /* for INT_MIN, INT_MAX */
+
+/* =========================================================================
+ * Schema Capture
+ * ========================================================================= */
+
+/**
+ * Field constraint annotation for schema capture.
+ * Matched by command name after capture to add min/max/max_length.
+ * Terminate arrays with { NULL }.
+ *
+ * typedef is forward-declared in olc_editor.h to break circular include.
+ */
+struct olc_field_annotation {
+    const char *command;     /* Field command name to match */
+    int         min;         /* Minimum value (INT_MIN = unconstrained) */
+    int         max;         /* Maximum value (INT_MAX = unconstrained) */
+    int         max_length;  /* Max string length (0 = no limit) */
+};
+
+/**
+ * Capture field schema from an editor's tab show functions.
+ */
+json_t *olc_schema_capture(CHAR_DATA *ch, const OLC_EDITOR_DEF *def,
+                           void *entity, struct olc_changeset *cs);
+
+/**
+ * Build a JSON array of option name strings from a flag_type table.
+ * Only includes settable flags. Caller must json_decref().
+ */
+json_t *olc_flag_options_json(const struct flag_type *table);
 
 /* =========================================================================
  * Extended Layout Context

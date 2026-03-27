@@ -60,6 +60,9 @@ typedef struct olc_editor_tab       OLC_EDITOR_TAB;
 typedef struct olc_change_entry     OLC_CHANGE_ENTRY;
 typedef struct olc_change_history   OLC_CHANGE_HISTORY;
 
+/* Forward declaration — full struct definition in olc_display.h */
+typedef struct olc_field_annotation olc_field_annotation_t;
+
 /* =========================================================================
  * Permission System
  * ========================================================================= */
@@ -333,6 +336,7 @@ struct olc_editor_def {
 
     /* --- Staged mode configuration --- */
     const struct olc_field_handler *field_handlers;  /**< Field handlers for staged commit (NULL-terminated, may be NULL) */
+    const olc_field_annotation_t   *annotations;     /**< Field constraint annotations (NULL-terminated, may be NULL) */
 };
 
 /* =========================================================================

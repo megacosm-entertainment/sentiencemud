@@ -3,6 +3,7 @@
 
 #include "../merc.h" // For CHAR_DATA, DESCRIPTOR_DATA, etc.
 #include "../olc.h"  // For olc_cmd_type, OLC_FUN
+#include <jansson.h> // For json_t in capture mode
 
 /*
  * ==========================================================================
@@ -45,6 +46,10 @@ typedef struct olc_layout_ctx {
     int         label_width;    // Calculated label column width
     int         value_width;    // Calculated value column width
     struct olc_changeset *changeset;  // Active changeset for pending markers (may be NULL)
+    /* Schema capture mode */
+    bool         capture_mode;      /* When true, record field descriptors instead of rendering */
+    json_t      *captured_fields;   /* JSON array of captured field descriptors (capture_mode only) */
+    const char  *current_section;   /* Current section title from olc_display_section() */
 } OLC_LAYOUT_CTX;
 
 /*

@@ -547,6 +547,10 @@ OLC_LAYOUT_CTX *olc_layout_new(CHAR_DATA *ch)
             ctx->changeset = olc_get_active_changeset(ch, def);
     }
 
+    ctx->capture_mode = false;
+    ctx->captured_fields = NULL;
+    ctx->current_section = NULL;
+
     return ctx;
 }
 
@@ -556,6 +560,10 @@ void olc_layout_free(OLC_LAYOUT_CTX *ctx)
 
     if (ctx->buffer) {
         free_buf(ctx->buffer);
+    }
+    if (ctx->captured_fields) {
+        json_decref(ctx->captured_fields);
+        ctx->captured_fields = NULL;
     }
     free_mem(ctx, sizeof(OLC_LAYOUT_CTX));
 }
