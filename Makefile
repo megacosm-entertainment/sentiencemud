@@ -156,6 +156,7 @@ C_FILES = \
     editors/common/olc_editor.c \
     editors/common/olc_commands.c \
     editors/common/olc_display.c \
+    editors/common/olc_changeset.c \
     effects.c \
     event_types.c \
     events.c \
@@ -311,6 +312,7 @@ ifdef BUILD_TESTS
                tests/unit/strdict_function_tests.c \
                tests/unit/gmcp_sentience_tests.c \
                tests/unit/sentience_link_tests.c \
+               tests/unit/olc_changeset_tests.c \
                tests/unit/pure_function_tests.c \
                tests/integration/wnum_tests.c \
                tests/integration/string_editor_tests.c \

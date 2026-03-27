@@ -1,0 +1,66 @@
+{
+    "type": "test_suite",
+    "test_suite": "olc_changeset_unit_tests",
+    "description": "Unit tests for OLC changeset core types and CRUD operations",
+    "version": "1.0",
+    "requires_mud_environment": false,
+    "test_level": "unit",
+    "tests": [
+        {
+            "name": "olccs_create_destroy",
+            "description": "Create a changeset, verify all fields, then destroy it",
+            "test_type": "olccs_create_destroy",
+            "input": {},
+            "expected_output": { "success": true }
+        },
+        {
+            "name": "olccs_add_find_remove",
+            "description": "Add a change, find it by field path, remove it, verify counts",
+            "test_type": "olccs_add_find_remove",
+            "input": {},
+            "expected_output": { "success": true }
+        },
+        {
+            "name": "olccs_update_in_place",
+            "description": "Update same field twice, verify original old_value is preserved",
+            "test_type": "olccs_update_in_place",
+            "input": {},
+            "expected_output": { "success": true }
+        },
+        {
+            "name": "olccs_noop_detection",
+            "description": "Verify no-op detection: same old/new and collapse back to original",
+            "test_type": "olccs_noop_detection",
+            "input": {},
+            "expected_output": { "success": true }
+        },
+        {
+            "name": "olccs_clear",
+            "description": "Add multiple changes, clear all, verify count is zero",
+            "test_type": "olccs_clear",
+            "input": {},
+            "expected_output": { "success": true }
+        },
+        {
+            "name": "olccs_safety_limit",
+            "description": "Fill to OLC_MAX_PENDING_PER_ENTITY and verify next add returns NULL",
+            "test_type": "olccs_safety_limit",
+            "input": {},
+            "expected_output": { "success": true }
+        },
+        {
+            "name": "olccs_edit_state_lifecycle",
+            "description": "Create edit state, add changesets, find, total pending, destroy",
+            "test_type": "olccs_edit_state_lifecycle",
+            "input": {},
+            "expected_output": { "success": true }
+        },
+        {
+            "name": "olccs_numeric_types",
+            "description": "Test integer, boolean, and flags field types with JSON values",
+            "test_type": "olccs_numeric_types",
+            "input": {},
+            "expected_output": { "success": true }
+        }
+    ]
+}

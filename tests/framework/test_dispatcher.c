@@ -110,6 +110,7 @@ static const test_handler_entry_t handler_table[] = {
     { "olcfw_",                          run_olc_framework_test_case,       MATCH_SUBSTR },
     { "wildsys_",                        run_wilderness_system_test_case,  MATCH_SUBSTR },
     { "updcyc_",                         run_update_cycle_test_case,        MATCH_SUBSTR },
+    { "olccs_",                          run_olc_changeset_test_case,       MATCH_SUBSTR },
 
     /* Sentinel — must be last */
     { NULL, NULL, MATCH_EXACT }

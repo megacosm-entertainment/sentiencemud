@@ -76,7 +76,8 @@
             "shop_stock_cross_area_tests",
             "reset_cross_area_tests",
             "gmcp_sentience_unit_tests",
-            "sentience_link_unit_tests"
+            "sentience_link_unit_tests",
+            "olc_changeset_unit_tests"
         ],
         "unit_only_suites": [
             "core_string_unit_tests",
