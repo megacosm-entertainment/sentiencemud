@@ -27,6 +27,7 @@
 #include "../common.h"
 #include "olc_editor.h"
 #include "olc_staged.h"
+#include "../../gmcp_editor.h"
 
 /* Internal helper: check if MXP is available for a character */
 static bool display_use_mxp(CHAR_DATA *ch)
@@ -526,6 +527,18 @@ void olc_editor_enter(CHAR_DATA *ch, const OLC_EDITOR_DEF *def,
         }
     }
 
+    /* Notify web client of editor session */
+    if (def->change_mode == OLC_CHANGE_STAGED && ch->desc->olc_state) {
+        WNUM_LOAD wnum = olc_get_entity_wnum(def, pEdit);
+        olc_changeset_t *cs = olc_edit_state_find_changeset(
+            ch->desc->olc_state, def->editor_type, wnum);
+        if (cs) {
+            const char *eid = gmcp_editor_entity_id(cs->editor_type, cs->entity_wnum);
+            bool draft = (olc_changeset_count(cs) > 0);
+            gmcp_editor_send_state(ch->desc, eid, cs, draft);
+        }
+    }
+
     /* Show initial display if requested */
     if (show_initial && def->show_fn) {
         (*def->show_fn)(ch, "");
@@ -923,6 +936,12 @@ void olc_editor_interp(CHAR_DATA *ch, char *argument, const OLC_EDITOR_DEF *def)
                     olc_changeset_count(cs),
                     olc_changeset_count(cs) == 1 ? "" : "s");
                 return;
+            }
+            /* Notify web client before closing */
+            if (cs) {
+                const char *eid = gmcp_editor_entity_id(
+                    cs->editor_type, cs->entity_wnum);
+                gmcp_editor_send_close(ch->desc, eid, "done");
             }
         }
         if (def->done_fn)

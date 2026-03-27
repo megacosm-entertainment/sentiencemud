@@ -30,6 +30,9 @@
 #include "olc.h"
 #include "scripts.h"
 #include "interp.h"
+#include "sentience_link.h"
+#include "gmcp_editor.h"
+#include "editors/common/olc_changeset.h"
 
 
 char *string_linedel(char *, int);
@@ -39,6 +42,29 @@ char *numlineas(char *);
 
 void string_edit(CHAR_DATA *ch, char **pString)
 {
+    /* WebSocket+GMCP: open non-blocking string edit panel instead of modal mode */
+    if (ch->desc && is_websocket_connection(ch->desc)
+        && ch->desc->pProtocol && ch->desc->pProtocol->bGMCP) {
+        if (*pString == NULL)
+            *pString = str_dup("");
+
+        if (!ch->desc->olc_state)
+            ch->desc->olc_state = olc_edit_state_create();
+
+        char entity_id[64];
+        snprintf(entity_id, sizeof(entity_id), "string:%d",
+            ch->desc->olc_state->next_string_session_id + 1);
+
+        olc_string_edit_session_t *session = olc_string_session_create(
+            ch->desc->olc_state, entity_id, "text", pString, NULL);
+        if (session) {
+            gmcp_editor_send_string_open(ch->desc, entity_id,
+                "text", *pString, MAX_STRING_LENGTH, session->session_id);
+            return;
+        }
+        /* Fall through to modal mode if session creation fails */
+    }
+
     send_to_char(" {W-=======- Entering {BEDIT{W Mode -========-{X\n\r", ch);
     send_to_char(" {W    Type {B.h{W on a new line for help\n\r", ch);
     send_to_char(" {W Terminate with a {B~{W or {B@{W on a blank line.{X\n\r", ch);
@@ -61,6 +87,29 @@ void string_edit(CHAR_DATA *ch, char **pString)
 
 void string_append(CHAR_DATA *ch, char **pString)
 {
+    /* WebSocket+GMCP: open non-blocking string edit panel instead of modal mode */
+    if (ch->desc && is_websocket_connection(ch->desc)
+        && ch->desc->pProtocol && ch->desc->pProtocol->bGMCP) {
+        if (*pString == NULL)
+            *pString = str_dup("");
+
+        if (!ch->desc->olc_state)
+            ch->desc->olc_state = olc_edit_state_create();
+
+        char entity_id[64];
+        snprintf(entity_id, sizeof(entity_id), "string:%d",
+            ch->desc->olc_state->next_string_session_id + 1);
+
+        olc_string_edit_session_t *session = olc_string_session_create(
+            ch->desc->olc_state, entity_id, "text", pString, NULL);
+        if (session) {
+            gmcp_editor_send_string_open(ch->desc, entity_id,
+                "text", *pString, MAX_STRING_LENGTH, session->session_id);
+            return;
+        }
+        /* Fall through to modal mode if session creation fails */
+    }
+
     send_to_char(" {W-=======- Entering {BAPPEND{W Mode -========-{X\n\r", ch);
     send_to_char(" {W    Type {B.h{W on a new line for help\n\r", ch);
     send_to_char(" {W Terminate with a {B~{W or {B@{W on a blank line.{X\n\r", ch);

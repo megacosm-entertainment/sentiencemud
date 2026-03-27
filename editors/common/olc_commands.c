@@ -19,6 +19,24 @@
  * ========================================================================= */
 
 /**
+ * Helper: send GMCP Editor.Field notification after staging a change.
+ * @param cs      Active changeset (for entity_id)
+ * @param ch      Character making the change
+ * @param label   Field path
+ * @param value   New value (json_t, borrowed ref) or NULL for no-op revert
+ * @param type_str Field type string for GMCP
+ * @param staged  true if change was staged, false if collapsed to no-op
+ */
+static void notify_field_change(olc_changeset_t *cs, CHAR_DATA *ch,
+    const char *label, json_t *value, const char *type_str, bool staged)
+{
+    if (!ch || !ch->desc || !cs) return;
+    const char *eid = gmcp_editor_entity_id(cs->editor_type, cs->entity_wnum);
+    gmcp_editor_send_field(ch->desc, eid, label,
+        staged ? value : json_null(), type_str, staged);
+}
+
+/**
  * Helper: call the record callback if non-NULL.
  */
 static inline void cmd_record(olc_cmd_record_fn record_fn, void *ctx,
@@ -75,6 +93,7 @@ bool olc_cmd_string(CHAR_DATA *ch, char *argument, const char *label,
                     printf_to_char(ch, "{G[STAGED]{x %s cleared.\n\r", label);
                 else
                     printf_to_char(ch, "%s reverted to original value.\n\r", label);
+                notify_field_change(cs, ch, label, json_string(""), "string", result != NULL);
                 return result != NULL;
             }
         }
@@ -111,6 +130,7 @@ bool olc_cmd_string(CHAR_DATA *ch, char *argument, const char *label,
                     printf_to_char(ch, "{G[STAGED]{x %s set.\n\r", label);
                 else
                     printf_to_char(ch, "%s reverted to original value.\n\r", label);
+                notify_field_change(cs, ch, label, json_string(argument), "string", result != NULL);
                 return result != NULL;
             }
         }
@@ -223,6 +243,7 @@ bool olc_cmd_number(CHAR_DATA *ch, char *argument, const char *label,
                     printf_to_char(ch, "{G[STAGED]{x %s set to %d.\n\r", label, value);
                 else
                     printf_to_char(ch, "%s reverted to original value.\n\r", label);
+                notify_field_change(cs, ch, label, json_integer(value), "int", result != NULL);
                 return result != NULL;
             }
         }
@@ -282,6 +303,7 @@ bool olc_cmd_number_i16(CHAR_DATA *ch, char *argument, const char *label,
                     printf_to_char(ch, "{G[STAGED]{x %s set to %d.\n\r", label, value);
                 else
                     printf_to_char(ch, "%s reverted to original value.\n\r", label);
+                notify_field_change(cs, ch, label, json_integer(value), "int16", result != NULL);
                 return result != NULL;
             }
         }
@@ -342,6 +364,7 @@ bool olc_cmd_flag_toggle(CHAR_DATA *ch, char *argument, const char *label,
                         label, flag_string(flag_table, toggled));
                 else
                     printf_to_char(ch, "%s reverted to original value.\n\r", label);
+                notify_field_change(cs, ch, label, json_integer(toggled), "flags", result != NULL);
                 return result != NULL;
             }
         }
@@ -408,6 +431,7 @@ bool olc_cmd_type_set(CHAR_DATA *ch, char *argument, const char *label,
                         label, flag_name(flag_table, value));
                 else
                     printf_to_char(ch, "%s reverted to original value.\n\r", label);
+                notify_field_change(cs, ch, label, json_integer(value), "int", result != NULL);
                 return result != NULL;
             }
         }
@@ -467,6 +491,7 @@ bool olc_cmd_type_set_i16(CHAR_DATA *ch, char *argument, const char *label,
                         label, flag_name(flag_table, value));
                 else
                     printf_to_char(ch, "%s reverted to original value.\n\r", label);
+                notify_field_change(cs, ch, label, json_integer(value), "int16", result != NULL);
                 return result != NULL;
             }
         }
@@ -534,6 +559,7 @@ bool olc_cmd_bool(CHAR_DATA *ch, char *argument, const char *label,
                         label, new_val ? "Yes" : "No");
                 else
                     printf_to_char(ch, "%s reverted to original value.\n\r", label);
+                notify_field_change(cs, ch, label, json_boolean(new_val), "bool", result != NULL);
                 return result != NULL;
             }
         }

@@ -126,6 +126,8 @@ static void emit_comm_wiz_event(const char *plain_message,
 #include "event_types.h"
 #include "class_data.h"
 #include "protocol.h"
+#include "gmcp_editor.h"
+#include "editors/common/olc_editor.h"
 #include "bootstrap/bootstrap.h"
 #include "io/cache/redis_cache.h"
 #include "io/cache/async_cache.h"
@@ -2574,6 +2576,16 @@ void close_socket(DESCRIPTOR_DATA *dclose)
             if (descriptor_is_websocket(dclose)) {
                 CHAR_DATA *session_owner = dclose->original ? dclose->original : ch;
                 ws_resume_arm_on_disconnect(session_owner);
+            }
+
+            /* Notify web client of editor close before clearing desc */
+            if (dclose->editor != 0 && dclose->olc_state && dclose->pEdit) {
+                const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(dclose->editor);
+                if (edef && edef->change_mode == OLC_CHANGE_STAGED) {
+                    WNUM_LOAD wnum = olc_get_entity_wnum(edef, dclose->pEdit);
+                    const char *eid = gmcp_editor_entity_id(edef->editor_type, wnum);
+                    gmcp_editor_send_close(dclose, eid, "disconnect");
+                }
             }
 
             if (ch->invis_level < STAFF_IMMORTAL)
