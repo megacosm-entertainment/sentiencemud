@@ -33,6 +33,8 @@
 #include "../scripts.h"
 #include "../wilds.h"
 #include "common.h"
+#include "common/olc_editor.h"
+#include "common/olc_staged.h"
 #include "../utils/utf8.h"
 #define TABLE_MAX_VISIBLE_WIDTH 80
 #define TABLE_BORDER_COLOUR "{G" // Example color for borders
@@ -536,6 +538,14 @@ OLC_LAYOUT_CTX *olc_layout_new(CHAR_DATA *ch)
     // Value width is remaining space minus some padding for brackets/spacing
     ctx->value_width = ctx->screen_width - ctx->label_width - 6;
     if (ctx->value_width < 40) ctx->value_width = 40;
+
+    /* Attach active changeset for staged value display */
+    ctx->changeset = NULL;
+    if (ch && ch->desc && ch->desc->olc_state) {
+        const OLC_EDITOR_DEF *def = olc_find_editor_by_type(ch->desc->editor);
+        if (def)
+            ctx->changeset = olc_get_active_changeset(ch, def);
+    }
 
     return ctx;
 }

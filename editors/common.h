@@ -44,6 +44,7 @@ typedef struct olc_layout_ctx {
     int         current_tab;    // Current tab index
     int         label_width;    // Calculated label column width
     int         value_width;    // Calculated value column width
+    struct olc_changeset *changeset;  // Active changeset for pending markers (may be NULL)
 } OLC_LAYOUT_CTX;
 
 /*

@@ -26,6 +26,7 @@
 #include "../common.h"
 #include "olc_editor.h"
 #include "olc_display.h"
+#include "olc_staged.h"
 
 /* =========================================================================
  * Internal helpers
@@ -156,17 +157,22 @@ void olc_display_string(OLC_LAYOUT_CTX *ctx, const OLC_EDITOR_THEME *theme,
     if (!ctx || !ctx->buffer) return;
     if (!theme) theme = &olc_theme_default;
 
+    /* Pending marker if field is staged */
+    const char *marker = "";
+    if (ctx->changeset && command && olc_is_field_staged(ctx->changeset, command))
+        marker = "{Y*{x";
+
     display_format_label(ctx->ch, command, label, label_buf, sizeof(label_buf));
 
     pad = ctx->label_width - strlen_no_colours(label);
     if (pad < 0) pad = 0;
 
     if (IS_NULLSTR(value)) {
-        snprintf(buf, sizeof(buf), "%s%s%*s %s(unset){x\n\r",
-                 theme->label, label_buf, pad, "", theme->unset);
+        snprintf(buf, sizeof(buf), "%s%s%s%*s %s(unset){x\n\r",
+                 marker, theme->label, label_buf, pad, "", theme->unset);
     } else {
-        snprintf(buf, sizeof(buf), "%s%s%*s %s%s{x\n\r",
-                 theme->label, label_buf, pad, "", theme->value, value);
+        snprintf(buf, sizeof(buf), "%s%s%s%*s %s%s{x\n\r",
+                 marker, theme->label, label_buf, pad, "", theme->value, value);
     }
     add_buf(ctx->buffer, buf);
 }
@@ -174,8 +180,11 @@ void olc_display_string(OLC_LAYOUT_CTX *ctx, const OLC_EDITOR_THEME *theme,
 void olc_display_number(OLC_LAYOUT_CTX *ctx, const OLC_EDITOR_THEME *theme,
                         const char *label, const char *command, long value)
 {
+    long display_value = value;
+    if (ctx && ctx->changeset && command)
+        display_value = olc_staged_flags(ctx->changeset, command, value);
     char val_buf[32];
-    snprintf(val_buf, sizeof(val_buf), "%ld", value);
+    snprintf(val_buf, sizeof(val_buf), "%ld", display_value);
     olc_display_string(ctx, theme, label, command, val_buf);
 }
 
@@ -201,15 +210,23 @@ void olc_display_bool(OLC_LAYOUT_CTX *ctx, const OLC_EDITOR_THEME *theme,
     if (!ctx || !ctx->buffer) return;
     if (!theme) theme = &olc_theme_default;
 
+    bool display_value = value;
+    if (ctx->changeset && command)
+        display_value = olc_staged_bool(ctx->changeset, command, value);
+
+    const char *marker = "";
+    if (ctx->changeset && command && olc_is_field_staged(ctx->changeset, command))
+        marker = "{Y*{x";
+
     display_format_label(ctx->ch, command, label, label_buf, sizeof(label_buf));
 
     pad = ctx->label_width - strlen_no_colours(label);
     if (pad < 0) pad = 0;
 
-    snprintf(buf, sizeof(buf), "%s%s%*s %s%s{x\n\r",
-             theme->label, label_buf, pad, "",
-             value ? "{G" : theme->unset,
-             value ? "Yes" : "No");
+    snprintf(buf, sizeof(buf), "%s%s%s%*s %s%s{x\n\r",
+             marker, theme->label, label_buf, pad, "",
+             display_value ? "{G" : theme->unset,
+             display_value ? "Yes" : "No");
     add_buf(ctx->buffer, buf);
 }
 
@@ -271,7 +288,15 @@ void olc_display_flags(OLC_LAYOUT_CTX *ctx, const OLC_EDITOR_THEME *theme,
     if (!ctx || !ctx->buffer || !table) return;
     if (!theme) theme = &olc_theme_default;
 
-    olc_buffer_show_flags_ex(ctx->ch, ctx->buffer, table, value,
+    long display_value = value;
+    if (ctx->changeset && command)
+        display_value = olc_staged_flags(ctx->changeset, command, value);
+
+    /* Prefix marker if staged */
+    if (ctx->changeset && command && olc_is_field_staged(ctx->changeset, command))
+        add_buf(ctx->buffer, "{Y*{x");
+
+    olc_buffer_show_flags_ex(ctx->ch, ctx->buffer, table, display_value,
         (char *)(command ? command : ""), (char *)label,
         ctx->screen_width - 3, ctx->label_width, 5,
         theme->flag_colors);
@@ -289,16 +314,24 @@ void olc_display_type(OLC_LAYOUT_CTX *ctx, const OLC_EDITOR_THEME *theme,
     if (!ctx || !ctx->buffer) return;
     if (!theme) theme = &olc_theme_default;
 
+    int display_value = value;
+    if (ctx->changeset && command)
+        display_value = olc_staged_int(ctx->changeset, command, value);
+
     if (table)
-        type_name = flag_name(table, value);
+        type_name = flag_name(table, display_value);
+
+    const char *marker = "";
+    if (ctx->changeset && command && olc_is_field_staged(ctx->changeset, command))
+        marker = "{Y*{x";
 
     display_format_label(ctx->ch, command, label, label_buf, sizeof(label_buf));
 
     pad = ctx->label_width - strlen_no_colours(label);
     if (pad < 0) pad = 0;
 
-    snprintf(buf, sizeof(buf), "%s%s%*s %s(%s){x\n\r",
-             theme->label, label_buf, pad, "", theme->value, type_name);
+    snprintf(buf, sizeof(buf), "%s%s%s%*s %s(%s){x\n\r",
+             marker, theme->label, label_buf, pad, "", theme->value, type_name);
     add_buf(ctx->buffer, buf);
 }
 
