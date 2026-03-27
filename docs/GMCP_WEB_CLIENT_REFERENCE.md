@@ -30,6 +30,23 @@
    - [Sentience.Room.Map](#sentienceroommap)
    - [Sentience.Channel.Message](#sentiencechannelmessage)
    - [Sentience.Link.List](#sentiencelinklklist)
+   - [Sentience.Editor — Overview](#sentienceeditor--overview)
+   - [Sentience.Editor.State](#sentienceeditorstate)
+   - [Sentience.Editor.Field](#sentienceeditorfield)
+   - [Sentience.Editor.Close](#sentienceeditorclose)
+   - [Sentience.Editor.Error](#sentienceeditorerror)
+   - [Sentience.Editor.Set](#sentienceeditorset)
+   - [Sentience.Editor.Commit](#sentienceeditorcommit)
+   - [Sentience.Editor.Revert](#sentienceeditorrevert)
+   - [Sentience.Editor.Request](#sentienceeditorrequest)
+   - [Sentience.Editor.CommitResult](#sentienceeditorcommitresult)
+   - [Sentience.Editor.StringEdit.Open](#sentienceeditorstringeditopen)
+   - [Sentience.Editor.StringEdit.Save](#sentienceeditorstringeditsave)
+   - [Sentience.Editor.StringEdit.Cancel](#sentienceeditorstringeditcancel)
+   - [Sentience.Editor.StringEdit.Close](#sentienceeditorstringeditclose)
+   - [Sentience.Editor.Draft.Save](#sentienceeditordraftsave)
+   - [Sentience.Editor.Draft.Load](#sentienceeditordraftload)
+   - [Editor Client Implementation Guide](#editor-client-implementation-guide)
    - [Sentience.Auth.Resume](#sentienceauthresume)
    - [Sentience.Auth.QRCode](#sentienceauthqrcode)
 4. [Update Lifecycle](#update-lifecycle)
@@ -1655,6 +1672,585 @@ Where `lk_0` matches a link `id` in the preceding `Sentience.Link.List` frame.
 
 ---
 
+### Sentience.Editor — Overview
+
+The Editor package supports **staged editing** for all Tier 1 OLC editors
+(redit, medit, oedit, aedit). Changes accumulate in memory and are applied
+atomically via `Commit`. This enables web client UIs that show pending changes,
+provide undo, and batch complex edits.
+
+> **Note:** There is no `Editor.Open` message currently. When a builder enters
+> an editor, the server sends `Editor.State` with the initial (empty) changeset.
+> A future version will send an `Editor.Open` message with a full field schema
+> so the web client can dynamically render editor forms.
+
+#### Entity ID Format
+
+Entity IDs use the pattern `"type:auid#vnum"` where `auid` is the area unique ID
+and `vnum` is the entity's virtual number within that area.
+
+| Editor | Format | Example |
+|--------|--------|---------|
+| Room   | `room:auid#vnum` | `"room:5#3001"` |
+| Mobile | `mob:auid#vnum`  | `"mob:5#3005"` |
+| Object | `obj:auid#vnum`  | `"obj:5#3010"` |
+| Area   | `area:auid`      | `"area:5"` |
+
+#### Field Types
+
+The `type` field in change objects and field updates uses these values:
+
+| Type | Description | Suggested Client Widget |
+|------|-------------|-------------------------|
+| `"string"` | Single-line text | Text input |
+| `"multiline"` | Multi-line text (descriptions) | Text area / StringEdit panel |
+| `"int"` | Integer | Number input |
+| `"int16"` | Short integer | Number input |
+| `"bool"` | Boolean toggle | Checkbox |
+| `"flags"` | Bitfield (multiple selections) | Multi-select / checkbox group |
+| `"widevnum"` | Wide virtual number reference | Custom vnum selector |
+| `"exit"` | Exit data (complex sub-object) | Custom exit editor |
+| `"embedded"` | Embedded sub-object | Nested form |
+| `"list_add"` | List append operation | Add button + item form |
+| `"list_remove"` | List remove operation | Delete button |
+| `"list_update"` | List item update | Inline edit |
+| `"type_data"` | Type-specific structured data | Custom widget |
+
+---
+
+### Sentience.Editor.State
+
+**Direction:** Server → Client
+**When:** Sent on editor entry, after revert, after draft restore, or in response
+to `Editor.Request`. Provides the full pending change list for the entity.
+
+```json
+{
+  "entity_id": "room:5#3001",
+  "pending_count": 2,
+  "changes": [
+    {"field": "name", "type": "string", "value": "A Glowing Cavern"},
+    {"field": "heal_rate", "type": "int", "value": 200}
+  ],
+  "draft_restored": false,
+  "_v": 1
+}
+```
+
+| Field | Type | Always | Description |
+|-------|------|--------|-------------|
+| `entity_id` | string | ✓ | Entity being edited |
+| `pending_count` | int | ✓ | Number of staged changes |
+| `changes` | array | ✓ | Array of pending change objects (empty if none) |
+| `draft_restored` | bool | ✓ | `true` if state was loaded from a saved draft |
+| `_v` | int | ✓ | Message version (always `1`) |
+
+#### Change Object Fields
+
+| Field | Type | Always | Description |
+|-------|------|--------|-------------|
+| `field` | string | ✓ | Field path (e.g., `"name"`, `"description"`) |
+| `type` | string | ✓ | Field type (see Field Types above) |
+| `value` | mixed | ✓ | New staged value (`null` if value is not set) |
+
+> **Note:** The change object contains only the **new value**, not the old value.
+> To show a diff, the client should capture the original value from the entity
+> at editor entry time, or use the `is_pending` flag from `Editor.Field` updates.
+
+---
+
+### Sentience.Editor.Field
+
+**Direction:** Server → Client
+**When:** After a `Set` stages a change, after a single-field revert, or after a
+MUD-side command modifies a field
+
+```json
+{
+  "entity_id": "room:5#3001",
+  "field": "name",
+  "value": "A Glowing Cavern",
+  "type": "string",
+  "is_pending": true,
+  "_v": 1
+}
+```
+
+| Field | Type | Always | Description |
+|-------|------|--------|-------------|
+| `entity_id` | string | ✓ | Entity being edited |
+| `field` | string | ✓ | Field path that changed |
+| `value` | mixed | ✓ | New value (`null` if the value was cleared or reverted to a null live value) |
+| `type` | string | ✓ | Field type (default: `"string"`) |
+| `is_pending` | bool | ✓ | `true` if the field has a staged change; `false` if it was reverted to the live value |
+| `_v` | int | ✓ | Message version (always `1`) |
+
+When `is_pending` is `false`, it means a previous staging was collapsed away
+(e.g., the builder changed a value back to its original). The `value` field
+may be `null` in this case — the client should revert the field to its original
+display value.
+
+---
+
+### Sentience.Editor.Close
+
+**Direction:** Server → Client
+**When:** The builder exits the editor (via `done` command or disconnect). Not
+sent on commit — the editor stays open after committing.
+
+```json
+{
+  "entity_id": "room:5#3001",
+  "reason": "done",
+  "_v": 1
+}
+```
+
+| Field | Type | Always | Description |
+|-------|------|--------|-------------|
+| `entity_id` | string | ✓ | Entity that was being edited |
+| `reason` | string | ✓ | Close reason (see table) |
+| `_v` | int | ✓ | Message version (always `1`) |
+
+| Reason | Description |
+|--------|-------------|
+| `"done"` | Builder exited normally |
+| `"forced"` | Admin override or entity deleted |
+| `"disconnect"` | Session lost (draft was auto-saved if changes were pending) |
+
+---
+
+### Sentience.Editor.Error
+
+**Direction:** Server → Client
+**When:** A client request failed validation or processing
+
+```json
+{
+  "entity_id": "room:5#3001",
+  "field": "heal_rate",
+  "error": "limit_reached",
+  "message": "Too many pending changes.",
+  "_v": 1
+}
+```
+
+| Field | Type | Always | Description |
+|-------|------|--------|-------------|
+| `entity_id` | string | ✓ | Entity ID (empty string `""` if not applicable) |
+| `field` | string | ✗ | Field name (omitted when error is not field-specific) |
+| `error` | string | ✓ | Machine-readable error code (see table) |
+| `message` | string | ✓ | Human-readable error description |
+| `_v` | int | ✓ | Message version (always `1`) |
+
+| Error Code | When |
+|------------|------|
+| `"invalid_request"` | Missing required fields in the payload |
+| `"invalid_entity"` | Entity ID doesn't match current editor session |
+| `"not_editing"` | No active editor session for this entity type |
+| `"limit_reached"` | Too many pending changes (per-entity or per-builder limit) |
+| `"no_changes"` | Commit, save, or revert requested with no pending changes |
+| `"not_found"` | Single-field revert — no pending change for that field |
+| `"internal_error"` | Editor definition lookup failed |
+| `"commit_failed"` | Error applying changes to the live entity |
+| `"no_session"` | No active editing state (for string edit operations) |
+| `"invalid_session"` | String edit session ID not found |
+| `"parse_error"` | Invalid JSON in the incoming payload |
+| `"save_failed"` | Draft persistence failed (I/O error) |
+| `"no_draft"` | No saved draft exists for this entity |
+| `"load_failed"` | Draft file exists but could not be loaded (corrupt) |
+
+---
+
+### Sentience.Editor.Set
+
+**Direction:** Client → Server
+**When:** Client wants to stage a field change
+
+```json
+{"entity_id": "room:5#3001", "field": "name", "value": "A Glowing Cavern"}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `entity_id` | string | ✓ | Must match current editor session |
+| `field` | string | ✓ | Field path to modify |
+| `value` | mixed | ✓ | New value — type is auto-detected: JSON integer → `int`, JSON boolean → `bool`, otherwise → `string` |
+
+**Response:**
+- **Success:** `Editor.Field` with `is_pending: true` and the staged value
+- **No-op (reverted to original):** `Editor.Field` with `is_pending: false` and `value: null`
+- **Failure:** `Editor.Error`
+
+The server automatically detects no-op changes (setting a field back to its
+original value) and collapses them, removing the pending change entirely.
+
+---
+
+### Sentience.Editor.Commit
+
+**Direction:** Client → Server
+**When:** Client wants to apply all pending changes to the live entity
+
+```json
+{"entity_id": "room:5#3001", "comment": "Updated room name and heal rate"}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `entity_id` | string | ✓ | Entity to commit |
+| `comment` | string | ✗ | Optional audit log comment (reserved for future use) |
+
+**Response:** `Editor.CommitResult` on success, `Editor.Error` on failure.
+
+> **Note:** Group commit (multiple entities in one message) is defined in the
+> protocol but not yet exposed via the `Commit` handler. Currently, commit one
+> entity at a time.
+
+---
+
+### Sentience.Editor.Revert
+
+**Direction:** Client → Server
+**When:** Client wants to discard pending changes
+
+Revert **all** pending changes:
+```json
+{"entity_id": "room:5#3001"}
+```
+
+Revert a **single** field:
+```json
+{"entity_id": "room:5#3001", "field": "name"}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `entity_id` | string | ✓ | Entity to revert |
+| `field` | string | ✗ | If provided, revert only this field; if omitted, revert all |
+
+**Response:** `Editor.State` with the updated pending changes after revert.
+
+---
+
+### Sentience.Editor.Request
+
+**Direction:** Client → Server
+**When:** Client needs current editor state (e.g., after reconnect, on tab focus)
+
+```json
+{"entity_id": "room:5#3001"}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `entity_id` | string | ✓ | Entity to query |
+
+**Response:** `Editor.State` with current pending changes.
+
+---
+
+### Sentience.Editor.CommitResult
+
+**Direction:** Server → Client
+**When:** After a successful `Commit` request
+
+#### Single Entity Result
+
+```json
+{
+  "entity_id": "room:5#3001",
+  "status": "success",
+  "changes_applied": 3,
+  "_v": 1
+}
+```
+
+| Field | Type | Always | Description |
+|-------|------|--------|-------------|
+| `entity_id` | string | ✓ | Entity that was committed |
+| `status` | string | ✓ | `"success"` or `"error"` |
+| `changes_applied` | int | ✓ | Number of changes successfully applied |
+| `_v` | int | ✓ | Message version (always `1`) |
+
+#### Group Commit Result (future)
+
+When group commit is implemented, the response will use this format:
+
+```json
+{
+  "group_id": 1,
+  "results": [
+    {"entity_id": "room:5#3001", "status": "success", "changes_applied": 2},
+    {"entity_id": "mob:5#3005", "status": "success", "changes_applied": 1}
+  ],
+  "comment": "Rebuilt tavern area",
+  "_v": 1
+}
+```
+
+| Field | Type | Always | Description |
+|-------|------|--------|-------------|
+| `group_id` | int | ✓ | Group transaction identifier |
+| `results` | array | ✓ | Per-entity commit results |
+| `comment` | string | ✗ | Echo of the provided comment (omitted if none) |
+| `_v` | int | ✓ | Message version (always `1`) |
+
+---
+
+### Sentience.Editor.StringEdit.Open
+
+**Direction:** Server → Client
+**When:** Builder invokes a multiline text editor (e.g., editing a room description)
+on a **WebSocket** connection
+
+WebSocket clients receive this instead of entering the traditional modal
+line-by-line string editor. The client should open a text editing panel where the
+builder can edit freely while continuing to interact with the game.
+
+```json
+{
+  "session_id": "se_1",
+  "entity_id": "room:5#3001",
+  "field": "description",
+  "value": "The room is dark and musty...",
+  "max_length": 4096
+}
+```
+
+| Field | Type | Always | Description |
+|-------|------|--------|-------------|
+| `session_id` | string | ✓ | Unique session identifier in `"se_N"` format (N is an incrementing integer) |
+| `entity_id` | string | ✓ | Entity being edited |
+| `field` | string | ✓ | Field name being edited |
+| `value` | string | ✓ | Current text content (empty string if field was blank) |
+| `max_length` | int | ✓ | Maximum allowed text length in characters |
+
+> **Note:** This message does **not** include `_v`. Multiple string edit sessions
+> can be open simultaneously (e.g., editing descriptions on different entities).
+> Each has a unique `session_id`.
+
+---
+
+### Sentience.Editor.StringEdit.Save
+
+**Direction:** Client → Server
+**When:** Builder finishes editing text and submits the result
+
+```json
+{
+  "session_id": "se_1",
+  "value": "The room glows with an ethereal light..."
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `session_id` | string | ✓ | Session ID from the `StringEdit.Open` message |
+| `value` | string | ✓ | New text content |
+
+**Behavior:**
+- In **staged mode** (editor uses changesets): the text is stored as an
+  `OLC_FIELD_MULTILINE` pending change — not applied to the entity until commit.
+- In **direct mode**: the text is written to the entity immediately.
+
+**Response:** `Editor.StringEdit.Close` with `status: "saved"`.
+The session is destroyed after this message.
+
+---
+
+### Sentience.Editor.StringEdit.Cancel
+
+**Direction:** Client → Server
+**When:** Builder cancels text editing without saving
+
+```json
+{
+  "session_id": "se_1"
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `session_id` | string | ✓ | Session ID from the `StringEdit.Open` message |
+
+**Response:** `Editor.StringEdit.Close` with `status: "cancelled"`.
+The session is destroyed after this message.
+
+---
+
+### Sentience.Editor.StringEdit.Close
+
+**Direction:** Server → Client
+**When:** After a `StringEdit.Save` or `StringEdit.Cancel` is processed
+
+```json
+{
+  "session_id": "se_1",
+  "status": "saved"
+}
+```
+
+| Field | Type | Always | Description |
+|-------|------|--------|-------------|
+| `session_id` | string | ✓ | Session that was closed |
+| `status` | string | ✓ | `"saved"`, `"cancelled"`, or `"done"` |
+
+> **Note:** This message does **not** include `_v`.
+> The client should close the text editing panel for this `session_id`.
+
+---
+
+### Sentience.Editor.Draft.Save
+
+**Direction:** Client → Server
+**When:** Client explicitly saves the current changeset as a draft to disk
+
+```json
+{"entity_id": "room:5#3001"}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `entity_id` | string | ✓ | Entity whose changeset to save |
+
+Drafts are saved per-builder per-entity at
+`data/drafts/{character_name}/{editor_type}_{auid}_{vnum}.json`.
+They survive server restarts and disconnects. The server also **auto-saves**
+drafts when a builder disconnects with pending changes.
+
+**Response:** `Editor.State` on success, `Editor.Error` (code `"no_changes"`
+or `"save_failed"`) on failure.
+
+---
+
+### Sentience.Editor.Draft.Load
+
+**Direction:** Client → Server
+**When:** Client wants to restore a previously saved draft
+
+```json
+{"entity_id": "room:5#3001"}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `entity_id` | string | ✓ | Entity whose draft to load |
+
+Replaces the current (possibly empty) changeset with the draft's contents.
+
+**Response:** `Editor.State` with `draft_restored: true` on success,
+`Editor.Error` (code `"no_draft"` or `"load_failed"`) on failure.
+
+> **Note:** Drafts are also restored **automatically** when entering an editor
+> if a saved draft exists for that entity. The initial `Editor.State` message
+> will have `draft_restored: true` in that case.
+
+---
+
+### Editor Client Implementation Guide
+
+This section provides guidance for web client developers consuming the Editor
+GMCP package.
+
+#### Lifecycle
+
+1. **Builder enters editor** (via MUD command like `redit`):
+   - Server sends `Editor.State` with `pending_count: 0` and empty `changes[]`
+   - If a saved draft exists, it is auto-restored: `draft_restored: true` with
+     the draft's changes populated
+   - Client should open an editor panel
+
+2. **Builder makes changes** (via `Editor.Set` or MUD commands):
+   - Server sends `Editor.Field` for each changed field
+   - Client updates the field display and tracks `is_pending` state
+
+3. **Builder commits** (via `Editor.Commit`):
+   - Server applies all changes atomically and sends `Editor.CommitResult`
+   - The editor remains open with a clean changeset — builder can continue editing
+
+4. **Builder exits** (via `done` command):
+   - Server sends `Editor.Close` with `reason: "done"`
+   - Client should close the editor panel
+
+5. **Disconnect with pending changes:**
+   - Server auto-saves a draft and sends `Editor.Close` with `reason: "disconnect"`
+   - On next editor entry, the draft is auto-restored
+
+#### Recommended UI Architecture
+
+```
+┌─────────────────────────────────────────────┐
+│  Editor Panel (opened on Editor.State)       │
+│ ┌─────────────────────────────────────────┐ │
+│ │ Entity: room:5#3001 - "A Dark Cave"     │ │
+│ ├─────────────────────────────────────────┤ │
+│ │ Name: [A Glowing Cavern        ] ● (*)  │ │
+│ │ Description: [Click to edit...  ] ●     │ │
+│ │ Sector: [cave ▾]                        │ │
+│ │ Heal Rate: [200] ● (*)                  │ │
+│ │ Mana Rate: [100]                        │ │
+│ ├─────────────────────────────────────────┤ │
+│ │ Pending: 2 changes                      │ │
+│ │ [Commit]  [Revert All]  [Save Draft]    │ │
+│ └─────────────────────────────────────────┘ │
+│                                             │
+│  (*) = is_pending indicator                 │
+│  ● = field has been modified                │
+└─────────────────────────────────────────────┘
+```
+
+- Show a **pending indicator** (dot, highlight, badge) on fields where
+  `is_pending` is `true`
+- Show a **pending count** from `Editor.State.pending_count`
+- **Commit** button sends `Editor.Commit`
+- **Revert All** button sends `Editor.Revert` (no `field`)
+- Per-field **revert** sends `Editor.Revert` with the `field` name
+- **Save Draft** button sends `Editor.Draft.Save`
+- Multiline fields should open a `StringEdit` panel on click
+
+#### StringEdit Panel
+
+When the server sends `StringEdit.Open`, open a dedicated text editing panel:
+
+```
+┌──────────────────────────────────────┐
+│ Editing: description (se_1)          │
+│ ┌──────────────────────────────────┐ │
+│ │ The room glows with an ethereal  │ │
+│ │ light that seems to emanate from │ │
+│ │ the crystalline walls...         │ │
+│ │                                  │ │
+│ └──────────────────────────────────┘ │
+│ 156 / 4096 chars                     │
+│ [Save]  [Cancel]                     │
+└──────────────────────────────────────┘
+```
+
+- Display `max_length` as a character limit indicator
+- **Save** sends `StringEdit.Save` with the new text
+- **Cancel** sends `StringEdit.Cancel`
+- Close the panel when `StringEdit.Close` is received
+- Multiple panels can be open (use `session_id` to track)
+
+#### Error Handling
+
+Display `Editor.Error` messages to the builder. The `error` code can be used
+for programmatic handling (e.g., highlighting an invalid field), while `message`
+provides human-readable text for display.
+
+#### Staging Limits
+
+The server enforces limits on pending changes:
+- **Per entity:** 100 pending changes maximum
+- **Per builder:** 500 total pending changes across all entities
+
+When limits are reached, `Editor.Error` with code `"limit_reached"` is sent.
+The client should indicate this to the builder and suggest committing or
+reverting some changes.
+
+---
+
 ### Sentience.Auth.Resume
 
 See [Authentication & Session Resume](#authentication--session-resume) for the
@@ -2045,6 +2641,21 @@ function parseWnum(wnum) {
 | Room.Map | S→C | On room change | Pre-rendered minimap |
 | Channel.Message | S→C | On message | Chat channels + tells |
 | Link.List | S→C | Per text frame | Interactive link metadata |
+| Editor.State | S→C | On state change | Revert/draft/request/entry |
+| Editor.Field | S→C | On field change | Individual field update |
+| Editor.Close | S→C | On editor exit | Session cleanup |
+| Editor.Error | S→C | On validation failure | Error code + message |
+| Editor.Set | C→S | On field edit | Stage a change |
+| Editor.Commit | C→S | On submit | Apply all pending changes |
+| Editor.Revert | C→S | On discard | Revert one or all fields |
+| Editor.Request | C→S | On reconnect | Request current state |
+| Editor.CommitResult | S→C | After commit | Changes applied count |
+| Editor.StringEdit.Open | S→C | On multiline edit | Non-blocking text editor (WS) |
+| Editor.StringEdit.Save | C→S | On text submit | Save edited text |
+| Editor.StringEdit.Cancel | C→S | On text cancel | Discard text edits |
+| Editor.StringEdit.Close | S→C | After save/cancel | Close text editor panel |
+| Editor.Draft.Save | C→S | Explicit save | Persist changeset to disk |
+| Editor.Draft.Load | C→S | Explicit load | Restore saved changeset |
 | Auth.Resume | Bidirectional | On connect/disconnect | Session resume tokens |
 | Auth.QRCode | S→C | MFA TOTP setup | QR code as PNG data URL (WS only) |
 
