@@ -1,0 +1,108 @@
+{
+    "type": "test_suite",
+    "test_suite": "olc_schema_capture_tests",
+    "description": "OLC schema capture mode and Editor.Open message builder tests",
+    "version": "1.0",
+    "requires_mud_environment": false,
+    "test_level": "unit",
+    "tests": [
+        {
+            "name": "olcsc_capture_string",
+            "test_type": "olcsc_capture_string",
+            "description": "Capture mode records string field descriptor",
+            "input": {},
+            "expected_output": { "success": true }
+        },
+        {
+            "name": "olcsc_capture_number",
+            "test_type": "olcsc_capture_number",
+            "description": "Capture mode records integer field descriptor",
+            "input": {},
+            "expected_output": { "success": true }
+        },
+        {
+            "name": "olcsc_capture_bool",
+            "test_type": "olcsc_capture_bool",
+            "description": "Capture mode records boolean field descriptor",
+            "input": {},
+            "expected_output": { "success": true }
+        },
+        {
+            "name": "olcsc_capture_text",
+            "test_type": "olcsc_capture_text",
+            "description": "Capture mode records multiline text field descriptor",
+            "input": {},
+            "expected_output": { "success": true }
+        },
+        {
+            "name": "olcsc_capture_type",
+            "test_type": "olcsc_capture_type",
+            "description": "Capture mode records enum field with options",
+            "input": {},
+            "expected_output": { "success": true }
+        },
+        {
+            "name": "olcsc_capture_flags",
+            "test_type": "olcsc_capture_flags",
+            "description": "Capture mode records flags field with options",
+            "input": {},
+            "expected_output": { "success": true }
+        },
+        {
+            "name": "olcsc_capture_readonly",
+            "test_type": "olcsc_capture_readonly",
+            "description": "NULL command produces readonly field",
+            "input": {},
+            "expected_output": { "success": true }
+        },
+        {
+            "name": "olcsc_capture_section",
+            "test_type": "olcsc_capture_section",
+            "description": "Section markers appear in captured fields",
+            "input": {},
+            "expected_output": { "success": true }
+        },
+        {
+            "name": "olcsc_capture_pair",
+            "test_type": "olcsc_capture_pair",
+            "description": "Pair display produces two separate field entries",
+            "input": {},
+            "expected_output": { "success": true }
+        },
+        {
+            "name": "olcsc_capture_skip_hr",
+            "test_type": "olcsc_capture_skip_hr",
+            "description": "HR, blank, header, footer produce no captured fields",
+            "input": {},
+            "expected_output": { "success": true }
+        },
+        {
+            "name": "olcsc_flag_options_json",
+            "test_type": "olcsc_flag_options_json",
+            "description": "Flag table to JSON option array conversion",
+            "input": {},
+            "expected_output": { "success": true }
+        },
+        {
+            "name": "olcsc_annotation_merge",
+            "test_type": "olcsc_annotation_merge",
+            "description": "Annotations add min/max/max_length to matching fields",
+            "input": {},
+            "expected_output": { "success": true }
+        },
+        {
+            "name": "olcsc_build_open",
+            "test_type": "olcsc_build_open",
+            "description": "Build Editor.Open message with tabs and state",
+            "input": {},
+            "expected_output": { "success": true }
+        },
+        {
+            "name": "olcsc_build_open_editor_type",
+            "test_type": "olcsc_build_open_editor_type",
+            "description": "Editor type mapping for known and unknown ED_* values",
+            "input": {},
+            "expected_output": { "success": true }
+        }
+    ]
+}

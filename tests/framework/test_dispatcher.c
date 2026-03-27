@@ -112,6 +112,7 @@ static const test_handler_entry_t handler_table[] = {
     { "updcyc_",                         run_update_cycle_test_case,        MATCH_SUBSTR },
     { "olccs_",                          run_olc_changeset_test_case,       MATCH_SUBSTR },
     { "gmcped_",                         run_gmcp_editor_test_case,         MATCH_SUBSTR },
+    { "olcsc_",                          run_olc_schema_capture_test_case,  MATCH_SUBSTR },
 
     /* Sentinel — must be last */
     { NULL, NULL, MATCH_EXACT }

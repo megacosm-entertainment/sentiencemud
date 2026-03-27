@@ -28,7 +28,8 @@
             "wilderness_system",
             "update_cycle",
             "gmcp_sentience_unit_tests",
-            "sentience_link_unit_tests"
+            "sentience_link_unit_tests",
+            "olc_schema_capture_tests"
         ],
         "quick_test_suites": [
             "area_loading",
@@ -78,7 +79,8 @@
             "gmcp_sentience_unit_tests",
             "sentience_link_unit_tests",
             "olc_changeset_unit_tests",
-            "gmcp_editor_tests"
+            "gmcp_editor_tests",
+            "olc_schema_capture_tests"
         ],
         "unit_only_suites": [
             "core_string_unit_tests",
@@ -103,7 +105,8 @@
             "array_function_tests",
             "strdict_function_tests",
             "gmcp_sentience_unit_tests",
-            "sentience_link_unit_tests"
+            "sentience_link_unit_tests",
+            "olc_schema_capture_tests"
         ],
         "integration_only_suites": [
             "area_loading",
@@ -234,7 +237,12 @@
                     "blueprint_area_scope",
                     "instance_persist",
                     "shop_stock_cross_area_tests",
-                    "reset_cross_area_tests"
+                    "reset_cross_area_tests",
+                    "gmcp_sentience_unit_tests",
+                    "sentience_link_unit_tests",
+                    "olc_changeset_unit_tests",
+                    "gmcp_editor_tests",
+                    "olc_schema_capture_tests"
                 ],
                 "stop_on_first_failure": false,
                 "require_coverage": true
