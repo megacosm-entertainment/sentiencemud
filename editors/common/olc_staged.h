@@ -78,4 +78,16 @@ void olc_staged_cmd_revert(CHAR_DATA *ch, const struct olc_editor_def *def,
 void olc_staged_cmd_pending(CHAR_DATA *ch, const struct olc_editor_def *def,
     void *pEdit);
 
+/** Handle 'savedraft' — save current changeset to disk. */
+void olc_staged_cmd_savedraft(CHAR_DATA *ch, const struct olc_editor_def *def,
+    void *pEdit);
+
+/** Handle 'loaddraft' — load a saved draft from disk. */
+void olc_staged_cmd_loaddraft(CHAR_DATA *ch, const struct olc_editor_def *def,
+    void *pEdit);
+
+/** Handle 'discarddraft' — remove a saved draft from disk. */
+void olc_staged_cmd_discarddraft(CHAR_DATA *ch, const struct olc_editor_def *def,
+    void *pEdit);
+
 #endif /* !def __OLC_STAGED_H__ */

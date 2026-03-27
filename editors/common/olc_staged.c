@@ -369,3 +369,79 @@ void olc_staged_cmd_commit_group(CHAR_DATA *ch, char *argument)
         IS_NULLSTR(argument) ? "" : ": ",
         IS_NULLSTR(argument) ? "" : argument);
 }
+
+/* =========================================================================
+ * Draft Commands
+ * ========================================================================= */
+
+void olc_staged_cmd_savedraft(CHAR_DATA *ch, const OLC_EDITOR_DEF *def,
+    void *pEdit)
+{
+    olc_changeset_t *cs = olc_get_active_changeset(ch, def);
+    if (!cs) return;
+
+    if (olc_changeset_count(cs) == 0) {
+        send_to_char("No pending changes to save.\n\r", ch);
+        return;
+    }
+
+    if (olc_draft_save(cs))
+        printf_to_char(ch, "{G[DRAFT SAVED]{x %d change%s saved.\n\r",
+            olc_changeset_count(cs),
+            olc_changeset_count(cs) == 1 ? "" : "s");
+    else
+        send_to_char("{R[ERROR]{x Failed to save draft.\n\r", ch);
+}
+
+void olc_staged_cmd_loaddraft(CHAR_DATA *ch, const OLC_EDITOR_DEF *def,
+    void *pEdit)
+{
+    if (!ch || !ch->desc || !def || !pEdit) return;
+
+    WNUM_LOAD wnum = olc_get_entity_wnum(def, pEdit);
+
+    if (!olc_draft_exists(ch->name, def->editor_type, wnum)) {
+        send_to_char("No saved draft found for this entity.\n\r", ch);
+        return;
+    }
+
+    olc_changeset_t *loaded = olc_draft_load(ch->name, def->editor_type, wnum);
+    if (!loaded) {
+        send_to_char("{R[ERROR]{x Failed to load draft (may be corrupt).\n\r", ch);
+        return;
+    }
+
+    /* Replace the current changeset */
+    if (!ch->desc->olc_state)
+        ch->desc->olc_state = olc_edit_state_create();
+
+    olc_changeset_t *existing = olc_edit_state_find_changeset(
+        ch->desc->olc_state, def->editor_type, wnum);
+    if (existing) {
+        list_remlink(ch->desc->olc_state->active_changesets, existing, false);
+        olc_changeset_destroy(existing);
+    }
+    list_addlink(ch->desc->olc_state->active_changesets, loaded);
+
+    printf_to_char(ch, "{G[DRAFT LOADED]{x %d change%s restored.\n\r",
+        olc_changeset_count(loaded),
+        olc_changeset_count(loaded) == 1 ? "" : "s");
+}
+
+void olc_staged_cmd_discarddraft(CHAR_DATA *ch, const OLC_EDITOR_DEF *def,
+    void *pEdit)
+{
+    if (!ch || !ch->desc || !def || !pEdit) return;
+
+    WNUM_LOAD wnum = olc_get_entity_wnum(def, pEdit);
+
+    if (!olc_draft_exists(ch->name, def->editor_type, wnum)) {
+        send_to_char("No saved draft found for this entity.\n\r", ch);
+        return;
+    }
+
+    if (olc_draft_discard(ch->name, def->editor_type, wnum))
+        send_to_char("{G[DRAFT DISCARDED]{x Saved draft removed.\n\r", ch);
+    else
+        send_to_char("{R[ERROR]{x Failed to discard draft.\n\r", ch);
+}

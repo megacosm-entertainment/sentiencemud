@@ -913,6 +913,132 @@ static test_result_t test_is_field_staged(test_case_t *test)
     return TEST_SUCCESS;
 }
 
+/* =========================================================================
+ * Serialization Tests
+ * ========================================================================= */
+
+static test_result_t test_olccs_serialize_roundtrip(test_case_t *test)
+{
+    WNUM_LOAD wnum = { .auid = 7, .vnum = 5001 };
+    olc_changeset_t *cs = olc_changeset_create(ED_ROOM, wnum, "Roundtrip Room", "Tester");
+
+    json_t *old1 = json_string("Old Name");
+    json_t *new1 = json_string("New Name");
+    olc_changeset_add_change(cs, "name", OLC_FIELD_STRING, old1, new1);
+
+    json_t *old2 = json_integer(0);
+    json_t *new2 = json_integer(42);
+    olc_changeset_add_change(cs, "heal_rate", OLC_FIELD_INT, old2, new2);
+
+    json_t *json = olc_changeset_serialize(cs);
+    TEST_ASSERT_NOT_NULL(json);
+
+    olc_changeset_t *restored = olc_changeset_deserialize(json);
+    json_decref(json);
+    TEST_ASSERT_NOT_NULL(restored);
+
+    TEST_ASSERT_INT_EQ(ED_ROOM, restored->editor_type);
+    TEST_ASSERT_INT_EQ(7, restored->entity_wnum.auid);
+    TEST_ASSERT_INT_EQ(5001, restored->entity_wnum.vnum);
+    TEST_ASSERT_STR_EQ("Roundtrip Room", restored->entity_label);
+    TEST_ASSERT_STR_EQ("Tester", restored->author);
+    TEST_ASSERT_INT_EQ(2, olc_changeset_count(restored));
+    TEST_ASSERT_FALSE(restored->is_dirty);
+
+    olc_pending_change_t *c = olc_changeset_find_change(restored, "name");
+    TEST_ASSERT_NOT_NULL(c);
+    TEST_ASSERT_STR_EQ("New Name", json_string_value(c->new_value));
+
+    c = olc_changeset_find_change(restored, "heal_rate");
+    TEST_ASSERT_NOT_NULL(c);
+    TEST_ASSERT_INT_EQ(42, json_integer_value(c->new_value));
+
+    json_decref(old1); json_decref(new1);
+    json_decref(old2); json_decref(new2);
+    olc_changeset_destroy(cs);
+    olc_changeset_destroy(restored);
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_olccs_serialize_empty(test_case_t *test)
+{
+    WNUM_LOAD wnum = { .auid = 1, .vnum = 1 };
+    olc_changeset_t *cs = olc_changeset_create(ED_MOBILE, wnum, "Empty", "Builder");
+
+    json_t *json = olc_changeset_serialize(cs);
+    TEST_ASSERT_NOT_NULL(json);
+
+    olc_changeset_t *restored = olc_changeset_deserialize(json);
+    json_decref(json);
+    TEST_ASSERT_NOT_NULL(restored);
+    TEST_ASSERT_INT_EQ(0, olc_changeset_count(restored));
+    TEST_ASSERT_INT_EQ(ED_MOBILE, restored->editor_type);
+
+    olc_changeset_destroy(cs);
+    olc_changeset_destroy(restored);
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_olccs_deserialize_corrupt(test_case_t *test)
+{
+    /* NULL input */
+    TEST_ASSERT_NULL(olc_changeset_deserialize(NULL));
+
+    /* Not an object */
+    json_t *arr = json_array();
+    TEST_ASSERT_NULL(olc_changeset_deserialize(arr));
+    json_decref(arr);
+
+    /* Missing required fields */
+    json_t *partial = json_object();
+    json_object_set_new(partial, "editor_type", json_integer(ED_ROOM));
+    TEST_ASSERT_NULL(olc_changeset_deserialize(partial));
+    json_decref(partial);
+
+    /* Invalid types in fields */
+    json_t *bad = json_pack("{s:s, s:i, s:i, s:s, s:s}",
+        "editor_type", "not_a_number",
+        "entity_wnum_auid", 1,
+        "entity_wnum_vnum", 1,
+        "entity_label", "Test",
+        "author", "Builder");
+    TEST_ASSERT_NULL(olc_changeset_deserialize(bad));
+    json_decref(bad);
+
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_olccs_draft_save_load(test_case_t *test)
+{
+    WNUM_LOAD wnum = { .auid = 99, .vnum = 9999 };
+    olc_changeset_t *cs = olc_changeset_create(ED_ROOM, wnum, "Draft Test", "DraftTester");
+
+    json_t *old_v = json_string("old");
+    json_t *new_v = json_string("new");
+    olc_changeset_add_change(cs, "name", OLC_FIELD_STRING, old_v, new_v);
+
+    TEST_ASSERT_TRUE(olc_draft_save(cs));
+    TEST_ASSERT_TRUE(olc_draft_exists("DraftTester", ED_ROOM, wnum));
+
+    olc_changeset_t *loaded = olc_draft_load("DraftTester", ED_ROOM, wnum);
+    TEST_ASSERT_NOT_NULL(loaded);
+    TEST_ASSERT_INT_EQ(1, olc_changeset_count(loaded));
+    TEST_ASSERT_STR_EQ("Draft Test", loaded->entity_label);
+
+    olc_pending_change_t *c = olc_changeset_find_change(loaded, "name");
+    TEST_ASSERT_NOT_NULL(c);
+    TEST_ASSERT_STR_EQ("new", json_string_value(c->new_value));
+
+    /* Clean up */
+    TEST_ASSERT_TRUE(olc_draft_discard("DraftTester", ED_ROOM, wnum));
+    TEST_ASSERT_FALSE(olc_draft_exists("DraftTester", ED_ROOM, wnum));
+
+    json_decref(old_v); json_decref(new_v);
+    olc_changeset_destroy(cs);
+    olc_changeset_destroy(loaded);
+    return TEST_SUCCESS;
+}
+
 /*
  * Test dispatcher — routes test_type to specific test functions.
  */
@@ -976,6 +1102,14 @@ test_result_t run_olc_changeset_test_case(test_case_t *test)
         return test_staged_bool(test);
     if (strcmp(test->test_type, "olccs_is_field_staged") == 0)
         return test_is_field_staged(test);
+    if (strcmp(test->test_type, "olccs_serialize_roundtrip") == 0)
+        return test_olccs_serialize_roundtrip(test);
+    if (strcmp(test->test_type, "olccs_serialize_empty") == 0)
+        return test_olccs_serialize_empty(test);
+    if (strcmp(test->test_type, "olccs_deserialize_corrupt") == 0)
+        return test_olccs_deserialize_corrupt(test);
+    if (strcmp(test->test_type, "olccs_draft_save_load") == 0)
+        return test_olccs_draft_save_load(test);
 
     log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
                   "Unknown OLC changeset test type: %s", test->test_type);

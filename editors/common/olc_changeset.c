@@ -369,3 +369,210 @@ int olc_edit_state_total_pending(olc_edit_state_t *state)
 
     return total;
 }
+
+/* =========================================================================
+ * Serialization
+ * ========================================================================= */
+
+json_t *olc_changeset_serialize(olc_changeset_t *cs)
+{
+    if (!cs) return NULL;
+
+    json_t *root = json_object();
+    json_object_set_new(root, "editor_type", json_integer(cs->editor_type));
+    json_object_set_new(root, "entity_wnum_auid", json_integer(cs->entity_wnum.auid));
+    json_object_set_new(root, "entity_wnum_vnum", json_integer(cs->entity_wnum.vnum));
+    json_object_set_new(root, "entity_label",
+        json_string(cs->entity_label ? cs->entity_label : ""));
+    json_object_set_new(root, "author",
+        json_string(cs->author ? cs->author : ""));
+    json_object_set_new(root, "created_at", json_integer((json_int_t)cs->created_at));
+
+    json_t *changes_arr = json_array();
+    ITERATOR it;
+    iterator_start(&it, cs->changes);
+    olc_pending_change_t *change;
+    while ((change = (olc_pending_change_t *)iterator_nextdata(&it)) != NULL) {
+        json_t *entry = json_object();
+        json_object_set_new(entry, "field_path",
+            json_string(change->field_path ? change->field_path : ""));
+        json_object_set_new(entry, "field_type", json_integer(change->field_type));
+        if (change->old_value)
+            json_object_set(entry, "old_value", change->old_value);
+        if (change->new_value)
+            json_object_set(entry, "new_value", change->new_value);
+        json_array_append_new(changes_arr, entry);
+    }
+    iterator_stop(&it);
+    json_object_set_new(root, "changes", changes_arr);
+
+    return root;
+}
+
+olc_changeset_t *olc_changeset_deserialize(json_t *json)
+{
+    if (!json || !json_is_object(json)) return NULL;
+
+    json_t *j_type = json_object_get(json, "editor_type");
+    json_t *j_auid = json_object_get(json, "entity_wnum_auid");
+    json_t *j_vnum = json_object_get(json, "entity_wnum_vnum");
+    json_t *j_label = json_object_get(json, "entity_label");
+    json_t *j_author = json_object_get(json, "author");
+
+    if (!json_is_integer(j_type) || !json_is_integer(j_auid)
+        || !json_is_integer(j_vnum) || !json_is_string(j_label)
+        || !json_is_string(j_author))
+        return NULL;
+
+    WNUM_LOAD wnum = {
+        .auid = json_integer_value(j_auid),
+        .vnum = json_integer_value(j_vnum)
+    };
+
+    olc_changeset_t *cs = olc_changeset_create(
+        (int)json_integer_value(j_type), wnum,
+        json_string_value(j_label), json_string_value(j_author));
+    if (!cs) return NULL;
+
+    json_t *j_created = json_object_get(json, "created_at");
+    if (json_is_integer(j_created))
+        cs->created_at = (time_t)json_integer_value(j_created);
+
+    json_t *changes_arr = json_object_get(json, "changes");
+    if (json_is_array(changes_arr)) {
+        size_t idx;
+        json_t *entry;
+        json_array_foreach(changes_arr, idx, entry) {
+            json_t *j_fp = json_object_get(entry, "field_path");
+            json_t *j_ft = json_object_get(entry, "field_type");
+            if (!json_is_string(j_fp) || !json_is_integer(j_ft))
+                continue;
+
+            json_t *old_v = json_object_get(entry, "old_value");
+            json_t *new_v = json_object_get(entry, "new_value");
+
+            olc_changeset_add_change(cs, json_string_value(j_fp),
+                (olc_field_type_t)json_integer_value(j_ft),
+                old_v, new_v);
+        }
+    }
+
+    cs->is_dirty = false;
+    return cs;
+}
+
+/* =========================================================================
+ * Draft Persistence
+ * ========================================================================= */
+
+#include <sys/stat.h>
+#include <unistd.h>
+#include <errno.h>
+
+static void ensure_draft_dir(const char *author)
+{
+    char path[256];
+    snprintf(path, sizeof(path), "%sdrafts", DATA_DIR);
+    mkdir(path, 0755);
+    snprintf(path, sizeof(path), "%sdrafts/%s", DATA_DIR, author);
+    mkdir(path, 0755);
+}
+
+static const char *olc_draft_path(const char *author, int editor_type,
+    WNUM_LOAD wnum)
+{
+    static char path[256];
+    snprintf(path, sizeof(path), "%sdrafts/%s/%d_%ld_%ld.json",
+        DATA_DIR, author, editor_type, wnum.auid, wnum.vnum);
+    return path;
+}
+
+bool olc_draft_save(olc_changeset_t *cs)
+{
+    if (!cs || !cs->author) return false;
+
+    json_t *json = olc_changeset_serialize(cs);
+    if (!json) return false;
+
+    /* Check size limit */
+    char *dump = json_dumps(json, JSON_COMPACT);
+    if (dump) {
+        size_t len = strlen(dump);
+        free(dump);
+        if (len > OLC_MAX_DRAFT_SIZE) {
+            json_decref(json);
+            return false;
+        }
+    }
+
+    ensure_draft_dir(cs->author);
+    const char *path = olc_draft_path(cs->author, cs->editor_type,
+        cs->entity_wnum);
+
+    /* Write atomically: temp file + rename */
+    char tmp_path[270];
+    snprintf(tmp_path, sizeof(tmp_path), "%s.tmp", path);
+
+    int rc = json_dump_file(json, tmp_path, JSON_INDENT(2));
+    json_decref(json);
+
+    if (rc != 0) {
+        unlink(tmp_path);
+        return false;
+    }
+
+    if (rename(tmp_path, path) != 0) {
+        unlink(tmp_path);
+        return false;
+    }
+
+    cs->is_dirty = false;
+    return true;
+}
+
+olc_changeset_t *olc_draft_load(const char *author, int editor_type,
+    WNUM_LOAD entity_wnum)
+{
+    if (!author) return NULL;
+
+    const char *path = olc_draft_path(author, editor_type, entity_wnum);
+
+    json_error_t error;
+    json_t *json = json_load_file(path, 0, &error);
+    if (!json) return NULL;
+
+    olc_changeset_t *cs = olc_changeset_deserialize(json);
+    json_decref(json);
+    return cs;
+}
+
+bool olc_draft_discard(const char *author, int editor_type,
+    WNUM_LOAD entity_wnum)
+{
+    if (!author) return false;
+    const char *path = olc_draft_path(author, editor_type, entity_wnum);
+    return (unlink(path) == 0);
+}
+
+bool olc_draft_exists(const char *author, int editor_type,
+    WNUM_LOAD entity_wnum)
+{
+    if (!author) return false;
+    const char *path = olc_draft_path(author, editor_type, entity_wnum);
+    struct stat st;
+    return (stat(path, &st) == 0 && S_ISREG(st.st_mode));
+}
+
+void olc_draft_auto_save(olc_edit_state_t *state)
+{
+    if (!state || !state->active_changesets) return;
+
+    ITERATOR it;
+    iterator_start(&it, state->active_changesets);
+    olc_changeset_t *cs;
+    while ((cs = (olc_changeset_t *)iterator_nextdata(&it)) != NULL) {
+        if (olc_changeset_count(cs) > 0)
+            olc_draft_save(cs);
+    }
+    iterator_stop(&it);
+}

@@ -234,6 +234,38 @@
       "expected_result": "PASS",
       "input": {},
       "expected_output": {}
+    },
+    {
+      "name": "olccs_serialize_roundtrip",
+      "test_type": "olccs_serialize_roundtrip",
+      "description": "Serialize changeset to JSON and deserialize back with all data intact",
+      "expected_result": "PASS",
+      "input": {},
+      "expected_output": {}
+    },
+    {
+      "name": "olccs_serialize_empty",
+      "test_type": "olccs_serialize_empty",
+      "description": "Serialize and deserialize an empty changeset preserves metadata",
+      "expected_result": "PASS",
+      "input": {},
+      "expected_output": {}
+    },
+    {
+      "name": "olccs_deserialize_corrupt",
+      "test_type": "olccs_deserialize_corrupt",
+      "description": "Deserialize rejects NULL, arrays, partial objects, and wrong types",
+      "expected_result": "PASS",
+      "input": {},
+      "expected_output": {}
+    },
+    {
+      "name": "olccs_draft_save_load",
+      "test_type": "olccs_draft_save_load",
+      "description": "Save draft to disk, load it back, verify contents, then discard",
+      "expected_result": "PASS",
+      "input": {},
+      "expected_output": {}
     }
   ]
 }

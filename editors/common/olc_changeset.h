@@ -109,4 +109,32 @@ olc_pending_change_t   *olc_pending_change_create(const char *field_path,
                                                    json_t *old_value, json_t *new_value);
 void                    olc_pending_change_destroy(olc_pending_change_t *change);
 
+/* =========================================================================
+ * Draft Persistence API
+ * ========================================================================= */
+
+/** Serialize a changeset to JSON. Caller must json_decref() result. */
+json_t                 *olc_changeset_serialize(olc_changeset_t *cs);
+
+/** Deserialize a changeset from JSON. Returns NULL on invalid data. */
+olc_changeset_t        *olc_changeset_deserialize(json_t *json);
+
+/** Save changeset as draft file. Returns true on success. */
+bool                    olc_draft_save(olc_changeset_t *cs);
+
+/** Load a draft file for an entity. Returns changeset or NULL. */
+olc_changeset_t        *olc_draft_load(const char *author, int editor_type,
+                                        WNUM_LOAD entity_wnum);
+
+/** Delete a draft file. Returns true if file was deleted. */
+bool                    olc_draft_discard(const char *author, int editor_type,
+                                          WNUM_LOAD entity_wnum);
+
+/** Check if a draft exists. */
+bool                    olc_draft_exists(const char *author, int editor_type,
+                                         WNUM_LOAD entity_wnum);
+
+/** Auto-save all active changesets in an edit state as drafts. */
+void                    olc_draft_auto_save(olc_edit_state_t *state);
+
 #endif /* __OLC_CHANGESET_H__ */

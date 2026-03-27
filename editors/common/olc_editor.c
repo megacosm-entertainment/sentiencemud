@@ -426,7 +426,7 @@ void olc_audit_logf(CHAR_DATA *ch, const OLC_EDITOR_DEF *def,
 /**
  * Extract entity WNUM from the edit pointer based on editor type.
  */
-static WNUM_LOAD olc_get_entity_wnum(const OLC_EDITOR_DEF *def, void *pEdit)
+WNUM_LOAD olc_get_entity_wnum(const OLC_EDITOR_DEF *def, void *pEdit)
 {
     WNUM_LOAD wnum = { 0, 0 };
     if (!pEdit) return wnum;
@@ -510,9 +510,19 @@ void olc_editor_enter(CHAR_DATA *ch, const OLC_EDITOR_DEF *def,
         olc_changeset_t *cs = olc_edit_state_find_changeset(
             ch->desc->olc_state, def->editor_type, wnum);
         if (!cs) {
-            const char *label = olc_get_entity_label(def, pEdit);
-            cs = olc_changeset_create(def->editor_type, wnum, label, ch->name);
-            list_addlink(ch->desc->olc_state->active_changesets, cs);
+            /* Check for a saved draft before creating empty changeset */
+            cs = olc_draft_load(ch->name, def->editor_type, wnum);
+            if (cs) {
+                list_addlink(ch->desc->olc_state->active_changesets, cs);
+                printf_to_char(ch,
+                    "{YDraft restored with %d pending change%s.{x\n\r",
+                    olc_changeset_count(cs),
+                    olc_changeset_count(cs) == 1 ? "" : "s");
+            } else {
+                const char *label = olc_get_entity_label(def, pEdit);
+                cs = olc_changeset_create(def->editor_type, wnum, label, ch->name);
+                list_addlink(ch->desc->olc_state->active_changesets, cs);
+            }
         }
     }
 

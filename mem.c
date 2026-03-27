@@ -389,6 +389,7 @@ void free_descriptor(DESCRIPTOR_DATA *d)
     if(d->input_prompt) free_string(d->input_prompt);
     if(d->inputString) free_string(d->inputString);
     if (d->olc_state) {
+        olc_draft_auto_save(d->olc_state);
         olc_edit_state_destroy(d->olc_state);
         d->olc_state = NULL;
     }

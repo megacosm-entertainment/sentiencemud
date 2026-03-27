@@ -472,6 +472,11 @@ const OLC_EDITOR_DEF *olc_find_editor_by_type(int editor_type);
  */
 const OLC_EDITOR_DEF *olc_find_editor_by_name(const char *name);
 
+/**
+ * Get the WNUM_LOAD identifying an entity being edited.
+ */
+WNUM_LOAD olc_get_entity_wnum(const OLC_EDITOR_DEF *def, void *pEdit);
+
 /* =========================================================================
  * Change History Functions
  * ========================================================================= */
