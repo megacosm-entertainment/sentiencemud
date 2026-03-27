@@ -10,6 +10,7 @@
 #include "../framework/test_framework.h"
 #include "../../gmcp_editor.h"
 #include "../../editors/common/olc_changeset.h"
+#include "../../editors/common/olc_staged.h"
 #include <jansson.h>
 #include <string.h>
 
@@ -300,6 +301,50 @@ static test_result_t test_string_session_lifecycle(test_case_t *test)
 }
 
 /* =========================================================================
+ * Staged Edit Cycle Tests
+ * ========================================================================= */
+
+static test_result_t test_redit_staged_cycle(test_case_t *test)
+{
+    (void)test;
+    WNUM_LOAD wnum = { .auid = 5, .vnum = 3001 };
+    olc_changeset_t *cs = olc_changeset_create(ED_ROOM, wnum, "Test Room", "Builder");
+
+    /* Stage name change */
+    json_t *old_name = json_string("Old Room");
+    json_t *new_name = json_string("New Room");
+    olc_changeset_add_change(cs, "name", OLC_FIELD_STRING, old_name, new_name);
+    TEST_ASSERT_INT_EQ(1, olc_changeset_count(cs));
+
+    /* Preview shows staged value */
+    TEST_ASSERT_STR_EQ("New Room", olc_staged_string(cs, "name", "Old Room"));
+    TEST_ASSERT_TRUE(olc_is_field_staged(cs, "name"));
+    TEST_ASSERT_FALSE(olc_is_field_staged(cs, "description"));
+
+    /* Stage integer change */
+    json_t *old_heal = json_integer(100);
+    json_t *new_heal = json_integer(200);
+    olc_changeset_add_change(cs, "heal_rate", OLC_FIELD_INT, old_heal, new_heal);
+    TEST_ASSERT_INT_EQ(2, olc_changeset_count(cs));
+    TEST_ASSERT_INT_EQ(200, olc_staged_int(cs, "heal_rate", 100));
+
+    /* Revert single field */
+    olc_changeset_remove_change(cs, "name");
+    TEST_ASSERT_INT_EQ(1, olc_changeset_count(cs));
+    TEST_ASSERT_FALSE(olc_is_field_staged(cs, "name"));
+    TEST_ASSERT_STR_EQ("Old Room", olc_staged_string(cs, "name", "Old Room"));
+
+    /* Clear all */
+    olc_changeset_clear(cs);
+    TEST_ASSERT_INT_EQ(0, olc_changeset_count(cs));
+
+    json_decref(old_name); json_decref(new_name);
+    json_decref(old_heal); json_decref(new_heal);
+    olc_changeset_destroy(cs);
+    return TEST_SUCCESS;
+}
+
+/* =========================================================================
  * Dispatcher
  * ========================================================================= */
 
@@ -322,6 +367,7 @@ test_result_t run_gmcp_editor_test_case(test_case_t *test)
     if (!strcmp(type, "gmcped_build_string_open"))    return test_build_string_open(test);
     if (!strcmp(type, "gmcped_build_string_close"))   return test_build_string_close(test);
     if (!strcmp(type, "gmcped_string_session"))       return test_string_session_lifecycle(test);
+    if (!strcmp(type, "gmcped_redit_staged_cycle"))   return test_redit_staged_cycle(test);
 
     return TEST_SKIP;
 }

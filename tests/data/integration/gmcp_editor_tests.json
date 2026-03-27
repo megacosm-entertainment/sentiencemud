@@ -103,6 +103,13 @@
             "description": "String edit session create, find, remove lifecycle",
             "input": {},
             "expected_output": { "success": true }
+        },
+        {
+            "name": "gmcped_redit_staged_cycle",
+            "test_type": "gmcped_redit_staged_cycle",
+            "description": "End-to-end staged edit cycle: stage, preview, revert, clear",
+            "input": {},
+            "expected_output": { "success": true }
         }
     ]
 }
