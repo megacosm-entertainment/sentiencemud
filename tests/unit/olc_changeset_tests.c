@@ -278,6 +278,139 @@ static test_result_t test_olccs_numeric_types(test_case_t *test)
     return TEST_SUCCESS;
 }
 
+/* ========================================================================
+ * List operation collapsing tests
+ * ======================================================================== */
+
+static test_result_t test_list_add_then_remove(test_case_t *test)
+{
+    /* ADD then REMOVE for same item → collapse to no-op, purge both */
+    WNUM_LOAD wnum = { .auid = 5, .vnum = 3001 };
+    olc_changeset_t *cs = olc_changeset_create(ED_ROOM, wnum, "Test", "Builder");
+
+    json_t *item = json_object();
+    json_object_set_new(item, "keyword", json_string("statue"));
+    json_object_set_new(item, "description", json_string("A stone statue."));
+
+    /* ADD */
+    olc_changeset_add_change(cs, "extra_descr/statue", OLC_FIELD_LIST_ADD, NULL, item);
+    TEST_ASSERT_INT_EQ(1, olc_changeset_count(cs));
+
+    /* REMOVE same → should collapse to no-op */
+    olc_changeset_add_change(cs, "extra_descr/statue", OLC_FIELD_LIST_REMOVE, item, NULL);
+    TEST_ASSERT_INT_EQ(0, olc_changeset_count(cs));
+
+    json_decref(item);
+    olc_changeset_destroy(cs);
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_list_add_then_update(test_case_t *test)
+{
+    /* ADD then UPDATE for same item → collapse to ADD with updated value */
+    WNUM_LOAD wnum = { .auid = 5, .vnum = 3002 };
+    olc_changeset_t *cs = olc_changeset_create(ED_ROOM, wnum, "Test", "Builder");
+
+    json_t *item_v1 = json_string("A stone statue.");
+    json_t *item_v2 = json_string("A marble statue.");
+
+    olc_changeset_add_change(cs, "extra_descr/statue", OLC_FIELD_LIST_ADD, NULL, item_v1);
+    TEST_ASSERT_INT_EQ(1, olc_changeset_count(cs));
+
+    /* UPDATE same → should remain ADD with updated new_value */
+    olc_changeset_add_change(cs, "extra_descr/statue", OLC_FIELD_LIST_UPDATE, item_v1, item_v2);
+
+    TEST_ASSERT_INT_EQ(1, olc_changeset_count(cs));
+    olc_pending_change_t *found = olc_changeset_find_change(cs, "extra_descr/statue");
+    TEST_ASSERT_NOT_NULL(found);
+    TEST_ASSERT_INT_EQ(OLC_FIELD_LIST_ADD, found->field_type);
+    TEST_ASSERT_NULL(found->old_value);  /* ADD has null old_value */
+    TEST_ASSERT_STR_EQ("A marble statue.", json_string_value(found->new_value));
+
+    json_decref(item_v1);
+    json_decref(item_v2);
+    olc_changeset_destroy(cs);
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_list_remove_then_add(test_case_t *test)
+{
+    /* REMOVE then ADD for same key → collapse to UPDATE */
+    WNUM_LOAD wnum = { .auid = 5, .vnum = 3003 };
+    olc_changeset_t *cs = olc_changeset_create(ED_ROOM, wnum, "Test", "Builder");
+
+    json_t *old_item = json_string("Old description.");
+    json_t *new_item = json_string("New description.");
+
+    olc_changeset_add_change(cs, "extra_descr/statue", OLC_FIELD_LIST_REMOVE, old_item, NULL);
+    TEST_ASSERT_INT_EQ(1, olc_changeset_count(cs));
+
+    /* ADD back → should collapse to UPDATE */
+    olc_changeset_add_change(cs, "extra_descr/statue", OLC_FIELD_LIST_ADD, NULL, new_item);
+
+    TEST_ASSERT_INT_EQ(1, olc_changeset_count(cs));
+    olc_pending_change_t *found = olc_changeset_find_change(cs, "extra_descr/statue");
+    TEST_ASSERT_NOT_NULL(found);
+    TEST_ASSERT_INT_EQ(OLC_FIELD_LIST_UPDATE, found->field_type);
+    TEST_ASSERT_STR_EQ("Old description.", json_string_value(found->old_value));
+    TEST_ASSERT_STR_EQ("New description.", json_string_value(found->new_value));
+
+    json_decref(old_item);
+    json_decref(new_item);
+    olc_changeset_destroy(cs);
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_list_update_then_update(test_case_t *test)
+{
+    /* UPDATE then UPDATE → keep original old_value, update new_value */
+    WNUM_LOAD wnum = { .auid = 5, .vnum = 3004 };
+    olc_changeset_t *cs = olc_changeset_create(ED_ROOM, wnum, "Test", "Builder");
+
+    json_t *original = json_string("Original");
+    json_t *first    = json_string("First Edit");
+    json_t *second   = json_string("Second Edit");
+
+    olc_changeset_add_change(cs, "extra_descr/statue", OLC_FIELD_LIST_UPDATE, original, first);
+    olc_changeset_add_change(cs, "extra_descr/statue", OLC_FIELD_LIST_UPDATE, first, second);
+
+    TEST_ASSERT_INT_EQ(1, olc_changeset_count(cs));
+    olc_pending_change_t *found = olc_changeset_find_change(cs, "extra_descr/statue");
+    TEST_ASSERT_STR_EQ("Original", json_string_value(found->old_value));
+    TEST_ASSERT_STR_EQ("Second Edit", json_string_value(found->new_value));
+
+    json_decref(original);
+    json_decref(first);
+    json_decref(second);
+    olc_changeset_destroy(cs);
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_list_update_then_remove(test_case_t *test)
+{
+    /* UPDATE then REMOVE → collapse to REMOVE with original old_value */
+    WNUM_LOAD wnum = { .auid = 5, .vnum = 3005 };
+    olc_changeset_t *cs = olc_changeset_create(ED_ROOM, wnum, "Test", "Builder");
+
+    json_t *original  = json_string("Original");
+    json_t *edited    = json_string("Edited");
+
+    olc_changeset_add_change(cs, "extra_descr/statue", OLC_FIELD_LIST_UPDATE, original, edited);
+    olc_changeset_add_change(cs, "extra_descr/statue", OLC_FIELD_LIST_REMOVE, edited, NULL);
+
+    TEST_ASSERT_INT_EQ(1, olc_changeset_count(cs));
+    olc_pending_change_t *found = olc_changeset_find_change(cs, "extra_descr/statue");
+    TEST_ASSERT_NOT_NULL(found);
+    TEST_ASSERT_INT_EQ(OLC_FIELD_LIST_REMOVE, found->field_type);
+    TEST_ASSERT_STR_EQ("Original", json_string_value(found->old_value));
+    TEST_ASSERT_NULL(found->new_value);
+
+    json_decref(original);
+    json_decref(edited);
+    olc_changeset_destroy(cs);
+    return TEST_SUCCESS;
+}
+
 /*
  * Test dispatcher — routes test_type to specific test functions.
  */
@@ -305,6 +438,16 @@ test_result_t run_olc_changeset_test_case(test_case_t *test)
         return test_olccs_edit_state_lifecycle(test);
     if (strcmp(test->test_type, "olccs_numeric_types") == 0)
         return test_olccs_numeric_types(test);
+    if (strcmp(test->test_type, "olccs_list_add_remove") == 0)
+        return test_list_add_then_remove(test);
+    if (strcmp(test->test_type, "olccs_list_add_update") == 0)
+        return test_list_add_then_update(test);
+    if (strcmp(test->test_type, "olccs_list_remove_add") == 0)
+        return test_list_remove_then_add(test);
+    if (strcmp(test->test_type, "olccs_list_update_update") == 0)
+        return test_list_update_then_update(test);
+    if (strcmp(test->test_type, "olccs_list_update_remove") == 0)
+        return test_list_update_then_remove(test);
 
     log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
                   "Unknown OLC changeset test type: %s", test->test_type);

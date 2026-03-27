@@ -61,6 +61,41 @@
             "test_type": "olccs_numeric_types",
             "input": {},
             "expected_output": { "success": true }
+        },
+        {
+            "name": "olccs_list_add_remove",
+            "description": "ADD then REMOVE for same list item collapses to no-op",
+            "test_type": "olccs_list_add_remove",
+            "input": {},
+            "expected_output": { "success": true }
+        },
+        {
+            "name": "olccs_list_add_update",
+            "description": "ADD then UPDATE for same item collapses to ADD with updated value",
+            "test_type": "olccs_list_add_update",
+            "input": {},
+            "expected_output": { "success": true }
+        },
+        {
+            "name": "olccs_list_remove_add",
+            "description": "REMOVE then ADD for same key collapses to UPDATE",
+            "test_type": "olccs_list_remove_add",
+            "input": {},
+            "expected_output": { "success": true }
+        },
+        {
+            "name": "olccs_list_update_update",
+            "description": "UPDATE then UPDATE keeps original old_value, updates new_value",
+            "test_type": "olccs_list_update_update",
+            "input": {},
+            "expected_output": { "success": true }
+        },
+        {
+            "name": "olccs_list_update_remove",
+            "description": "UPDATE then REMOVE collapses to REMOVE with original old_value",
+            "test_type": "olccs_list_update_remove",
+            "input": {},
+            "expected_output": { "success": true }
         }
     ]
 }

@@ -102,6 +102,70 @@ olc_pending_change_t *olc_changeset_find_change(olc_changeset_t *cs, const char 
     return NULL;
 }
 
+static bool is_list_operation(olc_field_type_t type)
+{
+    return type == OLC_FIELD_LIST_ADD
+        || type == OLC_FIELD_LIST_REMOVE
+        || type == OLC_FIELD_LIST_UPDATE;
+}
+
+static bool collapse_list_operation(olc_changeset_t *cs,
+    olc_pending_change_t *existing, olc_field_type_t new_type,
+    json_t *old_value, json_t *new_value, olc_pending_change_t **out)
+{
+    *out = NULL;
+
+    /* ADD + REMOVE → no-op */
+    if (existing->field_type == OLC_FIELD_LIST_ADD && new_type == OLC_FIELD_LIST_REMOVE) {
+        olc_changeset_remove_change(cs, existing->field_path);
+        return true;
+    }
+
+    /* ADD + UPDATE → ADD with updated new_value */
+    if (existing->field_type == OLC_FIELD_LIST_ADD && new_type == OLC_FIELD_LIST_UPDATE) {
+        if (existing->new_value) json_decref(existing->new_value);
+        existing->new_value = new_value ? json_incref(new_value) : NULL;
+        cs->updated_at = current_time;
+        cs->is_dirty = true;
+        *out = existing;
+        return true;
+    }
+
+    /* REMOVE + ADD → UPDATE */
+    if (existing->field_type == OLC_FIELD_LIST_REMOVE && new_type == OLC_FIELD_LIST_ADD) {
+        existing->field_type = OLC_FIELD_LIST_UPDATE;
+        if (existing->new_value) json_decref(existing->new_value);
+        existing->new_value = new_value ? json_incref(new_value) : NULL;
+        cs->updated_at = current_time;
+        cs->is_dirty = true;
+        *out = existing;
+        return true;
+    }
+
+    /* UPDATE + UPDATE → keep original old_value, update new_value */
+    if (existing->field_type == OLC_FIELD_LIST_UPDATE && new_type == OLC_FIELD_LIST_UPDATE) {
+        if (existing->new_value) json_decref(existing->new_value);
+        existing->new_value = new_value ? json_incref(new_value) : NULL;
+        cs->updated_at = current_time;
+        cs->is_dirty = true;
+        *out = existing;
+        return true;
+    }
+
+    /* UPDATE + REMOVE → REMOVE with original old_value */
+    if (existing->field_type == OLC_FIELD_LIST_UPDATE && new_type == OLC_FIELD_LIST_REMOVE) {
+        existing->field_type = OLC_FIELD_LIST_REMOVE;
+        if (existing->new_value) json_decref(existing->new_value);
+        existing->new_value = NULL;
+        cs->updated_at = current_time;
+        cs->is_dirty = true;
+        *out = existing;
+        return true;
+    }
+
+    return false;
+}
+
 /*
  * Add or update a change in the changeset.
  *
@@ -129,6 +193,13 @@ olc_pending_change_t *olc_changeset_add_change(olc_changeset_t *cs, const char *
     olc_pending_change_t *existing = olc_changeset_find_change(cs, field_path);
 
     if (existing) {
+        /* List operation collapsing */
+        if (is_list_operation(existing->field_type) || is_list_operation(field_type)) {
+            olc_pending_change_t *result;
+            if (collapse_list_operation(cs, existing, field_type, old_value, new_value, &result))
+                return result;
+        }
+
         /* Update in place: keep original old_value, replace new_value */
         if (existing->new_value)
             json_decref(existing->new_value);
