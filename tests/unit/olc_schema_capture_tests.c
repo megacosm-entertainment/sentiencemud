@@ -329,13 +329,59 @@ static test_result_t test_annotation_merge(test_case_t *test)
 static test_result_t test_build_open(test_case_t *test)
 {
     (void)test;
-    return TEST_SKIP;
+
+    /* Build a minimal tabs array for testing */
+    json_t *tabs = json_array();
+    json_t *tab = json_object();
+    json_object_set_new(tab, "name", json_string("General"));
+    json_object_set_new(tab, "short_name", json_string("Gen"));
+    json_object_set_new(tab, "fields", json_array());
+    json_array_append_new(tabs, tab);
+
+    json_t *msg = gmcp_editor_build_open("room:1#100", "REdit", "room",
+        tabs, NULL, false);
+
+    TEST_ASSERT_NOT_NULL(msg);
+    TEST_ASSERT_STR_EQ("room:1#100", json_string_value(json_object_get(msg, "entity_id")));
+    TEST_ASSERT_STR_EQ("REdit", json_string_value(json_object_get(msg, "editor")));
+    TEST_ASSERT_STR_EQ("room", json_string_value(json_object_get(msg, "editor_type")));
+
+    /* Check tabs */
+    json_t *msg_tabs = json_object_get(msg, "tabs");
+    TEST_ASSERT_NOT_NULL(msg_tabs);
+    TEST_ASSERT_INT_EQ(1, (int)json_array_size(msg_tabs));
+
+    /* Check embedded state */
+    json_t *state = json_object_get(msg, "state");
+    TEST_ASSERT_NOT_NULL(state);
+    TEST_ASSERT_INT_EQ(0, (int)json_integer_value(json_object_get(state, "pending_count")));
+    TEST_ASSERT_FALSE(json_is_true(json_object_get(state, "draft_restored")));
+
+    /* Check version */
+    TEST_ASSERT_INT_EQ(1, (int)json_integer_value(json_object_get(msg, "_v")));
+
+    json_decref(tabs);
+    json_decref(msg);
+    return TEST_SUCCESS;
 }
 
 static test_result_t test_build_open_editor_type(test_case_t *test)
 {
     (void)test;
-    return TEST_SKIP;
+
+    /* Test known ED_* mappings */
+    TEST_ASSERT_STR_EQ("room", gmcp_editor_type_name(ED_ROOM, "REdit"));
+    TEST_ASSERT_STR_EQ("mobile", gmcp_editor_type_name(ED_MOBILE, "MEdit"));
+    TEST_ASSERT_STR_EQ("object", gmcp_editor_type_name(ED_OBJECT, "OEdit"));
+    TEST_ASSERT_STR_EQ("area", gmcp_editor_type_name(ED_AREA, "AEdit"));
+
+    /* Unknown ED_* falls back to lowercase name */
+    TEST_ASSERT_STR_EQ("myeditor", gmcp_editor_type_name(9999, "MyEditor"));
+
+    /* NULL fallback returns "unknown" */
+    TEST_ASSERT_STR_EQ("unknown", gmcp_editor_type_name(9999, NULL));
+
+    return TEST_SUCCESS;
 }
 
 /* ---- Dispatcher ---- */

@@ -16,6 +16,9 @@
 #include "editors/common/olc_changeset.h"
 #include <jansson.h>
 
+/* Forward declarations */
+typedef struct olc_editor_def OLC_EDITOR_DEF;
+
 /* =========================================================================
  * Outgoing Message Builders (Server → Client)
  *
@@ -46,6 +49,14 @@ json_t *gmcp_editor_build_commit_result(const char *entity_id,
 json_t *gmcp_editor_build_group_commit_result(int group_id,
     json_t *results_array, const char *comment);
 
+/** Map ED_* constant to lowercase string for editor_type field. */
+const char *gmcp_editor_type_name(int editor_type, const char *fallback_name);
+
+/** Build Sentience.Editor.Open JSON with full schema and state. */
+json_t *gmcp_editor_build_open(const char *entity_id, const char *editor_name,
+    const char *editor_type, json_t *tabs, olc_changeset_t *cs,
+    bool draft_restored);
+
 /* =========================================================================
  * Send Helpers (combines build + sentience_send_package)
  * ========================================================================= */
@@ -69,6 +80,11 @@ void gmcp_editor_send_error(descriptor_t *d, const char *entity_id,
 /** Send Editor.CommitResult to descriptor. */
 void gmcp_editor_send_commit_result(descriptor_t *d, const char *entity_id,
     const char *status, int changes_applied);
+
+/** Send Editor.Open to descriptor with full schema capture. */
+void gmcp_editor_send_open(descriptor_t *d, const OLC_EDITOR_DEF *def,
+    void *entity, const char *entity_id, olc_changeset_t *cs,
+    bool draft_restored);
 
 /* =========================================================================
  * StringEdit Messages (Server → Client)

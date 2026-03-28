@@ -9,6 +9,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <ctype.h>
 
 #include "merc.h"
 #include "gmcp_editor.h"
@@ -17,6 +18,7 @@
 #include "editors/common/olc_changeset.h"
 #include "editors/common/olc_editor.h"
 #include "editors/common/olc_staged.h"
+#include "editors/common/olc_display.h"
 
 /* =========================================================================
  * Entity ID Formatting
@@ -69,6 +71,27 @@ bool gmcp_editor_parse_entity_id(const char *entity_id,
     wnum->auid = auid;
     wnum->vnum = vnum;
     return true;
+}
+
+const char *gmcp_editor_type_name(int editor_type, const char *fallback_name)
+{
+    switch (editor_type) {
+        case ED_ROOM:   return "room";
+        case ED_MOBILE: return "mobile";
+        case ED_OBJECT: return "object";
+        case ED_AREA:   return "area";
+        default: {
+            static char buf[32];
+            if (fallback_name) {
+                int i;
+                for (i = 0; fallback_name[i] && i < 31; i++)
+                    buf[i] = tolower((unsigned char)fallback_name[i]);
+                buf[i] = '\0';
+                return buf;
+            }
+            return "unknown";
+        }
+    }
 }
 
 /* =========================================================================
@@ -210,6 +233,73 @@ json_t *gmcp_editor_build_group_commit_result(int group_id,
     return msg;
 }
 
+json_t *gmcp_editor_build_open(const char *entity_id, const char *editor_name,
+    const char *editor_type, json_t *tabs, olc_changeset_t *cs,
+    bool draft_restored)
+{
+    json_t *msg = json_object();
+    if (!msg) return NULL;
+
+    json_object_set_new(msg, "entity_id",
+        json_string(entity_id ? entity_id : ""));
+    json_object_set_new(msg, "editor",
+        json_string(editor_name ? editor_name : ""));
+    json_object_set_new(msg, "editor_type",
+        json_string(editor_type ? editor_type : "unknown"));
+
+    if (tabs)
+        json_object_set(msg, "tabs", tabs);  /* borrowed ref — caller owns tabs */
+    else
+        json_object_set_new(msg, "tabs", json_array());
+
+    /* Embed changeset state */
+    json_t *state = json_object();
+    int count = cs ? olc_changeset_count(cs) : 0;
+    json_object_set_new(state, "pending_count", json_integer(count));
+    json_object_set_new(state, "draft_restored", json_boolean(draft_restored));
+
+    json_t *changes = json_array();
+    if (cs && cs->changes) {
+        ITERATOR it;
+        iterator_start(&it, cs->changes);
+        olc_pending_change_t *change;
+        while ((change = (olc_pending_change_t *)iterator_nextdata(&it)) != NULL) {
+            json_t *entry = json_object();
+            json_object_set_new(entry, "field",
+                json_string(change->field_path ? change->field_path : ""));
+            const char *type_name;
+            switch (change->field_type) {
+                case OLC_FIELD_STRING:      type_name = "string"; break;
+                case OLC_FIELD_INT:         type_name = "int"; break;
+                case OLC_FIELD_INT16:       type_name = "int16"; break;
+                case OLC_FIELD_FLAGS:       type_name = "flags"; break;
+                case OLC_FIELD_BOOL:        type_name = "bool"; break;
+                case OLC_FIELD_WIDEVNUM:    type_name = "widevnum"; break;
+                case OLC_FIELD_EXIT:        type_name = "exit"; break;
+                case OLC_FIELD_EMBEDDED:    type_name = "embedded"; break;
+                case OLC_FIELD_LIST_ADD:    type_name = "list_add"; break;
+                case OLC_FIELD_LIST_REMOVE: type_name = "list_remove"; break;
+                case OLC_FIELD_LIST_UPDATE: type_name = "list_update"; break;
+                case OLC_FIELD_MULTILINE:   type_name = "multiline"; break;
+                case OLC_FIELD_TYPE_DATA:   type_name = "type_data"; break;
+                default:                    type_name = "unknown"; break;
+            }
+            json_object_set_new(entry, "type", json_string(type_name));
+            if (change->new_value)
+                json_object_set(entry, "value", change->new_value);
+            else
+                json_object_set_new(entry, "value", json_null());
+            json_array_append_new(changes, entry);
+        }
+        iterator_stop(&it);
+    }
+    json_object_set_new(state, "changes", changes);
+    json_object_set_new(msg, "state", state);
+    json_object_set_new(msg, "_v", json_integer(1));
+
+    return msg;
+}
+
 /* =========================================================================
  * Send Helpers
  * ========================================================================= */
@@ -262,6 +352,22 @@ void gmcp_editor_send_commit_result(descriptor_t *d, const char *entity_id,
     json_t *msg = gmcp_editor_build_commit_result(entity_id, status, changes_applied);
     if (msg)
         sentience_send_package(d, "Sentience.Editor.CommitResult", msg);
+}
+
+void gmcp_editor_send_open(descriptor_t *d, const OLC_EDITOR_DEF *def,
+    void *entity, const char *entity_id, olc_changeset_t *cs,
+    bool draft_restored)
+{
+    if (!can_send_gmcp(d) || !def) return;
+
+    json_t *tabs = olc_schema_capture(d->character, def, entity, cs);
+    json_t *msg = gmcp_editor_build_open(entity_id, def->name,
+        gmcp_editor_type_name(def->editor_type, def->name),
+        tabs, cs, draft_restored);
+
+    if (tabs) json_decref(tabs);
+    if (msg)
+        sentience_send_package(d, "Sentience.Editor.Open", msg);
 }
 
 /* =========================================================================
