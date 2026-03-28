@@ -527,7 +527,7 @@ void olc_editor_enter(CHAR_DATA *ch, const OLC_EDITOR_DEF *def,
         }
     }
 
-    /* Notify web client of editor session */
+    /* Notify web client of editor session with full field schema */
     if (def->change_mode == OLC_CHANGE_STAGED && ch->desc->olc_state) {
         WNUM_LOAD wnum = olc_get_entity_wnum(def, pEdit);
         olc_changeset_t *cs = olc_edit_state_find_changeset(
@@ -535,7 +535,7 @@ void olc_editor_enter(CHAR_DATA *ch, const OLC_EDITOR_DEF *def,
         if (cs) {
             const char *eid = gmcp_editor_entity_id(cs->editor_type, cs->entity_wnum);
             bool draft = (olc_changeset_count(cs) > 0);
-            gmcp_editor_send_state(ch->desc, eid, cs, draft);
+            gmcp_editor_send_open(ch->desc, def, pEdit, eid, cs, draft);
         }
     }
 
