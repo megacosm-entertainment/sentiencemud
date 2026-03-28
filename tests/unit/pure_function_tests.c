@@ -1421,12 +1421,8 @@ test_result_t run_pure_function_test_case(test_case_t *test) {
                              character ? character : "(null)",
                              actual ? actual : "(null)",
                              expected);
-                if (actual)
-                    free_string(actual);
                 return TEST_FAILURE;
             }
-
-            free_string(actual);
         }
 
         return TEST_SUCCESS;
