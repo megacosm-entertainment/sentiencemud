@@ -149,6 +149,12 @@ static const olc_field_handler_t medit_field_handlers[] = {
 /*
  * Mobile Editor Definition
  */
+static const olc_field_annotation_t medit_annotations[] = {
+    { "Alignment", .min = -1000,  .max = 1000 },
+    { "Hitroll",   .min = INT_MIN, .max = INT_MAX },
+    { NULL }
+};
+
 static const OLC_EDITOR_DEF medit_def = {
     .name           = "MEdit",
     .editor_type    = ED_MOBILE,
@@ -174,6 +180,7 @@ static const OLC_EDITOR_DEF medit_def = {
     .get_area_fn    = medit_get_area,
     .audit_changes  = true,
     .field_handlers = medit_field_handlers,
+    .annotations    = medit_annotations,
 };
 
 /*

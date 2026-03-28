@@ -120,6 +120,13 @@ static const olc_field_handler_t redit_field_handlers[] = {
  * Editor Definition (Unified Framework)                                   *
  ***************************************************************************/
 
+static const olc_field_annotation_t redit_annotations[] = {
+    { "heal rate",  .min = INT_MIN, .max = INT_MAX },
+    { "mana rate",  .min = INT_MIN, .max = INT_MAX },
+    { "move rate",  .min = INT_MIN, .max = INT_MAX },
+    { NULL }
+};
+
 static const OLC_EDITOR_DEF redit_def = {
     .name           = "REdit",
     .editor_type    = ED_ROOM,
@@ -144,6 +151,7 @@ static const OLC_EDITOR_DEF redit_def = {
     .get_area_fn    = redit_get_area,
     .audit_changes  = true,
     .field_handlers = redit_field_handlers,
+    .annotations    = redit_annotations,
 };
 
 /***************************************************************************

@@ -181,6 +181,14 @@ static const olc_field_handler_t oedit_field_handlers[] = {
 /*
  * Object Editor Definition
  */
+static const olc_field_annotation_t oedit_annotations[] = {
+    { "Weight",        .min = 0, .max = INT_MAX },
+    { "Condition",     .min = 0, .max = 100 },
+    { "Allowed Fixed", .min = 0, .max = 100 },
+    { "Timer",         .min = 0, .max = 10000 },
+    { NULL }
+};
+
 static const OLC_EDITOR_DEF oedit_def = {
     .name           = "OEdit",
     .editor_type    = ED_OBJECT,
@@ -205,6 +213,7 @@ static const OLC_EDITOR_DEF oedit_def = {
     .get_area_fn    = oedit_get_area,
     .audit_changes  = true,
     .field_handlers = oedit_field_handlers,
+    .annotations    = oedit_annotations,
 };
 
 /*

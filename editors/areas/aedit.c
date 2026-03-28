@@ -123,6 +123,12 @@ static const olc_field_handler_t aedit_field_handlers[] = {
  * Editor Definition (Unified Framework)                                   *
  ***************************************************************************/
 
+static const olc_field_annotation_t aedit_annotations[] = {
+    { "Repop Time", .min = 5,   .max = 120 },
+    { "Age",        .min = 0,   .max = INT16_MAX },
+    { NULL }
+};
+
 static const OLC_EDITOR_DEF aedit_def = {
     .name           = "AEdit",
     .editor_type    = ED_AREA,
@@ -146,6 +152,7 @@ static const OLC_EDITOR_DEF aedit_def = {
     .get_area_fn    = aedit_get_area,
     .audit_changes  = true,
     .field_handlers = aedit_field_handlers,
+    .annotations    = aedit_annotations,
 };
 
 /***************************************************************************
