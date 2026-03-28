@@ -1679,11 +1679,6 @@ The Editor package supports **staged editing** for all Tier 1 OLC editors
 atomically via `Commit`. This enables web client UIs that show pending changes,
 provide undo, and batch complex edits.
 
-> **Note:** There is no `Editor.Open` message currently. When a builder enters
-> an editor, the server sends `Editor.State` with the initial (empty) changeset.
-> A future version will send an `Editor.Open` message with a full field schema
-> so the web client can dynamically render editor forms.
-
 #### Entity ID Format
 
 Entity IDs use the pattern `"type:auid#vnum"` where `auid` is the area unique ID
@@ -1718,10 +1713,156 @@ The `type` field in change objects and field updates uses these values:
 
 ---
 
+### Sentience.Editor.Open
+
+**Direction:** Server → Client
+**When:** Sent when a builder enters an OLC editor (redit, medit, oedit, aedit).
+Provides the full field schema organized by tabs, plus the current changeset state.
+This is the initial message for each editor session — the client uses it to
+dynamically render the editor form.
+
+```json
+{
+  "entity_id": "room:5#3001",
+  "editor": "REdit",
+  "editor_type": "room",
+  "tabs": [
+    {
+      "name": "General",
+      "short_name": "Gen",
+      "fields": [
+        {
+          "label": "Name:",
+          "command": "name",
+          "type": "string",
+          "value": "The Dark Forest"
+        },
+        {
+          "label": "Area:",
+          "type": "string",
+          "value": "[  42] Midgaard",
+          "readonly": true
+        },
+        {
+          "label": "Sector:",
+          "command": "sector",
+          "type": "enum",
+          "value": "city",
+          "options": ["inside", "city", "field", "forest", "hills"]
+        },
+        {
+          "type": "_section",
+          "title": "Regeneration Rates"
+        },
+        {
+          "label": "Health rec:",
+          "command": "heal",
+          "type": "int",
+          "value": 100,
+          "min": 0,
+          "max": 10000
+        },
+        {
+          "label": "Persist:",
+          "command": "persist",
+          "type": "bool",
+          "value": false
+        }
+      ]
+    }
+  ],
+  "state": {
+    "pending_count": 0,
+    "draft_restored": false,
+    "changes": []
+  },
+  "_v": 1
+}
+```
+
+#### Top-Level Fields
+
+| Field | Type | Always | Description |
+|-------|------|--------|-------------|
+| `entity_id` | string | ✓ | Entity being edited (see Entity ID Format) |
+| `editor` | string | ✓ | Editor name (e.g., `"REdit"`, `"MEdit"`) |
+| `editor_type` | string | ✓ | Lowercase type: `"room"`, `"mobile"`, `"object"`, `"area"` |
+| `tabs` | array | ✓ | Tab objects with field schemas (may be empty) |
+| `state` | object | ✓ | Current changeset state (same format as `Editor.State`) |
+| `_v` | int | ✓ | Message version (always `1`) |
+
+#### Tab Object
+
+| Field | Type | Always | Description |
+|-------|------|--------|-------------|
+| `name` | string | ✓ | Full tab name (e.g., `"General"`, `"Combat"`) |
+| `short_name` | string | ✓ | Abbreviated name for compact UIs (e.g., `"Gen"`, `"Com"`) |
+| `fields` | array | ✓ | Array of field descriptors for this tab |
+
+#### Field Descriptor
+
+Each entry in `fields` describes a single form field or structural marker.
+
+| Field | Type | Always | Description |
+|-------|------|--------|-------------|
+| `label` | string | ✓* | Display label (e.g., `"Name:"`) |
+| `command` | string | | OLC command name for this field. Absent on readonly fields |
+| `type` | string | ✓ | Field type (see Field Schema Types below) |
+| `value` | mixed | ✓* | Current value: string, number, bool, or `null` |
+| `readonly` | bool | | `true` if the field is display-only (no `command`) |
+| `options` | array | | String array of valid choices (for `enum` and `flags` types) |
+| `section` | string | | Parent section title, if within a `_section` group |
+| `min` | int | | Minimum allowed value (from constraint annotations) |
+| `max` | int | | Maximum allowed value (from constraint annotations) |
+| `max_length` | int | | Maximum string length (from constraint annotations) |
+
+\* Not present on structural marker types (`_section`, `_info`).
+
+#### Field Schema Types
+
+These types appear in `Editor.Open` field descriptors. They overlap with but
+extend the changeset field types used in `Editor.State` and `Editor.Field`.
+
+| Type | Value Type | Description | Suggested Widget |
+|------|-----------|-------------|------------------|
+| `"string"` | string | Single-line text | Text input |
+| `"int"` | number | Integer value | Number input with min/max |
+| `"bool"` | bool | Boolean toggle | Checkbox or toggle |
+| `"text"` | string | Multi-line text (descriptions) | Textarea / StringEdit panel |
+| `"enum"` | string | Single selection from options | Dropdown / select |
+| `"flags"` | string | Multiple selections from options | Checkbox group / tag picker |
+| `"dice"` | string | Dice expression (e.g., `"3d6+2"`) | Custom dice input |
+| `"vnum"` | string | Virtual number reference | Vnum picker |
+| `"widevnum"` | string | Wide virtual number | Wide vnum picker |
+| `"percent"` | string | Percentage value | Slider or percent input |
+| `"_section"` | — | Section separator (has `title`) | Section header / divider |
+| `"_info"` | — | Info marker (has `text`) | Static info text |
+
+#### Structural Markers
+
+Fields with type `_section` or `_info` are not editable — they provide structure:
+
+- **`_section`**: Groups subsequent fields under a heading. Has a `title` field.
+  Client should render as a section divider or collapsible group.
+- **`_info`**: Provides contextual information. Has a `text` field.
+  Client should render as a non-editable info block.
+
+#### Constraint Annotations
+
+Numeric fields may include `min`, `max`, and string fields may include
+`max_length`. These are derived from the editor's annotation arrays and
+represent server-side validation constraints. Clients should use them for
+input validation and visual hints (e.g., slider ranges, character counters).
+
+Values `INT_MIN` / `INT_MAX` indicate unconstrained — clients may omit
+validation in those cases.
+
+---
+
 ### Sentience.Editor.State
 
 **Direction:** Server → Client
-**When:** Sent on editor entry, after revert, after draft restore, or in response
+**When:** Sent after revert, after draft restore, or in response
 to `Editor.Request`. Provides the full pending change list for the entity.
 
 ```json
@@ -2156,10 +2297,10 @@ GMCP package.
 #### Lifecycle
 
 1. **Builder enters editor** (via MUD command like `redit`):
-   - Server sends `Editor.State` with `pending_count: 0` and empty `changes[]`
+   - Server sends `Editor.Open` with the full field schema and initial state
    - If a saved draft exists, it is auto-restored: `draft_restored: true` with
-     the draft's changes populated
-   - Client should open an editor panel
+     the draft's changes populated in `state.changes`
+   - Client should open an editor panel, rendering tabs and fields from the schema
 
 2. **Builder makes changes** (via `Editor.Set` or MUD commands):
    - Server sends `Editor.Field` for each changed field
@@ -2181,7 +2322,7 @@ GMCP package.
 
 ```
 ┌─────────────────────────────────────────────┐
-│  Editor Panel (opened on Editor.State)       │
+│  Editor Panel (opened on Editor.Open)        │
 │ ┌─────────────────────────────────────────┐ │
 │ │ Entity: room:5#3001 - "A Dark Cave"     │ │
 │ ├─────────────────────────────────────────┤ │
@@ -2641,7 +2782,8 @@ function parseWnum(wnum) {
 | Room.Map | S→C | On room change | Pre-rendered minimap |
 | Channel.Message | S→C | On message | Chat channels + tells |
 | Link.List | S→C | Per text frame | Interactive link metadata |
-| Editor.State | S→C | On state change | Revert/draft/request/entry |
+| Editor.Open | S→C | On editor entry | Full field schema + state |
+| Editor.State | S→C | On state change | Revert/draft/request updates |
 | Editor.Field | S→C | On field change | Individual field update |
 | Editor.Close | S→C | On editor exit | Session cleanup |
 | Editor.Error | S→C | On validation failure | Error code + message |
