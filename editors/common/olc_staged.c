@@ -7,6 +7,7 @@
 #include "olc_editor.h"
 #include "olc_field_handlers.h"
 #include "../../gmcp_editor.h"
+#include "olc_commit_history.h"
 #include <string.h>
 
 const char *olc_staged_string(olc_changeset_t *cs, const char *field, const char *live)
@@ -262,6 +263,17 @@ void olc_staged_cmd_revert(CHAR_DATA *ch, const OLC_EDITOR_DEF *def,
     }
 }
 
+static void archive_changeset_to_history(olc_changeset_t *cs, int group_id, const char *comment)
+{
+    if (!cs || olc_changeset_count(cs) == 0) return;
+
+    olc_commit_history_t *history = olc_commit_history_get_or_load(
+        cs->editor_type, cs->entity_wnum);
+    if (!history) return;
+
+    olc_commit_history_archive(history, cs, group_id, comment);
+}
+
 void olc_staged_cmd_commit(CHAR_DATA *ch, const OLC_EDITOR_DEF *def,
     void *pEdit, char *argument)
 {
@@ -275,6 +287,9 @@ void olc_staged_cmd_commit(CHAR_DATA *ch, const OLC_EDITOR_DEF *def,
         send_to_char("No pending changes to commit.\n\r", ch);
         return;
     }
+
+    /* Archive to history BEFORE commit (commit clears the changeset) */
+    archive_changeset_to_history(cs, 0, argument);
 
     const char *error_field = NULL;
     int applied = olc_changeset_commit(cs, pEdit,
@@ -324,6 +339,8 @@ void olc_staged_cmd_commit_group(CHAR_DATA *ch, char *argument)
     int total_applied = 0;
     int changesets_committed = 0;
 
+    int group_id = olc_next_group_id++;
+
     ITERATOR it;
     iterator_start(&it, ch->desc->olc_state->active_changesets);
     olc_changeset_t *cs;
@@ -337,6 +354,8 @@ void olc_staged_cmd_commit_group(CHAR_DATA *ch, char *argument)
         /* We need the entity pointer to commit — skip if not the current edit */
         if (ch->desc->editor != cs->editor_type)
             continue;
+
+        archive_changeset_to_history(cs, group_id, argument);
 
         const char *error_field = NULL;
         int applied = olc_changeset_commit(cs, ch->desc->pEdit,
