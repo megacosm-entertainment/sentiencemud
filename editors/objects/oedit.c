@@ -171,10 +171,76 @@ const struct olc_cmd_type oedit_table[] =
 };
 
 /*
+ * Field Handler Functions — custom serialization and apply for complex fields.
+ */
+
+/**
+ * Serialize extra flags as a JSON array of active flag name strings.
+ * This covers all 4 banks: extra_flags, extra2_flags, extra3_flags, extra4_flags.
+ */
+static json_t *oedit_serialize_extra(void *entity, const char *field_path)
+{
+    OBJ_INDEX_DATA *pObj = (OBJ_INDEX_DATA *)entity;
+    if (!pObj) return json_array();
+
+    const struct flag_type *tables[4] = {
+        extra_flags, extra2_flags, extra3_flags, extra4_flags
+    };
+
+    json_t *arr = json_array();
+    for (int b = 0; b < 4; b++) {
+        if (!tables[b]) continue;
+        for (int f = 0; tables[b][f].name != NULL; f++) {
+            if (IS_SET(pObj->extra[b], tables[b][f].bit))
+                json_array_append_new(arr, json_string(tables[b][f].name));
+        }
+    }
+    return arr;
+}
+
+/**
+ * Apply extra flags from a JSON array of flag name strings.
+ * Rebuilds pObj->extra[0..3] from the flag names in the array,
+ * using bitvector_lookup for each name.
+ */
+static bool oedit_apply_extra(void *entity, olc_pending_change_t *change)
+{
+    OBJ_INDEX_DATA *pObj = (OBJ_INDEX_DATA *)entity;
+    if (!pObj || !change || !change->new_value) return false;
+
+    if (!json_is_array(change->new_value)) return false;
+
+    /* Clear all extra flag banks */
+    pObj->extra[0] = 0;
+    pObj->extra[1] = 0;
+    pObj->extra[2] = 0;
+    pObj->extra[3] = 0;
+
+    /* Set flags from the array */
+    size_t count = json_array_size(change->new_value);
+    for (size_t i = 0; i < count; i++) {
+        const char *name = json_string_value(json_array_get(change->new_value, i));
+        if (!name) continue;
+
+        long bits[4] = {0, 0, 0, 0};
+        if (bitvector_lookup((char *)name, 4, bits,
+                extra_flags, extra2_flags, extra3_flags, extra4_flags)) {
+            pObj->extra[0] |= bits[0];
+            pObj->extra[1] |= bits[1];
+            pObj->extra[2] |= bits[2];
+            pObj->extra[3] |= bits[3];
+        }
+    }
+
+    return true;
+}
+
+/*
  * Field Handler Table — complex fields requiring custom serialization.
  * Simple scalar fields stage automatically through olc_cmd_* helpers.
  */
 static const olc_field_handler_t oedit_field_handlers[] = {
+    { "extra", OLC_FIELD_MULTIFLAGS, oedit_serialize_extra, oedit_apply_extra, NULL },
     { NULL, 0, NULL, NULL, NULL }
 };
 
@@ -362,12 +428,16 @@ static void oedit_show_properties_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *
     bool legacy_material = false;
     const char *material_name_display = material_resolve_name(pObj->material, &legacy_material);
 
-    olc_display_string(ctx, theme, "Extra Flags:", "extra",
-        bitvector_string(4,
-            pObj->extra[0], extra_flags,
-            pObj->extra[1], extra2_flags,
-            pObj->extra[2], extra3_flags,
-            pObj->extra[3], extra4_flags));
+    {
+        const long extra_values[4] = {
+            pObj->extra[0], pObj->extra[1], pObj->extra[2], pObj->extra[3]
+        };
+        const struct flag_type *extra_tables[4] = {
+            extra_flags, extra2_flags, extra3_flags, extra4_flags
+        };
+        olc_display_multiflags(ctx, theme, "Extra Flags:", "extra",
+            4, extra_values, extra_tables);
+    }
 
     olc_display_number(ctx, theme, "Timer:", "timer", pObj->timer);
     olc_display_string(ctx, theme, "Material:", "material", material_name_display);

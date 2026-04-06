@@ -1703,6 +1703,7 @@ The `type` field in change objects and field updates uses these values:
 | `"int16"` | Short integer | Number input |
 | `"bool"` | Boolean toggle | Checkbox |
 | `"flags"` | Bitfield (multiple selections) | Multi-select / checkbox group |
+| `"multiflags"` | Multi-bank bitfield (array of flag names) | Multi-select / tag picker |
 | `"widevnum"` | Wide virtual number reference | Custom vnum selector |
 | `"exit"` | Exit data (complex sub-object) | Custom exit editor |
 | `"embedded"` | Embedded sub-object | Nested form |
@@ -1831,6 +1832,7 @@ extend the changeset field types used in `Editor.State` and `Editor.Field`.
 | `"text"` | string | Multi-line text (descriptions) | Textarea / StringEdit panel |
 | `"enum"` | string | Single selection from options | Dropdown / select |
 | `"flags"` | string | Multiple selections from options | Checkbox group / tag picker |
+| `"multiflags"` | array | Multi-bank flag set (array of flag name strings) | Multi-select / tag picker |
 | `"dice"` | string | Dice expression (e.g., `"3d6+2"`) | Custom dice input |
 | `"vnum"` | string | Virtual number reference | Vnum picker |
 | `"widevnum"` | string | Wide virtual number | Wide vnum picker |
@@ -1846,6 +1848,38 @@ Fields with type `_section` or `_info` are not editable — they provide structu
   Client should render as a section divider or collapsible group.
 - **`_info`**: Provides contextual information. Has a `text` field.
   Client should render as a non-editable info block.
+
+#### Multi-bank Flag Fields (`multiflags`)
+
+The `multiflags` type represents a flag set that spans multiple internal bit
+banks (e.g., object extra flags which span 4 separate bitvector tables).
+Unlike `flags` (which uses a string value), `multiflags` uses a JSON array
+of flag name strings.
+
+**Field descriptor example (in `Editor.Open`):**
+```json
+{
+  "label": "Extra Flags:",
+  "command": "extra",
+  "type": "multiflags",
+  "value": ["glow", "hum", "nodrop"],
+  "options": ["glow", "hum", "dark", "lock", "evil", "invis", "magic", "nodrop", "bless", ...]
+}
+```
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `value` | array | Array of currently active flag name strings |
+| `options` | array | Array of all settable flag name strings (across all banks) |
+
+**Setting via `Editor.Set`:**
+```json
+{"entity_id": "obj:5#3010", "field": "extra", "value": ["glow", "hum", "nodrop", "bless"]}
+```
+
+The client sends the complete array of desired active flags. The server replaces
+all flag banks atomically. Toggling a single flag means sending the full list
+with the flag added or removed.
 
 #### Constraint Annotations
 

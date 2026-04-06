@@ -216,6 +216,26 @@ void olc_display_flags(OLC_LAYOUT_CTX *ctx, const OLC_EDITOR_THEME *theme,
                        const struct flag_type *table, long value);
 
 /**
+ * Render a multi-bank bitvector as a structured flag list.
+ *
+ * In capture mode, emits a "multiflags" field with a JSON array of active
+ * flag names and a grouped options object for the web client.
+ * In display mode, renders the same as the existing bitvector rendering.
+ *
+ * @param ctx       Layout context
+ * @param theme     Color theme
+ * @param label     Field label
+ * @param command   MXP toggle command prefix
+ * @param nbanks    Number of flag banks
+ * @param values    Array of flag values (one per bank)
+ * @param tables    Array of flag tables (one per bank)
+ */
+void olc_display_multiflags(OLC_LAYOUT_CTX *ctx, const OLC_EDITOR_THEME *theme,
+                            const char *label, const char *command,
+                            int nbanks, const long *values,
+                            const struct flag_type **tables);
+
+/**
  * Render a type/stat selection with theme-aware colors.
  *
  * @param ctx       Layout context

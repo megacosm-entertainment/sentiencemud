@@ -412,6 +412,67 @@ void olc_display_flags(OLC_LAYOUT_CTX *ctx, const OLC_EDITOR_THEME *theme,
         theme->flag_colors);
 }
 
+void olc_display_multiflags(OLC_LAYOUT_CTX *ctx, const OLC_EDITOR_THEME *theme,
+                            const char *label, const char *command,
+                            int nbanks, const long *values,
+                            const struct flag_type **tables)
+{
+    if (ctx && ctx->capture_mode && ctx->captured_fields) {
+        json_t *field = capture_field_base(ctx, label, command, "multiflags");
+
+        /* Build array of active flag names */
+        json_t *active = json_array();
+        for (int b = 0; b < nbanks; b++) {
+            if (!tables[b]) continue;
+            for (int f = 0; tables[b][f].name != NULL; f++) {
+                if (IS_SET(values[b], tables[b][f].bit))
+                    json_array_append_new(active, json_string(tables[b][f].name));
+            }
+        }
+        json_object_set_new(field, "value", active);
+
+        /* Build grouped options: array of all settable flags across all banks */
+        json_t *options = json_array();
+        for (int b = 0; b < nbanks; b++) {
+            if (!tables[b]) continue;
+            for (int f = 0; tables[b][f].name != NULL; f++) {
+                if (tables[b][f].settable)
+                    json_array_append_new(options, json_string(tables[b][f].name));
+            }
+        }
+        json_object_set_new(field, "options", options);
+
+        json_array_append_new(ctx->captured_fields, field);
+        return;
+    }
+
+    if (!ctx || !ctx->buffer || !values || !tables) return;
+    if (!theme) theme = &olc_theme_default;
+
+    /* Render all banks as a combined string for telnet display */
+    char combined[512];
+    int pos = 0;
+    combined[0] = '\0';
+    for (int b = 0; b < nbanks; b++) {
+        if (!tables[b]) continue;
+        for (int f = 0; tables[b][f].name != NULL; f++) {
+            if (IS_SET(values[b], tables[b][f].bit)) {
+                if (pos > 0 && pos < (int)sizeof(combined) - 1)
+                    combined[pos++] = ' ';
+                int len = strlen(tables[b][f].name);
+                if (pos + len < (int)sizeof(combined) - 1) {
+                    memcpy(combined + pos, tables[b][f].name, len);
+                    pos += len;
+                }
+            }
+        }
+    }
+    combined[pos] = '\0';
+
+    olc_display_string(ctx, theme, label, command,
+        combined[0] ? combined : "none");
+}
+
 void olc_display_type(OLC_LAYOUT_CTX *ctx, const OLC_EDITOR_THEME *theme,
                       const char *label, const char *command,
                       const struct flag_type *table, int value)

@@ -145,6 +145,7 @@ json_t *gmcp_editor_build_state(const char *entity_id,
                 case OLC_FIELD_INT:         type_name = "int"; break;
                 case OLC_FIELD_INT16:       type_name = "int16"; break;
                 case OLC_FIELD_FLAGS:       type_name = "flags"; break;
+                case OLC_FIELD_MULTIFLAGS:  type_name = "multiflags"; break;
                 case OLC_FIELD_BOOL:        type_name = "bool"; break;
                 case OLC_FIELD_WIDEVNUM:    type_name = "widevnum"; break;
                 case OLC_FIELD_EXIT:        type_name = "exit"; break;
@@ -273,6 +274,7 @@ json_t *gmcp_editor_build_open(const char *entity_id, const char *editor_name,
                 case OLC_FIELD_INT:         type_name = "int"; break;
                 case OLC_FIELD_INT16:       type_name = "int16"; break;
                 case OLC_FIELD_FLAGS:       type_name = "flags"; break;
+                case OLC_FIELD_MULTIFLAGS:  type_name = "multiflags"; break;
                 case OLC_FIELD_BOOL:        type_name = "bool"; break;
                 case OLC_FIELD_WIDEVNUM:    type_name = "widevnum"; break;
                 case OLC_FIELD_EXIT:        type_name = "exit"; break;
@@ -492,6 +494,7 @@ static void handle_editor_set(descriptor_t *d, json_t *payload)
     olc_field_type_t ftype = OLC_FIELD_STRING;
     if (json_is_integer(value))      ftype = OLC_FIELD_INT;
     else if (json_is_boolean(value)) ftype = OLC_FIELD_BOOL;
+    else if (json_is_array(value))   ftype = OLC_FIELD_MULTIFLAGS;
 
     /* Get current live value for old_value if this is the first edit */
     json_t *old_value = NULL;

@@ -155,6 +155,7 @@ static const char *field_type_label(olc_field_type_t type)
         case OLC_FIELD_INT16:   return "int16";
         case OLC_FIELD_BOOL:    return "bool";
         case OLC_FIELD_FLAGS:   return "flags";
+        case OLC_FIELD_MULTIFLAGS: return "mflags";
         case OLC_FIELD_WIDEVNUM: return "wnum";
         case OLC_FIELD_EXIT:    return "exit";
         case OLC_FIELD_EMBEDDED: return "embed";
