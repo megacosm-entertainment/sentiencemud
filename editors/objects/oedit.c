@@ -315,6 +315,89 @@ static bool oedit_apply_fragility(void *entity, olc_pending_change_t *change) {
     return true;
 }
 
+/**
+ * Apply a staged affect list operation (add or remove).
+ * Removes use "where_filter" to target the correct subset of the affects list.
+ */
+static bool oedit_apply_affect_ops(void *entity, olc_pending_change_t *change)
+{
+    OBJ_INDEX_DATA *pObj = (OBJ_INDEX_DATA *)entity;
+
+    if (change->field_type == OLC_FIELD_LIST_REMOVE) {
+        int index = (int)json_integer_value(
+            json_object_get(change->new_value, "index"));
+        const char *where_str = json_string_value(
+            json_object_get(change->new_value, "where_filter"));
+        int where_filter = where_str ? flag_value(apply_types, where_str) : TO_OBJECT;
+
+        /* For immunity subset, match TO_IMMUNE, TO_RESIST, or TO_VULN */
+        bool is_immunity = (where_filter == TO_IMMUNE
+            || where_filter == TO_RESIST || where_filter == TO_VULN);
+
+        AFFECT_DATA *prev = NULL;
+        int count = 0;
+        for (AFFECT_DATA *pAf = pObj->affected; pAf; pAf = pAf->next) {
+            bool in_subset;
+            if (is_immunity)
+                in_subset = (pAf->where == TO_IMMUNE || pAf->where == TO_RESIST
+                    || pAf->where == TO_VULN);
+            else
+                in_subset = (pAf->where == where_filter);
+
+            if (!in_subset) { prev = pAf; continue; }
+            if (count == index) {
+                if (prev) prev->next = pAf->next;
+                else pObj->affected = pAf->next;
+                free_affect(pAf);
+                return true;
+            }
+            prev = pAf;
+            count++;
+        }
+        return false;
+    }
+
+    if (change->field_type == OLC_FIELD_LIST_ADD) {
+        AFFECT_DATA *pAf = new_affect();
+        pAf->where = flag_value(apply_types,
+            json_string_value(json_object_get(change->new_value, "where")));
+
+        const char *loc_str = json_string_value(json_object_get(change->new_value, "location"));
+        if (loc_str) {
+            pAf->location = flag_value(apply_flags, loc_str);
+        } else {
+            /* Numeric location (e.g., APPLY_SKILL+sn) */
+            pAf->location = (int)json_integer_value(json_object_get(change->new_value, "location"));
+        }
+
+        pAf->modifier = (int)json_integer_value(
+            json_object_get(change->new_value, "modifier"));
+        pAf->type = (int)json_integer_value(
+            json_object_get(change->new_value, "type"));
+        pAf->duration = (int)json_integer_value(
+            json_object_get(change->new_value, "duration"));
+        pAf->bitvector = (long)json_integer_value(
+            json_object_get(change->new_value, "bitvector"));
+        pAf->level = (int)json_integer_value(
+            json_object_get(change->new_value, "level"));
+        pAf->random = (int)json_integer_value(
+            json_object_get(change->new_value, "random"));
+
+        /* Append to end of list */
+        if (!pObj->affected) {
+            pObj->affected = pAf;
+        } else {
+            AFFECT_DATA *tail;
+            for (tail = pObj->affected; tail->next; tail = tail->next)
+                ;
+            tail->next = pAf;
+        }
+        return true;
+    }
+
+    return false;
+}
+
 static bool oedit_apply_var(void *entity, olc_pending_change_t *change) {
     OBJ_INDEX_DATA *pObj = (OBJ_INDEX_DATA *)entity;
 
@@ -361,6 +444,7 @@ static const olc_field_handler_t oedit_field_handlers[] = {
     { "Fragility",        OLC_FIELD_INT16,      NULL, oedit_apply_fragility,     NULL },
     { "Wear",             OLC_FIELD_FLAGS,      NULL, oedit_apply_wear,          NULL },
     { "var/*",            OLC_FIELD_STRING,     NULL, oedit_apply_var,           NULL },
+    { "affects/**",       OLC_FIELD_LIST_ADD,   NULL, oedit_apply_affect_ops,    NULL },
     { NULL, 0, NULL, NULL, NULL }
 };
 
@@ -1023,6 +1107,33 @@ OEDIT(oedit_addaffect)
     else
         pObj->points += pMod;
 
+    /* Staged mode */
+    {
+        const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+        if (edef && edef->change_mode == OLC_CHANGE_STAGED) {
+            olc_changeset_t *cs = olc_get_active_changeset(ch, edef);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                json_t *val = json_pack("{s:s, s:s, s:i, s:i, s:i, s:i, s:i, s:i}",
+                    "where", flag_string(apply_types, TO_OBJECT),
+                    "location", flag_string(apply_flags, value),
+                    "modifier", atoi(mod),
+                    "type", -1,
+                    "duration", -1,
+                    "bitvector", 0,
+                    "level", pObj->level,
+                    "random", atoi(randm));
+                olc_stage_list_add(cs, "affects", val);
+                notify_field_change(cs, ch, "affects", val, "list_add", true);
+                json_decref(val);
+                printf_to_char(ch, "{G[STAGED]{x Affect added: %s %+d.\n\r",
+                    flag_string(apply_flags, value), atoi(mod));
+                return true;
+            }
+        }
+    }
+
+    /* Non-staged: apply directly */
     pAf             =   new_affect();
     pAf->next	    =   NULL;
     pAf->location   =   value;
@@ -1146,6 +1257,33 @@ OEDIT(oedit_addimmune)
     else
         pObj->points += pMod;
 
+    /* Staged mode */
+    {
+        const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+        if (edef && edef->change_mode == OLC_CHANGE_STAGED) {
+            olc_changeset_t *cs = olc_get_active_changeset(ch, edef);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                json_t *val = json_pack("{s:s, s:s, s:i, s:i, s:i, s:i, s:i, s:i}",
+                    "where", flag_string(apply_types, where),
+                    "location", flag_string(apply_flags, APPLY_NONE),
+                    "modifier", 0,
+                    "type", -1,
+                    "duration", -1,
+                    "bitvector", (int)value,
+                    "level", pObj->level,
+                    "random", atoi(randm));
+                olc_stage_list_add(cs, "affects", val);
+                notify_field_change(cs, ch, "affects", val, "list_add", true);
+                json_decref(val);
+                printf_to_char(ch, "{G[STAGED]{x Immunity modifier added: %s %s.\n\r",
+                    flag_string(apply_types, where), flag_string(imm_flags, value));
+                return true;
+            }
+        }
+    }
+
+    /* Non-staged: apply directly */
     pAf             =   new_affect();
     pAf->next	    =   NULL;
     pAf->location   =   APPLY_NONE;
@@ -1324,6 +1462,34 @@ OEDIT(oedit_addskill)
     return false;
     }
 
+    /* Staged mode */
+    {
+        const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+        if (edef && edef->change_mode == OLC_CHANGE_STAGED) {
+            olc_changeset_t *cs = olc_get_active_changeset(ch, edef);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                json_t *val = json_pack("{s:s, s:i, s:i, s:i, s:i, s:i, s:i, s:i}",
+                    "where", flag_string(apply_types, TO_OBJECT),
+                    "location", APPLY_SKILL + sn,
+                    "modifier", atoi(mod),
+                    "type", -1,
+                    "duration", -1,
+                    "bitvector", 0,
+                    "level", pObj->level,
+                    "random", atoi(random));
+                olc_stage_list_add(cs, "affects", val);
+                SKILL_DATA *skill = skill_find_uid(sn);
+                notify_field_change(cs, ch, "affects", val, "list_add", true);
+                json_decref(val);
+                printf_to_char(ch, "{G[STAGED]{x Skill added: %s %+d%%.\n\r",
+                    skill ? skill->name : "unknown", atoi(mod));
+                return true;
+            }
+        }
+    }
+
+    /* Non-staged: apply directly */
     pAf             =   new_affect();
     pAf->next	    =   NULL;
     pAf->location   =   APPLY_SKILL+sn;
@@ -2008,6 +2174,46 @@ OEDIT(oedit_delaffect)
     return false;
     }
 
+    /* Staged mode */
+    {
+        const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+        if (edef && edef->change_mode == OLC_CHANGE_STAGED) {
+            olc_changeset_t *cs = olc_get_active_changeset(ch, edef);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+
+                /* Find the target TO_OBJECT affect by index */
+                int count = 0;
+                AFFECT_DATA *target = NULL;
+                for (AFFECT_DATA *pAf2 = pObj->affected; pAf2; pAf2 = pAf2->next) {
+                    if (pAf2->where == TO_OBJECT) {
+                        if (count == value) { target = pAf2; break; }
+                        count++;
+                    }
+                }
+                if (!target) {
+                    send_to_char("No such affect.\n\r", ch);
+                    return false;
+                }
+
+                json_t *old_val = json_pack("{s:s, s:s, s:i}",
+                    "where", flag_string(apply_types, target->where),
+                    "location", flag_string(apply_flags, target->location),
+                    "modifier", target->modifier);
+
+                olc_pending_change_t *result = olc_stage_list_remove(cs, "affects", value, old_val);
+                if (result && result->new_value)
+                    json_object_set_new(result->new_value, "where_filter",
+                        json_string(flag_string(apply_types, TO_OBJECT)));
+                notify_field_change(cs, ch, "affects", old_val, "list_remove", true);
+                json_decref(old_val);
+                printf_to_char(ch, "{G[STAGED]{x Affect removal staged.\n\r");
+                return true;
+            }
+        }
+    }
+
+    /* Non-staged: apply directly */
     pAf_prev = NULL;
     for(;pAf;pAf_prev = pAf, pAf = pAf_next)
     {
@@ -2068,6 +2274,47 @@ OEDIT(oedit_delimmune)
     return false;
     }
 
+    /* Staged mode */
+    {
+        const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+        if (edef && edef->change_mode == OLC_CHANGE_STAGED) {
+            olc_changeset_t *cs = olc_get_active_changeset(ch, edef);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+
+                /* Find the target immunity affect by index */
+                int count = 0;
+                AFFECT_DATA *target = NULL;
+                for (AFFECT_DATA *pAf2 = pObj->affected; pAf2; pAf2 = pAf2->next) {
+                    if (pAf2->where == TO_IMMUNE || pAf2->where == TO_RESIST || pAf2->where == TO_VULN) {
+                        if (count == value) { target = pAf2; break; }
+                        count++;
+                    }
+                }
+                if (!target) {
+                    send_to_char("No such immunity modifier.\n\r", ch);
+                    return false;
+                }
+
+                json_t *old_val = json_pack("{s:s, s:s, s:i, s:i}",
+                    "where", flag_string(apply_types, target->where),
+                    "location", flag_string(apply_flags, target->location),
+                    "modifier", target->modifier,
+                    "bitvector", (int)target->bitvector);
+
+                olc_pending_change_t *result = olc_stage_list_remove(cs, "affects", value, old_val);
+                if (result && result->new_value)
+                    json_object_set_new(result->new_value, "where_filter",
+                        json_string(flag_string(apply_types, target->where)));
+                notify_field_change(cs, ch, "affects", old_val, "list_remove", true);
+                json_decref(old_val);
+                printf_to_char(ch, "{G[STAGED]{x Immunity removal staged.\n\r");
+                return true;
+            }
+        }
+    }
+
+    /* Non-staged: apply directly */
     pAf_prev = NULL;
     for(;pAf;pAf_prev = pAf, pAf = pAf_next)
     {
