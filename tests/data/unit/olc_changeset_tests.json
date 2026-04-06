@@ -298,6 +298,48 @@
       "expected_result": "PASS",
       "input": {},
       "expected_output": {}
+    },
+    {
+      "name": "olccs_next_seq",
+      "description": "Test olc_changeset_next_seq returns correct sequence numbers",
+      "test_type": "olccs_next_seq",
+      "input": {},
+      "expected_output": { "success": true }
+    },
+    {
+      "name": "olccs_revert_prefix",
+      "description": "Test olc_changeset_revert_prefix removes matching entries",
+      "test_type": "olccs_revert_prefix",
+      "input": {},
+      "expected_output": { "success": true }
+    },
+    {
+      "name": "olccs_multilevel_wildcard",
+      "description": "Test multi-level wildcard matching via handler lookup",
+      "test_type": "olccs_multilevel_wildcard",
+      "input": {},
+      "expected_output": { "success": true }
+    },
+    {
+      "name": "olccs_stage_list_ops",
+      "description": "Test olc_stage_list_add and olc_stage_list_remove staging",
+      "test_type": "olccs_stage_list_ops",
+      "input": {},
+      "expected_output": { "success": true }
+    },
+    {
+      "name": "olccs_embedded_snapshot",
+      "description": "Test olc_staged_embedded and olc_staged_embedded_set",
+      "test_type": "olccs_embedded_snapshot",
+      "input": {},
+      "expected_output": { "success": true }
+    },
+    {
+      "name": "olccs_flags_or",
+      "description": "Test olc_staged_flags_or returns staged or live value",
+      "test_type": "olccs_flags_or",
+      "input": {},
+      "expected_output": { "success": true }
     }
   ]
 }

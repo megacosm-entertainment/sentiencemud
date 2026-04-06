@@ -8,6 +8,7 @@
 #include "../../editors/common/olc_changeset.h"
 #include "../../editors/common/olc_field_handlers.h"
 #include "../../editors/common/olc_staged.h"
+#include "../../editors/common/olc_commands.h"
 
 static test_result_t test_olccs_create_destroy(test_case_t *test)
 {
@@ -1155,6 +1156,226 @@ static test_result_t test_olccs_long_roundtrip(test_case_t *test)
     return TEST_SUCCESS;
 }
 
+/* =========================================================================
+ * Phase 3 Infrastructure Tests
+ * ========================================================================= */
+
+static test_result_t test_olccs_next_seq(test_case_t *test)
+{
+    (void)test;
+    WNUM_LOAD wnum = { .auid = 1, .vnum = 100 };
+    olc_changeset_t *cs = olc_changeset_create(ED_ROOM, wnum, "Room", "Builder");
+
+    /* Empty changeset returns 0 for any prefix */
+    TEST_ASSERT_INT_EQ(0, olc_changeset_next_seq(cs, "affects/add"));
+
+    /* After adding affects/add:0, next seq is 1 */
+    json_t *val = json_string("test");
+    olc_changeset_add_change(cs, "affects/add:0", OLC_FIELD_LIST_ADD, NULL, val);
+    json_decref(val);
+    TEST_ASSERT_INT_EQ(1, olc_changeset_next_seq(cs, "affects/add"));
+
+    /* After adding affects/add:5 (non-sequential), returns 6 (max + 1) */
+    val = json_string("test2");
+    olc_changeset_add_change(cs, "affects/add:5", OLC_FIELD_LIST_ADD, NULL, val);
+    json_decref(val);
+    TEST_ASSERT_INT_EQ(6, olc_changeset_next_seq(cs, "affects/add"));
+
+    /* Different prefix still returns 0 */
+    TEST_ASSERT_INT_EQ(0, olc_changeset_next_seq(cs, "affects/rm"));
+
+    olc_changeset_destroy(cs);
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_olccs_revert_prefix(test_case_t *test)
+{
+    (void)test;
+    WNUM_LOAD wnum = { .auid = 1, .vnum = 100 };
+    olc_changeset_t *cs = olc_changeset_create(ED_ROOM, wnum, "Room", "Builder");
+
+    /* Stage: affects/add:0, affects/add:1, affects/rm:0, Name */
+    json_t *v = json_string("aff0");
+    olc_changeset_add_change(cs, "affects/add:0", OLC_FIELD_LIST_ADD, NULL, v);
+    json_decref(v);
+
+    v = json_string("aff1");
+    olc_changeset_add_change(cs, "affects/add:1", OLC_FIELD_LIST_ADD, NULL, v);
+    json_decref(v);
+
+    v = json_pack("{s:i}", "index", 0);
+    olc_changeset_add_change(cs, "affects/rm:0", OLC_FIELD_LIST_REMOVE, NULL, v);
+    json_decref(v);
+
+    json_t *old_name = json_string("Old Room");
+    json_t *new_name = json_string("New Room");
+    olc_changeset_add_change(cs, "Name", OLC_FIELD_STRING, old_name, new_name);
+    json_decref(old_name);
+    json_decref(new_name);
+
+    TEST_ASSERT_INT_EQ(4, olc_changeset_count(cs));
+
+    /* Revert prefix "affects" removes all 3 affects entries */
+    int removed = olc_changeset_revert_prefix(cs, "affects");
+    TEST_ASSERT_INT_EQ(3, removed);
+    TEST_ASSERT_INT_EQ(1, olc_changeset_count(cs));
+
+    /* Name change still exists */
+    olc_pending_change_t *found = olc_changeset_find_change(cs, "Name");
+    TEST_ASSERT_NOT_NULL(found);
+    TEST_ASSERT_STR_EQ("Name", found->field_path);
+
+    olc_changeset_destroy(cs);
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_olccs_multilevel_wildcard(test_case_t *test)
+{
+    (void)test;
+
+    olc_field_handler_t handlers[] = {
+        { "typedata/**", OLC_FIELD_TYPE_DATA, NULL, dummy_apply_fn, NULL },
+        { "var/*",       OLC_FIELD_STRING,    NULL, dummy_apply_fn, NULL },
+        { NULL, 0, NULL, NULL, NULL }
+    };
+
+    /* typedata/weapon/class matches typedata multi-level wildcard */
+    const olc_field_handler_t *h = olc_find_field_handler(
+        handlers, "typedata/weapon/class", OLC_FIELD_TYPE_DATA);
+    TEST_ASSERT_NOT_NULL(h);
+    TEST_ASSERT_STR_EQ("typedata/**", h->field_path);
+
+    /* typedata/+armor matches typedata multi-level wildcard */
+    h = olc_find_field_handler(handlers, "typedata/+armor", OLC_FIELD_TYPE_DATA);
+    TEST_ASSERT_NOT_NULL(h);
+    TEST_ASSERT_STR_EQ("typedata/**", h->field_path);
+
+    /* var/mykey matches var single-level wildcard */
+    h = olc_find_field_handler(handlers, "var/mykey", OLC_FIELD_STRING);
+    TEST_ASSERT_NOT_NULL(h);
+    TEST_ASSERT_STR_EQ("var/*", h->field_path);
+
+    /* var/nested/key does NOT match var single-level wildcard */
+    h = olc_find_field_handler(handlers, "var/nested/key", OLC_FIELD_STRING);
+    TEST_ASSERT_NULL(h);
+
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_olccs_stage_list_ops(test_case_t *test)
+{
+    (void)test;
+    WNUM_LOAD wnum = { .auid = 1, .vnum = 100 };
+    olc_changeset_t *cs = olc_changeset_create(ED_OBJECT, wnum, "Obj", "Builder");
+
+    /* Stage two adds */
+    json_t *v1 = json_string("affect1");
+    olc_pending_change_t *c1 = olc_stage_list_add(cs, "affects", v1);
+    json_decref(v1);
+    TEST_ASSERT_NOT_NULL(c1);
+    TEST_ASSERT_STR_EQ("affects/add:0", c1->field_path);
+
+    json_t *v2 = json_string("affect2");
+    olc_pending_change_t *c2 = olc_stage_list_add(cs, "affects", v2);
+    json_decref(v2);
+    TEST_ASSERT_NOT_NULL(c2);
+    TEST_ASSERT_STR_EQ("affects/add:1", c2->field_path);
+
+    /* Stage a remove with index 2 */
+    json_t *old_v = json_string("old_affect");
+    olc_pending_change_t *c3 = olc_stage_list_remove(cs, "affects", 2, old_v);
+    json_decref(old_v);
+    TEST_ASSERT_NOT_NULL(c3);
+    TEST_ASSERT_STR_EQ("affects/rm:0", c3->field_path);
+
+    /* Verify remove's new_value has {"index": 2} */
+    TEST_ASSERT_NOT_NULL(c3->new_value);
+    TEST_ASSERT_INT_EQ(2, (int)json_integer_value(json_object_get(c3->new_value, "index")));
+
+    /* Total count should be 3 */
+    TEST_ASSERT_INT_EQ(3, olc_changeset_count(cs));
+
+    olc_changeset_destroy(cs);
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_olccs_embedded_snapshot(test_case_t *test)
+{
+    (void)test;
+    WNUM_LOAD wnum = { .auid = 1, .vnum = 100 };
+    olc_changeset_t *cs = olc_changeset_create(ED_OBJECT, wnum, "Obj", "Builder");
+
+    /* Add a change for "lock" with embedded JSON */
+    json_t *old_lock = json_pack("{s:i, s:i}", "key_vnum", 0, "pick_mod", 0);
+    json_t *new_lock = json_pack("{s:i, s:i}", "key_vnum", 100, "pick_mod", 5);
+    olc_changeset_add_change(cs, "lock", OLC_FIELD_EMBEDDED, old_lock, new_lock);
+    json_decref(old_lock);
+    json_decref(new_lock);
+
+    /* olc_staged_embedded should return the new_value JSON */
+    json_t *embedded = olc_staged_embedded(cs, "lock");
+    TEST_ASSERT_NOT_NULL(embedded);
+    TEST_ASSERT_INT_EQ(100, (int)json_integer_value(json_object_get(embedded, "key_vnum")));
+    TEST_ASSERT_INT_EQ(5, (int)json_integer_value(json_object_get(embedded, "pick_mod")));
+
+    /* Reset dirty flag so we can verify the set marks it */
+    cs->is_dirty = false;
+
+    /* olc_staged_embedded_set should update pick_mod to 10 */
+    json_t *new_pm = json_integer(10);
+    TEST_ASSERT_TRUE(olc_staged_embedded_set(cs, "lock", "pick_mod", new_pm));
+    json_decref(new_pm);
+
+    /* Verify pick_mod is now 10 and is_dirty is true */
+    embedded = olc_staged_embedded(cs, "lock");
+    TEST_ASSERT_NOT_NULL(embedded);
+    TEST_ASSERT_INT_EQ(10, (int)json_integer_value(json_object_get(embedded, "pick_mod")));
+    TEST_ASSERT_TRUE(cs->is_dirty);
+
+    /* Nonexistent field returns NULL */
+    TEST_ASSERT_NULL(olc_staged_embedded(cs, "nonexistent"));
+
+    /* Setting on nonexistent field returns false */
+    json_t *dummy = json_integer(1);
+    TEST_ASSERT_FALSE(olc_staged_embedded_set(cs, "nonexistent", "key", dummy));
+    json_decref(dummy);
+
+    olc_changeset_destroy(cs);
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_olccs_flags_or(test_case_t *test)
+{
+    (void)test;
+    WNUM_LOAD wnum = { .auid = 1, .vnum = 100 };
+    olc_changeset_t *cs = olc_changeset_create(ED_OBJECT, wnum, "Obj", "Builder");
+
+    /* Unstaged field returns live value */
+    TEST_ASSERT_TRUE(olc_staged_flags_or(cs, "extra_flags", 0x0F) == 0x0F);
+
+    /* Stage an integer value for extra_flags */
+    json_t *old_v = json_integer(0x0F);
+    json_t *new_v = json_integer(0xFF);
+    olc_changeset_add_change(cs, "extra_flags", OLC_FIELD_FLAGS, old_v, new_v);
+    json_decref(old_v);
+    json_decref(new_v);
+
+    /* Staged integer field returns staged value, not live */
+    TEST_ASSERT_TRUE(olc_staged_flags_or(cs, "extra_flags", 0x0F) == 0xFF);
+
+    /* Stage a non-integer value — should fall back to live */
+    olc_changeset_remove_change(cs, "extra_flags");
+    json_t *old_null = json_null();
+    json_t *new_null = json_null();
+    olc_changeset_add_change(cs, "extra_flags", OLC_FIELD_FLAGS, old_null, new_null);
+    json_decref(old_null);
+    json_decref(new_null);
+    TEST_ASSERT_TRUE(olc_staged_flags_or(cs, "extra_flags", 0x0F) == 0x0F);
+
+    olc_changeset_destroy(cs);
+    return TEST_SUCCESS;
+}
+
 /*
  * Test dispatcher — routes test_type to specific test functions.
  */
@@ -1234,6 +1455,18 @@ test_result_t run_olc_changeset_test_case(test_case_t *test)
         return test_olccs_apply_dice(test);
     if (strcmp(test->test_type, "olccs_long_roundtrip") == 0)
         return test_olccs_long_roundtrip(test);
+    if (strcmp(test->test_type, "olccs_next_seq") == 0)
+        return test_olccs_next_seq(test);
+    if (strcmp(test->test_type, "olccs_revert_prefix") == 0)
+        return test_olccs_revert_prefix(test);
+    if (strcmp(test->test_type, "olccs_multilevel_wildcard") == 0)
+        return test_olccs_multilevel_wildcard(test);
+    if (strcmp(test->test_type, "olccs_stage_list_ops") == 0)
+        return test_olccs_stage_list_ops(test);
+    if (strcmp(test->test_type, "olccs_embedded_snapshot") == 0)
+        return test_olccs_embedded_snapshot(test);
+    if (strcmp(test->test_type, "olccs_flags_or") == 0)
+        return test_olccs_flags_or(test);
 
     log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
                   "Unknown OLC changeset test type: %s", test->test_type);
