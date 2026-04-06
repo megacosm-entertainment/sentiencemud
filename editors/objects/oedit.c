@@ -417,6 +417,252 @@ static bool oedit_apply_var(void *entity, olc_pending_change_t *change) {
     }
 }
 
+static bool oedit_apply_spell_ops(void *entity, olc_pending_change_t *change)
+{
+    OBJ_INDEX_DATA *pObj = (OBJ_INDEX_DATA *)entity;
+
+    if (change->field_type == OLC_FIELD_LIST_REMOVE) {
+        int index = (int)json_integer_value(
+            json_object_get(change->new_value, "index"));
+
+        SPELL_DATA *prev = NULL;
+        int count = 0;
+        for (SPELL_DATA *sp = pObj->spells; sp; sp = sp->next) {
+            if (count == index) {
+                if (prev) prev->next = sp->next;
+                else pObj->spells = sp->next;
+                free_spell(sp);
+                return true;
+            }
+            prev = sp;
+            count++;
+        }
+        return false;
+    }
+
+    if (change->field_type == OLC_FIELD_LIST_ADD) {
+        int uid = (int)json_integer_value(
+            json_object_get(change->new_value, "spell_uid"));
+        int level = (int)json_integer_value(
+            json_object_get(change->new_value, "level"));
+        int repop = (int)json_integer_value(
+            json_object_get(change->new_value, "repop"));
+
+        SPELL_DATA *spell = new_spell();
+        spell->sn = uid;
+        spell->level = level;
+        spell->repop = repop;
+        spell->next = NULL;
+
+        if (!pObj->spells) {
+            pObj->spells = spell;
+        } else {
+            SPELL_DATA *tail;
+            for (tail = pObj->spells; tail->next; tail = tail->next)
+                ;
+            tail->next = spell;
+        }
+        return true;
+    }
+
+    return false;
+}
+
+static bool oedit_apply_catalyst_ops(void *entity, olc_pending_change_t *change)
+{
+    OBJ_INDEX_DATA *pObj = (OBJ_INDEX_DATA *)entity;
+
+    if (change->field_type == OLC_FIELD_LIST_REMOVE) {
+        int index = (int)json_integer_value(
+            json_object_get(change->new_value, "index"));
+
+        CATALYST_DATA *prev = NULL;
+        int count = 0;
+        for (CATALYST_DATA *cat = pObj->catalyst; cat; cat = cat->next) {
+            if (count == index) {
+                if (prev) prev->next = cat->next;
+                else pObj->catalyst = cat->next;
+                free_catalyst(cat);
+                return true;
+            }
+            prev = cat;
+            count++;
+        }
+        return false;
+    }
+
+    if (change->field_type == OLC_FIELD_LIST_ADD) {
+        int type = (int)json_integer_value(
+            json_object_get(change->new_value, "type_id"));
+        int strength = (int)json_integer_value(
+            json_object_get(change->new_value, "strength"));
+        int charges = (int)json_integer_value(
+            json_object_get(change->new_value, "charges"));
+        int chance = (int)json_integer_value(
+            json_object_get(change->new_value, "chance"));
+        int where = (int)json_integer_value(
+            json_object_get(change->new_value, "where"));
+        const char *custom = json_string_value(
+            json_object_get(change->new_value, "custom_name"));
+
+        /* Check for duplicate: merge charges if same where/type/strength/chance */
+        for (CATALYST_DATA *cat = pObj->catalyst; cat; cat = cat->next) {
+            if (cat->where == where && cat->type == type
+                && cat->level == strength && cat->random == chance) {
+                if (cat->modifier < 0 || charges < 0)
+                    cat->modifier = -1;
+                else
+                    cat->modifier += charges;
+                return true;
+            }
+        }
+
+        CATALYST_DATA *pCat = new_catalyst();
+        pCat->next = NULL;
+        pCat->where = where;
+        pCat->modifier = charges;
+        pCat->type = type;
+        pCat->level = strength;
+        pCat->random = chance;
+        if (custom && custom[0] != '\0')
+            pCat->custom_name = str_dup(custom);
+
+        if (!pObj->catalyst) {
+            pObj->catalyst = pCat;
+        } else {
+            CATALYST_DATA *tail;
+            for (tail = pObj->catalyst; tail->next; tail = tail->next)
+                ;
+            tail->next = pCat;
+        }
+        return true;
+    }
+
+    return false;
+}
+
+static bool oedit_apply_quest_ops(void *entity, olc_pending_change_t *change)
+{
+    OBJ_INDEX_DATA *pObj = (OBJ_INDEX_DATA *)entity;
+
+    if (change->field_type == OLC_FIELD_LIST_REMOVE) {
+        int index = (int)json_integer_value(
+            json_object_get(change->new_value, "index"));
+
+        QUEST_V2_LIST *prev = NULL;
+        int count = 0;
+        for (QUEST_V2_LIST *qv2 = pObj->quests_v2; qv2; qv2 = qv2->next) {
+            if (count == index) {
+                if (prev) prev->next = qv2->next;
+                else pObj->quests_v2 = qv2->next;
+                free_quest_v2_list(qv2);
+                return true;
+            }
+            prev = qv2;
+            count++;
+        }
+        return false;
+    }
+
+    if (change->field_type == OLC_FIELD_LIST_ADD) {
+        long auid = (long)json_integer_value(
+            json_object_get(change->new_value, "auid"));
+        long vnum = (long)json_integer_value(
+            json_object_get(change->new_value, "vnum"));
+
+        AREA_DATA *area = get_area_from_uid(auid);
+        if (!area) return false;
+
+        WNUM wnum;
+        wnum.pArea = area;
+        wnum.vnum = vnum;
+
+        QUEST_V2_LIST *qv2 = new_quest_v2_list();
+        qv2->load.auid = auid;
+        qv2->load.vnum = vnum;
+        qv2->wnum = wnum;
+        qv2->next = pObj->quests_v2;
+        pObj->quests_v2 = qv2;
+        return true;
+    }
+
+    return false;
+}
+
+static bool oedit_apply_oprog_ops(void *entity, olc_pending_change_t *change)
+{
+    OBJ_INDEX_DATA *pObj = (OBJ_INDEX_DATA *)entity;
+
+    if (change->field_type == OLC_FIELD_LIST_REMOVE) {
+        if (!pObj->progs) return false;
+
+        int group_index = (int)json_integer_value(
+            json_object_get(change->new_value, "group_index"));
+        json_t *jtrig = json_object_get(change->new_value, "trigger_index");
+        int trigger_index = jtrig ? (int)json_integer_value(jtrig) : 0;
+
+        PROG_GROUP groups[MAX_PROG_GROUPS];
+        int num_groups = prog_build_groups(pObj->progs, groups, MAX_PROG_GROUPS, PRG_OPROG);
+
+        if (group_index < 1 || group_index > num_groups) return false;
+        PROG_GROUP *group = &groups[group_index - 1];
+
+        if (trigger_index > 0) {
+            if (trigger_index > group->trigger_count) return false;
+            PROG_GROUP_ENTRY *entry = &group->triggers[trigger_index - 1];
+            return edit_deltrigger_specific(pObj->progs, group->script,
+                entry->entry->trig_type, entry->entry->trig_phrase);
+        } else {
+            return edit_delscript(pObj->progs, group->script);
+        }
+    }
+
+    if (change->field_type == OLC_FIELD_LIST_ADD) {
+        long auid = (long)json_integer_value(
+            json_object_get(change->new_value, "script_auid"));
+        long vnum = (long)json_integer_value(
+            json_object_get(change->new_value, "script_vnum"));
+        int tindex = (int)json_integer_value(
+            json_object_get(change->new_value, "trigger_index"));
+        const char *phrase = json_string_value(
+            json_object_get(change->new_value, "phrase"));
+        if (!phrase) return false;
+
+        AREA_DATA *area = get_area_from_uid(auid);
+        if (!area) return false;
+
+        SCRIPT_DATA *code = get_script_index(area, vnum, PRG_OPROG);
+        if (!code) return false;
+
+        if (!pObj->progs) pObj->progs = new_prog_bank();
+
+        int slot = trigger_table[tindex].slot;
+
+        PROG_LIST *list = new_trigger();
+        list->vnum = vnum;
+        list->script_is_widevnum = true;
+        list->script_load.auid = auid;
+        list->script_load.vnum = vnum;
+        list->trig_type = tindex;
+        list->trig_phrase = str_dup(phrase);
+        if (is_widevnum_format(phrase)) {
+            list->numeric = true;
+            list->trig_is_widevnum = true;
+            parse_widevnum_load(phrase, &list->trig_load);
+            list->trig_number = (int)list->trig_load.vnum;
+        } else {
+            list->trig_number = atoi(list->trig_phrase);
+            list->numeric = is_number(list->trig_phrase);
+        }
+        list->script = code;
+
+        list_appendlink(pObj->progs[slot], list);
+        return true;
+    }
+
+    return false;
+}
+
 /*
  * Field Handler Table — maps staged field names to apply functions.
  */
@@ -445,6 +691,10 @@ static const olc_field_handler_t oedit_field_handlers[] = {
     { "Wear",             OLC_FIELD_FLAGS,      NULL, oedit_apply_wear,          NULL },
     { "var/*",            OLC_FIELD_STRING,     NULL, oedit_apply_var,           NULL },
     { "affects/**",       OLC_FIELD_LIST_ADD,   NULL, oedit_apply_affect_ops,    NULL },
+    { "spells/**",        OLC_FIELD_LIST_ADD,   NULL, oedit_apply_spell_ops,    NULL },
+    { "catalysts/**",     OLC_FIELD_LIST_ADD,   NULL, oedit_apply_catalyst_ops, NULL },
+    { "quests/**",        OLC_FIELD_LIST_ADD,   NULL, oedit_apply_quest_ops,    NULL },
+    { "oprogs/**",        OLC_FIELD_LIST_ADD,   NULL, oedit_apply_oprog_ops,    NULL },
     { NULL, 0, NULL, NULL, NULL }
 };
 
@@ -1392,6 +1642,30 @@ OEDIT(oedit_addspell)
     return false;
     }
 
+    /* Staged mode */
+    {
+        const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+        if (edef && edef->change_mode == OLC_CHANGE_STAGED) {
+            olc_changeset_t *cs = olc_get_active_changeset(ch, edef);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                SKILL_DATA *sk = skill_find_uid(sn);
+                json_t *val = json_pack("{s:i, s:s, s:i, s:i}",
+                    "spell_uid", sn,
+                    "spell_name", sk ? sk->name : "unknown",
+                    "level", atoi(level),
+                    "repop", atoi(rand));
+                olc_stage_list_add(cs, "spells", val);
+                notify_field_change(cs, ch, "spells", val, "list_add", true);
+                json_decref(val);
+                printf_to_char(ch, "{G[STAGED]{x Spell added: %s, level %d, random %d.\n\r",
+                    sk ? sk->name : "unknown", atoi(level), atoi(rand));
+                return true;
+            }
+        }
+    }
+
+    /* Non-staged: apply directly */
     spell 		= new_spell();
     spell->sn		= sn;
     spell->level	= atoi(level);
@@ -1578,6 +1852,31 @@ OEDIT(oedit_addcatalyst)
 
     c = URANGE(1,c,100);
 
+    /* Staged mode */
+    {
+        const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+        if (edef && edef->change_mode == OLC_CHANGE_STAGED) {
+            olc_changeset_t *cs = olc_get_active_changeset(ch, edef);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                json_t *val = json_pack("{s:i, s:s, s:i, s:i, s:i, s:i, s:s}",
+                    "type_id", t,
+                    "type_name", flag_string(catalyst_types, t),
+                    "strength", s,
+                    "charges", n,
+                    "chance", c,
+                    "where", w,
+                    "custom_name", IS_NULLSTR(argument) ? "" : argument);
+                olc_stage_list_add(cs, "catalysts", val);
+                notify_field_change(cs, ch, "catalysts", val, "list_add", true);
+                json_decref(val);
+                printf_to_char(ch, "{G[STAGED]{x Catalyst added.\n\r");
+                return true;
+            }
+        }
+    }
+
+    /* Non-staged: apply directly */
     for(cat = pObj->catalyst; cat; cat = cat->next) {
         if(cat->where == w && cat->type == t && cat->level == s && cat->random == c) {
             if(cat->modifier < 0 || n < 0)
@@ -1646,6 +1945,29 @@ OEDIT(oedit_delspell)
     return false;
     }
 
+    /* Staged mode */
+    {
+        const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+        if (edef && edef->change_mode == OLC_CHANGE_STAGED) {
+            olc_changeset_t *cs = olc_get_active_changeset(ch, edef);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                SKILL_DATA *sk = skill_find_uid(spell->sn);
+                json_t *old_val = json_pack("{s:i, s:s, s:i, s:i}",
+                    "spell_uid", spell->sn,
+                    "spell_name", sk ? sk->name : "unknown",
+                    "level", spell->level,
+                    "repop", spell->repop);
+                olc_stage_list_remove(cs, "spells", n, old_val);
+                notify_field_change(cs, ch, "spells", old_val, "list_remove", true);
+                json_decref(old_val);
+                printf_to_char(ch, "{G[STAGED]{x Spell removal staged.\n\r");
+                return true;
+            }
+        }
+    }
+
+    /* Non-staged: apply directly */
     // First one on the list
     if (!spell_prev)
     {
@@ -1695,6 +2017,30 @@ OEDIT(oedit_delcatalyst)
     return false;
     }
 
+    /* Staged mode */
+    {
+        const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+        if (edef && edef->change_mode == OLC_CHANGE_STAGED) {
+            olc_changeset_t *cs = olc_get_active_changeset(ch, edef);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                json_t *old_val = json_pack("{s:i, s:s, s:i, s:i, s:i, s:i}",
+                    "type_id", (int)catalyst->type,
+                    "type_name", flag_string(catalyst_types, catalyst->type),
+                    "strength", (int)catalyst->level,
+                    "charges", (int)catalyst->modifier,
+                    "chance", (int)catalyst->random,
+                    "where", (int)catalyst->where);
+                olc_stage_list_remove(cs, "catalysts", n, old_val);
+                notify_field_change(cs, ch, "catalysts", old_val, "list_remove", true);
+                json_decref(old_val);
+                printf_to_char(ch, "{G[STAGED]{x Catalyst removal staged.\n\r");
+                return true;
+            }
+        }
+    }
+
+    /* Non-staged: apply directly */
     // First one on the list
     if (!catalyst_prev)
     {
@@ -3592,6 +3938,29 @@ OEDIT (oedit_addoprog)
         return false;
     }
 
+    /* Staged mode */
+    {
+        const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+        if (edef && edef->change_mode == OLC_CHANGE_STAGED) {
+            olc_changeset_t *cs = olc_get_active_changeset(ch, edef);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                json_t *val = json_pack("{s:I, s:I, s:i, s:s, s:s}",
+                    "script_auid", (json_int_t)script_wnum.pArea->uid,
+                    "script_vnum", (json_int_t)script_wnum.vnum,
+                    "trigger_index", tindex,
+                    "trigger_name", trigger_name(tindex),
+                    "phrase", phrase);
+                olc_stage_list_add(cs, "oprogs", val);
+                notify_field_change(cs, ch, "oprogs", val, "list_add", true);
+                json_decref(val);
+                printf_to_char(ch, "{G[STAGED]{x OProg added.\n\r");
+                return true;
+            }
+        }
+    }
+
+    /* Non-staged: apply directly */
     list                  = new_trigger();
     list->vnum            = script_wnum.vnum;
     list->script_is_widevnum = (script_wnum.pArea != NULL);
@@ -3656,6 +4025,40 @@ OEDIT (oedit_deloprog)
 
     PROG_GROUP *group = &groups[group_idx - 1];
 
+    if (arg2[0] != '\0' && !is_number(arg2)) {
+        send_to_char("Please specify a valid trigger number within the group.\n\r", ch);
+        return false;
+    }
+
+    trig_idx = (arg2[0] != '\0') ? atoi(arg2) : 0;
+
+    if (trig_idx > 0 && trig_idx > group->trigger_count) {
+        send_to_char("Invalid trigger number within that group.\n\r", ch);
+        return false;
+    }
+
+    /* Staged mode */
+    {
+        const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+        if (edef && edef->change_mode == OLC_CHANGE_STAGED) {
+            olc_changeset_t *cs = olc_get_active_changeset(ch, edef);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                json_t *old_val = json_pack("{s:i}",
+                    "group_index", group_idx);
+                if (trig_idx > 0)
+                    json_object_set_new(old_val, "trigger_index",
+                        json_integer(trig_idx));
+                olc_stage_list_remove(cs, "oprogs", group_idx, old_val);
+                notify_field_change(cs, ch, "oprogs", old_val, "list_remove", true);
+                json_decref(old_val);
+                printf_to_char(ch, "{G[STAGED]{x OProg removal staged.\n\r");
+                return true;
+            }
+        }
+    }
+
+    /* Non-staged: apply directly */
     if (arg2[0] == '\0') {
         // Delete entire group (all triggers for this script)
         if (edit_delscript(pObj->progs, group->script)) {
@@ -3663,18 +4066,6 @@ OEDIT (oedit_deloprog)
             return true;
         }
     } else {
-        // Delete specific trigger within group
-        if (!is_number(arg2)) {
-            send_to_char("Please specify a valid trigger number within the group.\n\r", ch);
-            return false;
-        }
-
-        trig_idx = atoi(arg2);
-        if (trig_idx < 1 || trig_idx > group->trigger_count) {
-            send_to_char("Invalid trigger number within that group.\n\r", ch);
-            return false;
-        }
-
         PROG_GROUP_ENTRY *entry = &group->triggers[trig_idx - 1];
         if (edit_deltrigger_specific(pObj->progs, group->script, entry->entry->trig_type, entry->entry->trig_phrase)) {
             send_to_char("Trigger removed from script group.\n\r", ch);
@@ -3814,6 +4205,26 @@ OEDIT(oedit_addquest)
         }
     }
 
+    /* Staged mode */
+    {
+        const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+        if (edef && edef->change_mode == OLC_CHANGE_STAGED) {
+            olc_changeset_t *cs = olc_get_active_changeset(ch, edef);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                json_t *val = json_pack("{s:I, s:I}",
+                    "auid", (json_int_t)wnum.pArea->uid,
+                    "vnum", (json_int_t)wnum.vnum);
+                olc_stage_list_add(cs, "quests", val);
+                notify_field_change(cs, ch, "quests", val, "list_add", true);
+                json_decref(val);
+                printf_to_char(ch, "{G[STAGED]{x Quest added.\n\r");
+                return true;
+            }
+        }
+    }
+
+    /* Non-staged: apply directly */
     qv2 = new_quest_v2_list();
     qv2->load.auid = wnum.pArea->uid;
     qv2->load.vnum = wnum.vnum;
@@ -3860,6 +4271,26 @@ OEDIT(oedit_delquest)
         return false;
     }
 
+    /* Staged mode */
+    {
+        const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+        if (edef && edef->change_mode == OLC_CHANGE_STAGED) {
+            olc_changeset_t *cs = olc_get_active_changeset(ch, edef);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                json_t *old_val = json_pack("{s:I, s:I}",
+                    "auid", (json_int_t)qv2->load.auid,
+                    "vnum", (json_int_t)qv2->load.vnum);
+                olc_stage_list_remove(cs, "quests", i, old_val);
+                notify_field_change(cs, ch, "quests", old_val, "list_remove", true);
+                json_decref(old_val);
+                printf_to_char(ch, "{G[STAGED]{x Quest removal staged.\n\r");
+                return true;
+            }
+        }
+    }
+
+    /* Non-staged: apply directly */
     if (prev != NULL)
         prev->next = qv2->next;
     else
