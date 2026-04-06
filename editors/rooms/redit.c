@@ -24,6 +24,8 @@
 #include "../common/olc_display.h"
 #include "../common/olc_commands.h"
 #include "../common/olc_field_handlers.h"
+#include "../common/olc_staged.h"
+#include "../common/olc_changeset.h"
 #include "../../skill_data.h"
 
 extern bool redit_blueprint_oncreate;
@@ -118,6 +120,153 @@ OLC_FIELD_APPLY_INT   (redit_apply_heal_rate,   ROOM_INDEX_DATA, rs_heal_rate)
 OLC_FIELD_APPLY_INT   (redit_apply_mana_rate,   ROOM_INDEX_DATA, rs_mana_rate)
 OLC_FIELD_APPLY_INT   (redit_apply_move_rate,   ROOM_INDEX_DATA, rs_move_rate)
 OLC_FIELD_APPLY_STRING(redit_apply_owner,       ROOM_INDEX_DATA, owner)
+OLC_FIELD_APPLY_LONG  (redit_apply_locale,      ROOM_INDEX_DATA, locale)
+
+static bool redit_apply_persist(void *entity, olc_pending_change_t *change) {
+    ROOM_INDEX_DATA *pRoom = (ROOM_INDEX_DATA *)entity;
+    bool new_val = json_is_true(change->new_value);
+    if (new_val)
+        persist_addroom(pRoom);
+    else
+        persist_removeroom(pRoom);
+    return true;
+}
+
+static bool redit_apply_recall(void *entity, olc_pending_change_t *change) {
+    ROOM_INDEX_DATA *pRoom = (ROOM_INDEX_DATA *)entity;
+    const char *val = json_string_value(change->new_value);
+
+    if (IS_NULLSTR(val) || !str_cmp(val, "0")) {
+        rs_location_clear(&pRoom->rs_recall);
+        return true;
+    }
+
+    if (!str_prefix("room ", val)) {
+        long vnum = atol(val + 5);
+        rs_location_set(&pRoom->rs_recall, 0, vnum, 0, 0);
+        return true;
+    }
+
+    if (!str_prefix("wilds ", val)) {
+        unsigned long wuid, x, y, z;
+        if (sscanf(val, "wilds %lu %lu %lu %lu", &wuid, &x, &y, &z) == 4) {
+            rs_location_set(&pRoom->rs_recall, wuid, x, y, z);
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static bool redit_apply_sector(void *entity, olc_pending_change_t *change) {
+    ROOM_INDEX_DATA *pRoom = (ROOM_INDEX_DATA *)entity;
+    int val = (int)json_integer_value(change->new_value);
+    room_set_rs_sector_type(pRoom, val);
+    return true;
+}
+
+static bool redit_apply_region(void *entity, olc_pending_change_t *change) {
+    ROOM_INDEX_DATA *pRoom = (ROOM_INDEX_DATA *)entity;
+    const char *val = json_string_value(change->new_value);
+
+    if (IS_NULLSTR(val) || !str_cmp(val, "default")) {
+        area_region_add_room(&pRoom->area->region, pRoom);
+        return true;
+    }
+
+    /* Try by number */
+    if (is_number(val)) {
+        int idx = atoi(val);
+        if (idx >= 1 && idx <= list_size(pRoom->area->regions)) {
+            AREA_REGION *region = (AREA_REGION *)list_nthdata(pRoom->area->regions, idx);
+            if (region && IS_VALID(region)) {
+                area_region_add_room(region, pRoom);
+                return true;
+            }
+        }
+    }
+
+    /* Try by name */
+    AREA_REGION *r;
+    ITERATOR it;
+    iterator_start(&it, pRoom->area->regions);
+    while ((r = (AREA_REGION *)iterator_nextdata(&it))) {
+        if (r->name && !str_cmp(val, r->name)) {
+            area_region_add_room(r, pRoom);
+            iterator_stop(&it);
+            return true;
+        }
+    }
+    iterator_stop(&it);
+
+    /* Try by UID */
+    long uid = atol(val);
+    if (uid > 0) {
+        iterator_start(&it, pRoom->area->regions);
+        while ((r = (AREA_REGION *)iterator_nextdata(&it))) {
+            if (r->uid == uid) {
+                area_region_add_room(r, pRoom);
+                iterator_stop(&it);
+                return true;
+            }
+        }
+        iterator_stop(&it);
+    }
+
+    return false;
+}
+
+static bool redit_apply_parent(void *entity, olc_pending_change_t *change) {
+    ROOM_INDEX_DATA *pRoom = (ROOM_INDEX_DATA *)entity;
+    const char *val = json_string_value(change->new_value);
+
+    if (IS_NULLSTR(val) || !str_cmp(val, "none") || !str_cmp(val, "clear") || !str_cmp(val, "0")) {
+        pRoom->parent_load.auid = 0;
+        pRoom->parent_load.vnum = 0;
+        pRoom->parent_wnum.pArea = NULL;
+        pRoom->parent_wnum.vnum = 0;
+        pRoom->parent = NULL;
+        return true;
+    }
+
+    WNUM room_wnum;
+    char buf[MAX_INPUT_LENGTH];
+    strlcpy(buf, val, sizeof(buf));
+    if (!parse_widevnum(buf, pRoom->area, &room_wnum)) return false;
+
+    ROOM_INDEX_DATA *parent = get_room_index(room_wnum.pArea, room_wnum.vnum);
+    if (!parent) return false;
+
+    pRoom->parent_load.auid = room_wnum.pArea->uid;
+    pRoom->parent_load.vnum = room_wnum.vnum;
+    pRoom->parent_wnum = room_wnum;
+    pRoom->parent = parent;
+    pRoom->parent_inherited = false;
+    return true;
+}
+
+static bool redit_apply_var(void *entity, olc_pending_change_t *change) {
+    ROOM_INDEX_DATA *pRoom = (ROOM_INDEX_DATA *)entity;
+
+    if (json_is_null(change->new_value)) {
+        const char *varname = change->field_path + 4;
+        char buf[MAX_INPUT_LENGTH];
+        strlcpy(buf, varname, sizeof(buf));
+        olc_varclear(&pRoom->index_vars, NULL, buf, true);
+        if (pRoom->progs)
+            olc_varclear(&pRoom->progs->vars, NULL, buf, true);
+        return true;
+    } else {
+        const char *arg = json_string_value(change->new_value);
+        if (!arg) return false;
+        char buf[MAX_INPUT_LENGTH];
+        strlcpy(buf, arg, sizeof(buf));
+        olc_varset(&pRoom->index_vars, NULL, buf, true);
+        if (pRoom->progs)
+            olc_varset(&pRoom->progs->vars, NULL, buf, true);
+        return true;
+    }
+}
 
 static const olc_field_handler_t redit_field_handlers[] = {
     { "Name",        OLC_FIELD_STRING,    NULL, redit_apply_name,        NULL },
@@ -128,6 +277,13 @@ static const olc_field_handler_t redit_field_handlers[] = {
     { "mana rate",   OLC_FIELD_INT,       NULL, redit_apply_mana_rate,   NULL },
     { "move rate",   OLC_FIELD_INT,       NULL, redit_apply_move_rate,   NULL },
     { "Owner",       OLC_FIELD_STRING,    NULL, redit_apply_owner,       NULL },
+    { "Locale",      OLC_FIELD_LONG,      NULL, redit_apply_locale,      NULL },
+    { "Persist",     OLC_FIELD_BOOL,      NULL, redit_apply_persist,     NULL },
+    { "Recall",      OLC_FIELD_STRING,    NULL, redit_apply_recall,      NULL },
+    { "Sector",      OLC_FIELD_INT,       NULL, redit_apply_sector,      NULL },
+    { "Region",      OLC_FIELD_STRING,    NULL, redit_apply_region,      NULL },
+    { "Parent",      OLC_FIELD_STRING,    NULL, redit_apply_parent,      NULL },
+    { "var/*",       OLC_FIELD_STRING,    NULL, redit_apply_var,         NULL },
     { NULL, 0, NULL, NULL, NULL }
 };
 
@@ -873,10 +1029,38 @@ REDIT(redit_varset)
 
     EDIT_ROOM(ch, pRoom);
 
-    if(olc_varset(&pRoom->index_vars, ch, argument, false))
-    {
-        // This will *NOT* update cloned rooms...
-        olc_varset(&pRoom->progs->vars, ch, argument, true);
+    const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+    if (edef && edef->change_mode == OLC_CHANGE_STAGED) {
+        olc_changeset_t *cs = olc_get_active_changeset(ch, edef);
+        if (cs) {
+            char varname[MAX_INPUT_LENGTH - 8];
+            one_argument(argument, varname);
+            if (IS_NULLSTR(varname)) {
+                send_to_char("Syntax: varset <name> <type> <value>\n\r", ch);
+                return false;
+            }
+            char field_path[MAX_INPUT_LENGTH];
+            snprintf(field_path, sizeof(field_path), "var/%s", varname);
+
+            if (!olc_check_staging_limits(ch, cs)) return false;
+            json_t *old_val = json_null();
+            json_t *new_val = json_string(argument);
+            olc_pending_change_t *result = olc_changeset_add_change(
+                cs, field_path, OLC_FIELD_STRING, old_val, new_val);
+            json_decref(old_val);
+            json_decref(new_val);
+
+            if (result)
+                printf_to_char(ch, "{G[STAGED]{x Variable %s staged.\n\r", varname);
+            else
+                printf_to_char(ch, "Variable %s reverted.\n\r", varname);
+            return result != NULL;
+        }
+    }
+
+    if (olc_varset(&pRoom->index_vars, ch, argument, false)) {
+        if (pRoom->progs)
+            olc_varset(&pRoom->progs->vars, ch, argument, true);
         return true;
     }
     return false;
@@ -888,13 +1072,40 @@ REDIT(redit_varclear)
 
     EDIT_ROOM(ch, pRoom);
 
-    if(olc_varclear(&pRoom->index_vars, ch, argument, false))
-    {
-        // This will *NOT* update cloned rooms...
-        olc_varclear(&pRoom->progs->vars, ch, argument, true);
-        return true;
+    const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+    if (edef && edef->change_mode == OLC_CHANGE_STAGED) {
+        olc_changeset_t *cs = olc_get_active_changeset(ch, edef);
+        if (cs) {
+            char varname[MAX_INPUT_LENGTH - 8];
+            one_argument(argument, varname);
+            if (IS_NULLSTR(varname)) {
+                send_to_char("Syntax: varclear <name>\n\r", ch);
+                return false;
+            }
+            char field_path[MAX_INPUT_LENGTH];
+            snprintf(field_path, sizeof(field_path), "var/%s", varname);
+
+            if (!olc_check_staging_limits(ch, cs)) return false;
+            json_t *old_val = json_null();
+            json_t *new_val = json_null();
+            olc_pending_change_t *result = olc_changeset_add_change(
+                cs, field_path, OLC_FIELD_STRING, old_val, new_val);
+            json_decref(old_val);
+            json_decref(new_val);
+
+            if (result)
+                printf_to_char(ch, "{G[STAGED]{x Variable %s clear staged.\n\r", varname);
+            else
+                printf_to_char(ch, "Variable %s reverted.\n\r", varname);
+            return result != NULL;
+        }
     }
 
+    if (olc_varclear(&pRoom->index_vars, ch, argument, false)) {
+        if (pRoom->progs)
+            olc_varclear(&pRoom->progs->vars, ch, argument, true);
+        return true;
+    }
     return false;
 }
 
@@ -1276,7 +1487,6 @@ REDIT(redit_recall)
     char arg2[MIL];
     char arg3[MIL];
     char arg4[MIL];
-    int vnum, x, y, z;
 
     EDIT_ROOM(ch, pRoom);
 
@@ -1291,48 +1501,86 @@ REDIT(redit_recall)
         return false;
     }
 
-    // Try parsing as widevnum first
+    char stage_val[MIL];
+
+    /* Try widevnum first (single arg, no second arg) */
     WNUM wnum;
-    if (parse_widevnum(arg1, pRoom->area, &wnum)) {
-        // Room vnum format
-        if(!arg2[0]) {
-            if(!get_room_index(wnum.pArea, wnum.vnum)) {
-                send_to_char("REdit:  Room vnum does not exist.\n\r", ch);
-                return false;
-            }
-            rs_location_set(&pRoom->rs_recall,0,wnum.vnum,0,0);
-            send_to_char("Recall set.\n\r", ch);
-            return true;
+    if (!arg2[0] && parse_widevnum(arg1, pRoom->area, &wnum)) {
+        if (!get_room_index(wnum.pArea, wnum.vnum)) {
+            send_to_char("REdit:  Room vnum does not exist.\n\r", ch);
+            return false;
+        }
+        snprintf(stage_val, sizeof(stage_val), "room %ld", wnum.vnum);
+    } else if (is_number(arg1)) {
+        int vnum = atoi(arg1);
+        if (vnum < 1) {
+            strlcpy(stage_val, "0", sizeof(stage_val));
+        } else if (!arg3[0] || !arg4[0] || !is_number(arg2) || !is_number(arg3) || !is_number(arg4)) {
+            send_to_char("Syntax:  recall <widevnum>\n\r", ch);
+            send_to_char("         recall <wuid> <x> <y> <z>\n\r", ch);
+            return false;
+        } else if (!get_wilds_from_uid(NULL, vnum)) {
+            send_to_char("REdit:  Wilderness UID does not exist.\n\r", ch);
+            return false;
+        } else {
+            snprintf(stage_val, sizeof(stage_val), "wilds %s %s %s %s", arg1, arg2, arg3, arg4);
+        }
+    } else {
+        send_to_char("Syntax:  recall <widevnum>\n\r", ch);
+        send_to_char("         recall <wuid> <x> <y> <z>\n\r", ch);
+        return false;
+    }
+
+    /* Staged mode */
+    const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+    if (edef && edef->change_mode == OLC_CHANGE_STAGED) {
+        olc_changeset_t *cs = olc_get_active_changeset(ch, edef);
+        if (cs) {
+            if (!olc_check_staging_limits(ch, cs)) return false;
+
+            char old_buf[MIL];
+            if (pRoom->rs_recall.wuid)
+                snprintf(old_buf, sizeof(old_buf), "wilds %lu %lu %lu %lu",
+                    pRoom->rs_recall.wuid, pRoom->rs_recall.id[0],
+                    pRoom->rs_recall.id[1], pRoom->rs_recall.id[2]);
+            else if (pRoom->rs_recall.vnum > 0)
+                snprintf(old_buf, sizeof(old_buf), "room %ld", pRoom->rs_recall.vnum);
+            else
+                strlcpy(old_buf, "0", sizeof(old_buf));
+
+            json_t *old_val = json_string(old_buf);
+            json_t *new_val = json_string(stage_val);
+            olc_pending_change_t *result = olc_changeset_add_change(
+                cs, "Recall", OLC_FIELD_STRING, old_val, new_val);
+            json_decref(old_val);
+            json_decref(new_val);
+            if (result)
+                send_to_char("{G[STAGED]{x Recall staged.\n\r", ch);
+            else
+                send_to_char("Recall reverted to original value.\n\r", ch);
+            return result != NULL;
         }
     }
-    
-    // Wilderness format: wuid x y z
-    if (!is_number(arg1)) {
-        send_to_char("Syntax:  recall <widevnum>\n\r", ch);
-        send_to_char("         recall <wuid> <x> <y> <z>\n\r", ch);
-        return false;
-    }
-    
-    vnum = atoi(arg1);
 
-    if(vnum < 1) {
+    /* Non-staged fallback */
+    if (!str_cmp(stage_val, "0")) {
         rs_location_clear(&pRoom->rs_recall);
         send_to_char("Recall cleared.\n\r", ch);
-    } else if(!arg3[0] || !arg4[0] || !is_number(arg2) || !is_number(arg3) || !is_number(arg4)) {
-        send_to_char("Syntax:  recall <widevnum>\n\r", ch);
-        send_to_char("         recall <wuid> <x> <y> <z>\n\r", ch);
-        return false;
-    } else if(!get_wilds_from_uid(NULL,vnum)) {
-        send_to_char("REdit:  Wilderness UID does not exist.\n\r", ch);
-        return false;
-    } else {
-        x = atoi(arg2);
-        y = atoi(arg3);
-        z = atoi(arg4);
-        rs_location_set(&pRoom->rs_recall,vnum,x,y,z);
-        send_to_char("Recall set.\n\r", ch);
+        return true;
     }
-
+    if (!str_prefix("room ", stage_val)) {
+        long vnum = atol(stage_val + 5);
+        rs_location_set(&pRoom->rs_recall, 0, vnum, 0, 0);
+        send_to_char("Recall set.\n\r", ch);
+        return true;
+    }
+    if (!str_prefix("wilds ", stage_val)) {
+        unsigned long wuid, x, y, z;
+        sscanf(stage_val, "wilds %lu %lu %lu %lu", &wuid, &x, &y, &z);
+        rs_location_set(&pRoom->rs_recall, wuid, x, y, z);
+        send_to_char("Recall set.\n\r", ch);
+        return true;
+    }
     return true;
 }
 
@@ -1657,23 +1905,52 @@ REDIT(redit_persist)
 
     EDIT_ROOM(ch, pRoom);
 
+    if (IS_NULLSTR(argument)) {
+        send_to_char("Usage: persist on/off\n\r", ch);
+        return false;
+    }
 
-    if (!str_cmp(argument,"on")) {
-        if (ch->tot_level < (MAX_LEVEL-1)) {
+    bool new_val;
+    if (!str_cmp(argument, "on")) {
+        if (ch->tot_level < (MAX_LEVEL - 1)) {
             send_to_char("Insufficient security.  Department of Homeland Security has been notified.\n\r", ch);
             return false;
         }
-
-        persist_addroom(pRoom);
-        send_to_char("Persistance enabled.\n\r", ch);
-    } else if (!str_cmp(argument,"off")) {
-        persist_removeroom(pRoom);
-        send_to_char("Persistance disabled.\n\r", ch);
+        new_val = true;
+    } else if (!str_cmp(argument, "off")) {
+        new_val = false;
     } else {
         send_to_char("Usage: persist on/off\n\r", ch);
         return false;
     }
 
+    /* Staged mode */
+    const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+    if (edef && edef->change_mode == OLC_CHANGE_STAGED) {
+        olc_changeset_t *cs = olc_get_active_changeset(ch, edef);
+        if (cs) {
+            if (!olc_check_staging_limits(ch, cs)) return false;
+            json_t *old_val = json_boolean(pRoom->persist);
+            json_t *new_val_j = json_boolean(new_val);
+            olc_pending_change_t *result = olc_changeset_add_change(
+                cs, "Persist", OLC_FIELD_BOOL, old_val, new_val_j);
+            json_decref(old_val);
+            json_decref(new_val_j);
+            if (result)
+                printf_to_char(ch, "{G[STAGED]{x Persistence %s staged.\n\r",
+                    new_val ? "enabled" : "disabled");
+            else
+                send_to_char("Persist reverted to original value.\n\r", ch);
+            return result != NULL;
+        }
+    }
+
+    /* Non-staged fallback */
+    if (new_val)
+        persist_addroom(pRoom);
+    else
+        persist_removeroom(pRoom);
+    printf_to_char(ch, "Persistance %s.\n\r", new_val ? "enabled" : "disabled");
     return true;
 }
 
@@ -1689,19 +1966,64 @@ REDIT(redit_owner)
 REDIT(redit_parent)
 {
     ROOM_INDEX_DATA *pRoom;
-    ROOM_INDEX_DATA *parent;
+    ROOM_INDEX_DATA *parent = NULL;
     WNUM wnum;
 
     EDIT_ROOM(ch, pRoom);
 
-    if (IS_NULLSTR(argument))
-    {
+    if (IS_NULLSTR(argument)) {
         send_to_char("Syntax: parent <widevnum|none>\n\r", ch);
         return false;
     }
 
-    if (!str_cmp(argument, "none") || !str_cmp(argument, "clear") || !str_cmp(argument, "0"))
-    {
+    const char *stage_val = argument;
+
+    if (str_cmp(argument, "none") && str_cmp(argument, "clear") && str_cmp(argument, "0")) {
+        if (!parse_widevnum(argument, pRoom->area, &wnum)) {
+            send_to_char("Invalid widevnum. Use vnum, #vnum, or area#vnum.\n\r", ch);
+            return false;
+        }
+        parent = get_room_index(wnum.pArea, wnum.vnum);
+        if (!parent) {
+            send_to_char("That parent room does not exist.\n\r", ch);
+            return false;
+        }
+        if (parent == pRoom) {
+            send_to_char("A room cannot inherit from itself.\n\r", ch);
+            return false;
+        }
+    }
+
+    /* Staged mode */
+    const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+    if (edef && edef->change_mode == OLC_CHANGE_STAGED) {
+        olc_changeset_t *cs = olc_get_active_changeset(ch, edef);
+        if (cs) {
+            if (!olc_check_staging_limits(ch, cs)) return false;
+
+            char old_buf[MAX_INPUT_LENGTH];
+            if (pRoom->parent_load.auid > 0)
+                snprintf(old_buf, sizeof(old_buf), "%ld#%ld",
+                    pRoom->parent_load.auid, pRoom->parent_load.vnum);
+            else
+                strlcpy(old_buf, "none", sizeof(old_buf));
+
+            json_t *old_val = json_string(old_buf);
+            json_t *new_val = json_string(stage_val);
+            olc_pending_change_t *result = olc_changeset_add_change(
+                cs, "Parent", OLC_FIELD_STRING, old_val, new_val);
+            json_decref(old_val);
+            json_decref(new_val);
+            if (result)
+                printf_to_char(ch, "{G[STAGED]{x Parent set to %s.\n\r", stage_val);
+            else
+                send_to_char("Parent reverted to original value.\n\r", ch);
+            return result != NULL;
+        }
+    }
+
+    /* Non-staged fallback */
+    if (!str_cmp(argument, "none") || !str_cmp(argument, "clear") || !str_cmp(argument, "0")) {
         pRoom->parent_load.auid = 0;
         pRoom->parent_load.vnum = 0;
         pRoom->parent_wnum.pArea = NULL;
@@ -1711,31 +2033,11 @@ REDIT(redit_parent)
         return true;
     }
 
-    if (!parse_widevnum(argument, pRoom->area, &wnum))
-    {
-        send_to_char("Invalid widevnum. Use vnum, #vnum, or area#vnum.\n\r", ch);
-        return false;
-    }
-
-    parent = get_room_index(wnum.pArea, wnum.vnum);
-    if (!parent)
-    {
-        send_to_char("That parent room does not exist.\n\r", ch);
-        return false;
-    }
-
-    if (parent == pRoom)
-    {
-        send_to_char("A room cannot inherit from itself.\n\r", ch);
-        return false;
-    }
-
     pRoom->parent_load.auid = wnum.pArea->uid;
     pRoom->parent_load.vnum = wnum.vnum;
     pRoom->parent_wnum = wnum;
     pRoom->parent = parent;
     pRoom->parent_inherited = false;
-
     send_to_char("Parent room set. Inheritance applied immediately.\n\r", ch);
     return true;
 }
@@ -1891,25 +2193,41 @@ REDIT(redit_sector)
 
     EDIT_ROOM(ch, room);
 
-    // Another hack because the SECT_INSIDE is 0 or the same as FLAG_NONE
     if (!str_cmp(argument, "inside"))
-    value = 0;
-    else
-    if ((value = sector_lookup(argument)) == NO_FLAG)
-    {
-    send_to_char("Syntax: sector [type]\n\r", ch);
-    send_to_char("Available sectors:\n\r", ch);
-    for (int i = 0; i < sector_count(); i++)
-    {
-        snprintf(row, sizeof(row), "  %-3d %s\n\r", i, sector_name(i));
-        send_to_char(row, ch);
-    }
-    return false;
+        value = 0;
+    else if ((value = sector_lookup(argument)) == NO_FLAG) {
+        send_to_char("Syntax: sector [type]\n\r", ch);
+        send_to_char("Available sectors:\n\r", ch);
+        for (int i = 0; i < sector_count(); i++) {
+            snprintf(row, sizeof(row), "  %-3d %s\n\r", i, sector_name(i));
+            send_to_char(row, ch);
+        }
+        return false;
     }
 
+    /* Staged mode */
+    const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+    if (edef && edef->change_mode == OLC_CHANGE_STAGED) {
+        olc_changeset_t *cs = olc_get_active_changeset(ch, edef);
+        if (cs) {
+            if (!olc_check_staging_limits(ch, cs)) return false;
+            json_t *old_val = json_integer(room_rs_sector_type(room));
+            json_t *new_val = json_integer(value);
+            olc_pending_change_t *result = olc_changeset_add_change(
+                cs, "Sector", OLC_FIELD_INT, old_val, new_val);
+            json_decref(old_val);
+            json_decref(new_val);
+            if (result)
+                send_to_char("{G[STAGED]{x Sector type staged.\n\r", ch);
+            else
+                send_to_char("Sector type reverted to original value.\n\r", ch);
+            return result != NULL;
+        }
+    }
+
+    /* Non-staged fallback */
     room_set_rs_sector_type(room, value);
     send_to_char("Sector type set.\n\r", ch);
-
     return true;
 }
 
@@ -1986,17 +2304,9 @@ REDIT(redit_coords)
 REDIT(redit_locale)
 {
     ROOM_INDEX_DATA *pRoom;
-
     EDIT_ROOM(ch, pRoom);
-
-    if (IS_NULLSTR(argument) || !is_number(argument)) {
-        send_to_char("Syntax: locale <#locale>\n\r", ch);
-        return false;
-    }
-
-    pRoom->locale = atoi(argument);
-    send_to_char("Locale set.\n\r", ch);
-    return true;
+    return olc_cmd_long(ch, argument, "Locale", "Syntax: locale <#locale>\n\r",
+        &pRoom->locale, 0, LONG_MAX, NULL, NULL);
 }
 
 REDIT(redit_region)
@@ -2108,6 +2418,47 @@ REDIT(redit_region)
         return false;
     }
 
+    /* Staged mode - stage the region identifier */
+    const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+    if (edef && edef->change_mode == OLC_CHANGE_STAGED) {
+        olc_changeset_t *cs = olc_get_active_changeset(ch, edef);
+        if (cs) {
+            if (!olc_check_staging_limits(ch, cs)) return false;
+
+            /* Build old value */
+            char old_buf[MIL];
+            AREA_REGION *current = get_room_region(room);
+            if (current == &room->area->region || current == NULL)
+                strlcpy(old_buf, "default", sizeof(old_buf));
+            else if (current->name && current->name[0])
+                strlcpy(old_buf, current->name, sizeof(old_buf));
+            else
+                snprintf(old_buf, sizeof(old_buf), "%ld", current->uid);
+
+            /* Build new value - use name if available, else uid */
+            char new_buf[MIL];
+            if (region == &room->area->region)
+                strlcpy(new_buf, "default", sizeof(new_buf));
+            else if (region->name && region->name[0])
+                strlcpy(new_buf, region->name, sizeof(new_buf));
+            else
+                snprintf(new_buf, sizeof(new_buf), "%ld", region->uid);
+
+            json_t *old_val = json_string(old_buf);
+            json_t *new_val = json_string(new_buf);
+            olc_pending_change_t *result = olc_changeset_add_change(
+                cs, "Region", OLC_FIELD_STRING, old_val, new_val);
+            json_decref(old_val);
+            json_decref(new_val);
+            if (result)
+                send_to_char("{G[STAGED]{x Region staged.\n\r", ch);
+            else
+                send_to_char("Region reverted to original value.\n\r", ch);
+            return result != NULL;
+        }
+    }
+
+    /* Non-staged fallback */
     area_region_add_room(region, room);
     send_to_char("Room region set.\n\r", ch);
     return true;
