@@ -107,13 +107,28 @@ const struct olc_cmd_type redit_table[] =
 };
 
 /***************************************************************************
- * Field Handler Table — complex fields requiring custom serialization.    *
- * Simple scalar fields (name, description, sector, room_flags, heal_rate, *
- * mana_rate) are handled generically by olc_cmd_* staging helpers.        *
+ * Field Handler Table                                                    *
  ***************************************************************************/
 
+OLC_FIELD_APPLY_STRING(redit_apply_name,        ROOM_INDEX_DATA, name)
+OLC_FIELD_APPLY_STRING(redit_apply_tags,        ROOM_INDEX_DATA, tags)
+OLC_FIELD_APPLY_STRING(redit_apply_description, ROOM_INDEX_DATA, description)
+OLC_FIELD_APPLY_STRING(redit_apply_comments,    ROOM_INDEX_DATA, comments)
+OLC_FIELD_APPLY_INT   (redit_apply_heal_rate,   ROOM_INDEX_DATA, rs_heal_rate)
+OLC_FIELD_APPLY_INT   (redit_apply_mana_rate,   ROOM_INDEX_DATA, rs_mana_rate)
+OLC_FIELD_APPLY_INT   (redit_apply_move_rate,   ROOM_INDEX_DATA, rs_move_rate)
+OLC_FIELD_APPLY_STRING(redit_apply_owner,       ROOM_INDEX_DATA, owner)
+
 static const olc_field_handler_t redit_field_handlers[] = {
-    { NULL, 0, NULL, NULL, NULL }  /* sentinel — complex handlers added as needed */
+    { "Name",        OLC_FIELD_STRING,    NULL, redit_apply_name,        NULL },
+    { "Tags",        OLC_FIELD_STRING,    NULL, redit_apply_tags,        NULL },
+    { "description", OLC_FIELD_MULTILINE, NULL, redit_apply_description, NULL },
+    { "comments",    OLC_FIELD_MULTILINE, NULL, redit_apply_comments,    NULL },
+    { "heal rate",   OLC_FIELD_INT,       NULL, redit_apply_heal_rate,   NULL },
+    { "mana rate",   OLC_FIELD_INT,       NULL, redit_apply_mana_rate,   NULL },
+    { "move rate",   OLC_FIELD_INT,       NULL, redit_apply_move_rate,   NULL },
+    { "Owner",       OLC_FIELD_STRING,    NULL, redit_apply_owner,       NULL },
+    { NULL, 0, NULL, NULL, NULL }
 };
 
 /***************************************************************************

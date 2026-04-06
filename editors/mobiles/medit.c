@@ -139,10 +139,96 @@ const struct olc_cmd_type medit_table[] =
 };
 
 /*
- * Field Handler Table — complex fields requiring custom serialization.
- * Simple scalar fields stage automatically through olc_cmd_* helpers.
+ * Scalar field apply functions — generated via macros.
+ */
+OLC_FIELD_APPLY_STRING(medit_apply_owner,               MOB_INDEX_DATA, owner)
+OLC_FIELD_APPLY_INT16 (medit_apply_alignment,           MOB_INDEX_DATA, alignment)
+OLC_FIELD_APPLY_STRING(medit_apply_description,         MOB_INDEX_DATA, description)
+OLC_FIELD_APPLY_STRING(medit_apply_comments,            MOB_INDEX_DATA, comments)
+OLC_FIELD_APPLY_STRING(medit_apply_list_name,           MOB_INDEX_DATA, list_name)
+OLC_FIELD_APPLY_STRING(medit_apply_list_keywords,       MOB_INDEX_DATA, list_keywords)
+OLC_FIELD_APPLY_STRING(medit_apply_tags,                MOB_INDEX_DATA, tags)
+OLC_FIELD_APPLY_INT   (medit_apply_corpse_type,         MOB_INDEX_DATA, corpse_type)
+OLC_FIELD_APPLY_INT16 (medit_apply_sex,                 MOB_INDEX_DATA, sex)
+OLC_FIELD_APPLY_STRING(medit_apply_pronoun_sub,         MOB_INDEX_DATA, pronoun_he_she)
+OLC_FIELD_APPLY_STRING(medit_apply_pronoun_obj,         MOB_INDEX_DATA, pronoun_him_her)
+OLC_FIELD_APPLY_STRING(medit_apply_pronoun_pos_adj,     MOB_INDEX_DATA, pronoun_his_her)
+OLC_FIELD_APPLY_STRING(medit_apply_pronoun_pos,         MOB_INDEX_DATA, pronoun_his_hers)
+OLC_FIELD_APPLY_STRING(medit_apply_pronoun_ref,         MOB_INDEX_DATA, pronoun_himself_herself)
+OLC_FIELD_APPLY_FLAGS (medit_apply_form,                MOB_INDEX_DATA, form)
+OLC_FIELD_APPLY_FLAGS (medit_apply_parts,               MOB_INDEX_DATA, parts)
+OLC_FIELD_APPLY_FLAGS (medit_apply_imm_flags,           MOB_INDEX_DATA, imm_flags)
+OLC_FIELD_APPLY_FLAGS (medit_apply_res_flags,           MOB_INDEX_DATA, res_flags)
+OLC_FIELD_APPLY_FLAGS (medit_apply_vuln_flags,          MOB_INDEX_DATA, vuln_flags)
+OLC_FIELD_APPLY_STRING(medit_apply_material,            MOB_INDEX_DATA, material)
+OLC_FIELD_APPLY_FLAGS (medit_apply_off_flags,           MOB_INDEX_DATA, off_flags)
+OLC_FIELD_APPLY_INT16 (medit_apply_size,                MOB_INDEX_DATA, size)
+OLC_FIELD_APPLY_INT16 (medit_apply_hitroll,             MOB_INDEX_DATA, hitroll)
+
+/* Custom handler: body type changes also update sex and pronouns */
+static bool medit_apply_body_type(void *entity, olc_pending_change_t *change)
+{
+    MOB_INDEX_DATA *pMob = (MOB_INDEX_DATA *)entity;
+    if (!pMob || !change || !change->new_value || !json_is_integer(change->new_value))
+        return false;
+
+    int16_t val = (int16_t)json_integer_value(change->new_value);
+    if (val < 0 || val >= BODY_TYPE_MAX)
+        val = BODY_TYPE_NEUTRAL;
+
+    body_type_t old_body = pMob->body_type;
+    pMob->body_type = (body_type_t)val;
+
+    if (pMob->body_type == BODY_TYPE_MALE)       pMob->sex = 1;
+    else if (pMob->body_type == BODY_TYPE_FEMALE) pMob->sex = 2;
+    else if (pMob->body_type == BODY_TYPE_RANDOM) pMob->sex = 3;
+    else                                          pMob->sex = 0;
+
+    if (old_body != pMob->body_type) {
+        free_string(pMob->pronoun_he_she);
+        pMob->pronoun_he_she = str_dup(body_type_info[pMob->body_type].default_he_she);
+        free_string(pMob->pronoun_him_her);
+        pMob->pronoun_him_her = str_dup(body_type_info[pMob->body_type].default_him_her);
+        free_string(pMob->pronoun_his_her);
+        pMob->pronoun_his_her = str_dup(body_type_info[pMob->body_type].default_his_her);
+        free_string(pMob->pronoun_his_hers);
+        pMob->pronoun_his_hers = str_dup(body_type_info[pMob->body_type].default_his_hers);
+        free_string(pMob->pronoun_himself_herself);
+        pMob->pronoun_himself_herself = str_dup(body_type_info[pMob->body_type].default_himself_herself);
+        pMob->verb_preference = body_type_info[pMob->body_type].verb_preference;
+    }
+
+    return true;
+}
+
+/*
+ * Field Handler Table — maps staged field names to apply functions.
  */
 static const olc_field_handler_t medit_field_handlers[] = {
+    { "Owner",                          OLC_FIELD_STRING,    NULL, medit_apply_owner,          NULL },
+    { "Alignment",                      OLC_FIELD_INT16,     NULL, medit_apply_alignment,      NULL },
+    { "Description",                    OLC_FIELD_MULTILINE, NULL, medit_apply_description,    NULL },
+    { "Comments",                       OLC_FIELD_MULTILINE, NULL, medit_apply_comments,       NULL },
+    { "List Name",                      OLC_FIELD_STRING,    NULL, medit_apply_list_name,      NULL },
+    { "List Keywords",                  OLC_FIELD_STRING,    NULL, medit_apply_list_keywords,  NULL },
+    { "Tags",                           OLC_FIELD_STRING,    NULL, medit_apply_tags,           NULL },
+    { "Corpse Type",                    OLC_FIELD_INT,       NULL, medit_apply_corpse_type,    NULL },
+    { "Sex",                            OLC_FIELD_INT16,     NULL, medit_apply_sex,            NULL },
+    { "Body Type",                      OLC_FIELD_INT16,     NULL, medit_apply_body_type,      NULL },
+    { "Subjective Pronoun",             OLC_FIELD_STRING,    NULL, medit_apply_pronoun_sub,    NULL },
+    { "Objective Pronoun",              OLC_FIELD_STRING,    NULL, medit_apply_pronoun_obj,    NULL },
+    { "Possessive Adjective Pronoun",   OLC_FIELD_STRING,    NULL, medit_apply_pronoun_pos_adj, NULL },
+    { "Possessive Pronoun",             OLC_FIELD_STRING,    NULL, medit_apply_pronoun_pos,    NULL },
+    { "Reflexive Pronoun",              OLC_FIELD_STRING,    NULL, medit_apply_pronoun_ref,    NULL },
+    { "Form",                           OLC_FIELD_FLAGS,     NULL, medit_apply_form,           NULL },
+    { "Parts",                          OLC_FIELD_FLAGS,     NULL, medit_apply_parts,          NULL },
+    { "Immunity",                       OLC_FIELD_FLAGS,     NULL, medit_apply_imm_flags,      NULL },
+    { "Resistance",                     OLC_FIELD_FLAGS,     NULL, medit_apply_res_flags,      NULL },
+    { "Vulnerability",                  OLC_FIELD_FLAGS,     NULL, medit_apply_vuln_flags,     NULL },
+    { "Material",                       OLC_FIELD_STRING,    NULL, medit_apply_material,       NULL },
+    { "Offensive",                      OLC_FIELD_FLAGS,     NULL, medit_apply_off_flags,      NULL },
+    { "Size",                           OLC_FIELD_INT16,     NULL, medit_apply_size,           NULL },
+    { "Hitroll",                        OLC_FIELD_INT16,     NULL, medit_apply_hitroll,        NULL },
     { NULL, 0, NULL, NULL, NULL }
 };
 

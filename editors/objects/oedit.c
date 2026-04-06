@@ -236,11 +236,36 @@ static bool oedit_apply_extra(void *entity, olc_pending_change_t *change)
 }
 
 /*
- * Field Handler Table — complex fields requiring custom serialization.
- * Simple scalar fields stage automatically through olc_cmd_* helpers.
+ * Scalar field apply functions — generated via macros.
+ */
+OLC_FIELD_APPLY_STRING(oedit_apply_name,             OBJ_INDEX_DATA, name)
+OLC_FIELD_APPLY_STRING(oedit_apply_skeywds,          OBJ_INDEX_DATA, skeywds)
+OLC_FIELD_APPLY_STRING(oedit_apply_list_name,        OBJ_INDEX_DATA, list_name)
+OLC_FIELD_APPLY_STRING(oedit_apply_list_keywords,    OBJ_INDEX_DATA, list_keywords)
+OLC_FIELD_APPLY_STRING(oedit_apply_tags,             OBJ_INDEX_DATA, tags)
+OLC_FIELD_APPLY_INT16 (oedit_apply_weight,           OBJ_INDEX_DATA, weight)
+OLC_FIELD_APPLY_INT16 (oedit_apply_condition,        OBJ_INDEX_DATA, condition)
+OLC_FIELD_APPLY_INT16 (oedit_apply_allowed_fixed,    OBJ_INDEX_DATA, times_allowed_fixed)
+OLC_FIELD_APPLY_STRING(oedit_apply_description,      OBJ_INDEX_DATA, full_description)
+OLC_FIELD_APPLY_STRING(oedit_apply_comments,         OBJ_INDEX_DATA, comments)
+OLC_FIELD_APPLY_INT   (oedit_apply_timer,            OBJ_INDEX_DATA, timer)
+
+/*
+ * Field Handler Table — maps staged field names to apply functions.
  */
 static const olc_field_handler_t oedit_field_handlers[] = {
-    { "extra", OLC_FIELD_MULTIFLAGS, oedit_serialize_extra, oedit_apply_extra, NULL },
+    { "Name",             OLC_FIELD_STRING,     NULL, oedit_apply_name,          NULL },
+    { "Script Keywords",  OLC_FIELD_STRING,     NULL, oedit_apply_skeywds,       NULL },
+    { "List Name",        OLC_FIELD_STRING,     NULL, oedit_apply_list_name,     NULL },
+    { "List Keywords",    OLC_FIELD_STRING,     NULL, oedit_apply_list_keywords, NULL },
+    { "Tags",             OLC_FIELD_STRING,     NULL, oedit_apply_tags,          NULL },
+    { "Weight",           OLC_FIELD_INT16,      NULL, oedit_apply_weight,        NULL },
+    { "Condition",        OLC_FIELD_INT16,      NULL, oedit_apply_condition,     NULL },
+    { "Allowed Fixed",    OLC_FIELD_INT16,      NULL, oedit_apply_allowed_fixed, NULL },
+    { "Description",      OLC_FIELD_MULTILINE,  NULL, oedit_apply_description,   NULL },
+    { "Comments",         OLC_FIELD_MULTILINE,  NULL, oedit_apply_comments,      NULL },
+    { "Timer",            OLC_FIELD_INT,        NULL, oedit_apply_timer,         NULL },
+    { "extra",            OLC_FIELD_MULTIFLAGS, oedit_serialize_extra, oedit_apply_extra, NULL },
     { NULL, 0, NULL, NULL, NULL }
 };
 

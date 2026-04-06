@@ -115,7 +115,36 @@ const struct olc_cmd_type aedit_table[] =
  * Field Handler Table                                                     *
  ***************************************************************************/
 
+OLC_FIELD_APPLY_FLAGS (aedit_apply_area_flags,  AREA_DATA, area_flags)
+OLC_FIELD_APPLY_INT   (aedit_apply_x,           AREA_DATA, x)
+OLC_FIELD_APPLY_INT   (aedit_apply_y,           AREA_DATA, y)
+OLC_FIELD_APPLY_INT   (aedit_apply_land_x,      AREA_DATA, land_x)
+OLC_FIELD_APPLY_INT   (aedit_apply_land_y,      AREA_DATA, land_y)
+OLC_FIELD_APPLY_BOOL  (aedit_apply_open,        AREA_DATA, open)
+OLC_FIELD_APPLY_STRING(aedit_apply_name,        AREA_DATA, name)
+OLC_FIELD_APPLY_STRING(aedit_apply_tags,        AREA_DATA, tags)
+OLC_FIELD_APPLY_STRING(aedit_apply_description, AREA_DATA, description)
+OLC_FIELD_APPLY_STRING(aedit_apply_comments,    AREA_DATA, comments)
+OLC_FIELD_APPLY_STRING(aedit_apply_notes,       AREA_DATA, notes)
+OLC_FIELD_APPLY_INT   (aedit_apply_repop,       AREA_DATA, repop)
+OLC_FIELD_APPLY_STRING(aedit_apply_credits,     AREA_DATA, credits)
+OLC_FIELD_APPLY_INT16 (aedit_apply_age,         AREA_DATA, age)
+
 static const olc_field_handler_t aedit_field_handlers[] = {
+    { "Area Flags",        OLC_FIELD_FLAGS,     NULL, aedit_apply_area_flags,  NULL },
+    { "X Coordinate",      OLC_FIELD_INT,       NULL, aedit_apply_x,           NULL },
+    { "Y Coordinate",      OLC_FIELD_INT,       NULL, aedit_apply_y,           NULL },
+    { "Land X Coordinate", OLC_FIELD_INT,       NULL, aedit_apply_land_x,      NULL },
+    { "Land Y Coordinate", OLC_FIELD_INT,       NULL, aedit_apply_land_y,      NULL },
+    { "Open",              OLC_FIELD_BOOL,      NULL, aedit_apply_open,        NULL },
+    { "Name",              OLC_FIELD_STRING,     NULL, aedit_apply_name,        NULL },
+    { "Tags",              OLC_FIELD_STRING,     NULL, aedit_apply_tags,        NULL },
+    { "Description",       OLC_FIELD_MULTILINE,  NULL, aedit_apply_description, NULL },
+    { "Comments",          OLC_FIELD_MULTILINE,  NULL, aedit_apply_comments,    NULL },
+    { "Notes",             OLC_FIELD_MULTILINE,  NULL, aedit_apply_notes,       NULL },
+    { "Repop Time",        OLC_FIELD_INT,       NULL, aedit_apply_repop,       NULL },
+    { "Credits",           OLC_FIELD_STRING,     NULL, aedit_apply_credits,     NULL },
+    { "Age",               OLC_FIELD_INT16,      NULL, aedit_apply_age,         NULL },
     { NULL, 0, NULL, NULL, NULL }
 };
 

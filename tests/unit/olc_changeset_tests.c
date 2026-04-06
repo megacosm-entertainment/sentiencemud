@@ -671,6 +671,8 @@ typedef struct test_entity {
     char    *name;
     int      level;
     bool     is_aggressive;
+    int16_t  condition;
+    long     flags;
 } test_entity_t;
 
 /* Apply functions that use generic helpers with typed offsets */
@@ -691,6 +693,10 @@ static bool test_apply_aggressive(void *entity, olc_pending_change_t *change)
     test_entity_t *e = (test_entity_t *)entity;
     return olc_apply_generic_bool(&e->is_aggressive, change);
 }
+
+/* Macro-generated apply functions for additional fields */
+OLC_FIELD_APPLY_INT16(test_apply_condition, test_entity_t, condition)
+OLC_FIELD_APPLY_FLAGS(test_apply_flags,     test_entity_t, flags)
 
 static test_result_t test_olccs_commit_basic(test_case_t *test)
 {
@@ -765,6 +771,59 @@ static test_result_t test_olccs_commit_basic(test_case_t *test)
     json_decref(new_level);
     json_decref(old_aggr);
     json_decref(new_aggr);
+    olc_changeset_destroy(cs);
+    return TEST_SUCCESS;
+}
+
+/**
+ * Test commit with all 5 scalar types via macro-generated handlers.
+ * Validates the OLC_FIELD_APPLY_* macros produce correct apply functions.
+ */
+static test_result_t test_olccs_commit_all_types(test_case_t *test)
+{
+    (void)test;
+
+    olc_field_handler_t handlers[] = {
+        { "name",       OLC_FIELD_STRING, NULL, test_apply_name,       NULL },
+        { "level",      OLC_FIELD_INT,    NULL, test_apply_level,      NULL },
+        { "aggressive", OLC_FIELD_BOOL,   NULL, test_apply_aggressive, NULL },
+        { "condition",  OLC_FIELD_INT16,  NULL, test_apply_condition,  NULL },
+        { "flags",      OLC_FIELD_FLAGS,  NULL, test_apply_flags,      NULL },
+        { NULL, 0, NULL, NULL, NULL }
+    };
+
+    test_entity_t entity = {
+        .name          = str_dup("Original"),
+        .level         = 5,
+        .is_aggressive = false,
+        .condition     = 80,
+        .flags         = 0x10
+    };
+
+    WNUM_LOAD wnum = { .auid = 10, .vnum = 300 };
+    olc_changeset_t *cs = olc_changeset_create(ED_OBJECT, wnum, "Obj", "Builder");
+
+    olc_changeset_add_change(cs, "name",       OLC_FIELD_STRING, json_string("Original"),  json_string("Updated"));
+    olc_changeset_add_change(cs, "level",      OLC_FIELD_INT,    json_integer(5),           json_integer(25));
+    olc_changeset_add_change(cs, "condition",  OLC_FIELD_INT16,  json_integer(80),          json_integer(50));
+    olc_changeset_add_change(cs, "aggressive", OLC_FIELD_BOOL,   json_false(),              json_true());
+    olc_changeset_add_change(cs, "flags",      OLC_FIELD_FLAGS,  json_integer(0x10),        json_integer(0x30));
+    TEST_ASSERT_INT_EQ(5, olc_changeset_count(cs));
+
+    const char *error_field = NULL;
+    int result = olc_changeset_commit(cs, &entity, handlers, &error_field);
+    TEST_ASSERT_INT_EQ(5, result);
+    TEST_ASSERT_NULL(error_field);
+
+    TEST_ASSERT_STR_EQ("Updated", entity.name);
+    TEST_ASSERT_INT_EQ(25, entity.level);
+    TEST_ASSERT_INT_EQ(50, (int)entity.condition);
+    TEST_ASSERT_TRUE(entity.is_aggressive);
+    TEST_ASSERT_INT_EQ(0x30, (int)entity.flags);
+
+    TEST_ASSERT_INT_EQ(0, olc_changeset_count(cs));
+
+    free_string(entity.name);
     olc_changeset_destroy(cs);
     return TEST_SUCCESS;
 }
@@ -1110,6 +1169,8 @@ test_result_t run_olc_changeset_test_case(test_case_t *test)
         return test_olccs_deserialize_corrupt(test);
     if (strcmp(test->test_type, "olccs_draft_save_load") == 0)
         return test_olccs_draft_save_load(test);
+    if (strcmp(test->test_type, "olccs_commit_all_types") == 0)
+        return test_olccs_commit_all_types(test);
 
     log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
                   "Unknown OLC changeset test type: %s", test->test_type);

@@ -266,6 +266,14 @@
       "expected_result": "PASS",
       "input": {},
       "expected_output": {}
+    },
+    {
+      "name": "olccs_commit_all_types",
+      "test_type": "olccs_commit_all_types",
+      "description": "Commit changeset applies all 5 scalar field types via macro-generated handlers",
+      "expected_result": "PASS",
+      "input": {},
+      "expected_output": {}
     }
   ]
 }
