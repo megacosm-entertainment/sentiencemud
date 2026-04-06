@@ -90,4 +90,8 @@ void olc_staged_cmd_loaddraft(CHAR_DATA *ch, const struct olc_editor_def *def,
 void olc_staged_cmd_discarddraft(CHAR_DATA *ch, const struct olc_editor_def *def,
     void *pEdit);
 
+/** Handle 'history [id|revert <id> [confirm]]' — view or revert past commits. */
+void olc_staged_cmd_history(CHAR_DATA *ch, const struct olc_editor_def *def,
+    void *pEdit, char *argument);
+
 #endif /* !def __OLC_STAGED_H__ */

@@ -982,6 +982,10 @@ void olc_editor_interp(CHAR_DATA *ch, char *argument, const OLC_EDITOR_DEF *def)
             send_to_char("Draft discarding not yet implemented.\n\r", ch);
             return;
         }
+        if (!str_cmp(command, "history")) {
+            olc_staged_cmd_history(ch, def, ch->desc->pEdit, rest);
+            return;
+        }
     }
 
     /* --- Built-in "history" command --- */

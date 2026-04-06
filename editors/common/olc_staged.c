@@ -8,6 +8,7 @@
 #include "olc_field_handlers.h"
 #include "../../gmcp_editor.h"
 #include "olc_commit_history.h"
+#include "../../utils/buffer.h"
 #include <string.h>
 
 const char *olc_staged_string(olc_changeset_t *cs, const char *field, const char *live)
@@ -388,6 +389,255 @@ void olc_staged_cmd_commit_group(CHAR_DATA *ch, char *argument)
         changesets_committed, changesets_committed == 1 ? "" : "s",
         IS_NULLSTR(argument) ? "" : ": ",
         IS_NULLSTR(argument) ? "" : argument);
+}
+
+/* =========================================================================
+ * History Commands
+ * ========================================================================= */
+
+static void show_history_list(CHAR_DATA *ch, olc_commit_history_t *history,
+    const char *argument)
+{
+    int limit = olc_commit_history_count(history);
+    if (!IS_NULLSTR(argument) && is_number(argument))
+        limit = UMIN(atoi(argument), limit);
+
+    if (limit == 0) {
+        send_to_char("No commit history for this entity.\n\r", ch);
+        return;
+    }
+
+    BUFFER *buffer = new_buf();
+    char buf[MSL];
+
+    snprintf(buf, sizeof(buf),
+        "{Y+------+--------------------+-------+-------------------------------+{x\n\r");
+    add_buf(buffer, buf);
+    snprintf(buf, sizeof(buf),
+        "{Y| {WID{x   | {WAuthor{x             | {W# Chg{x | {WDate & Time{x                  |{x\n\r");
+    add_buf(buffer, buf);
+    snprintf(buf, sizeof(buf),
+        "{Y+------+--------------------+-------+-------------------------------+{x\n\r");
+    add_buf(buffer, buf);
+
+    int shown = 0;
+    ITERATOR it;
+    iterator_start(&it, history->records);
+    olc_commit_record_t *record;
+    while ((record = iterator_nextdata(&it)) != NULL && shown < limit) {
+        char time_buf[64];
+        struct tm *tm_info = localtime(&record->timestamp);
+        strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M:%S", tm_info);
+
+        snprintf(buf, sizeof(buf),
+            "{Y| {W%-4d{x | %-18.18s | {W%-5d{x | %-29s |{x%s\n\r",
+            record->id, record->author,
+            list_size(record->changes), time_buf,
+            record->group_id > 0 ? " {D[group]{x" : "");
+        add_buf(buffer, buf);
+        shown++;
+    }
+    iterator_stop(&it);
+
+    snprintf(buf, sizeof(buf),
+        "{Y+------+--------------------+-------+-------------------------------+{x\n\r");
+    add_buf(buffer, buf);
+
+    snprintf(buf, sizeof(buf),
+        "\n\rUse '{Whistory <id>{x' for details. '{Whistory revert <id>{x' to undo.\n\r");
+    add_buf(buffer, buf);
+
+    page_to_char(buf_string(buffer), ch);
+    free_buf(buffer);
+}
+
+static void show_history_detail(CHAR_DATA *ch, olc_commit_history_t *history,
+    int id)
+{
+    olc_commit_record_t *record = olc_commit_history_find(history, id);
+    if (!record) {
+        printf_to_char(ch, "No commit record with ID %d.\n\r", id);
+        return;
+    }
+
+    char time_buf[64];
+    struct tm *tm_info = localtime(&record->timestamp);
+    strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M:%S", tm_info);
+
+    printf_to_char(ch, "{WCommit #%d{x by %s on %s%s\n\r",
+        record->id, record->author, time_buf,
+        record->group_id > 0 ? formatf(" {D[group %d]{x", record->group_id) : "");
+
+    if (!IS_NULLSTR(record->comment))
+        printf_to_char(ch, "{DComment:{x %s\n\r", record->comment);
+
+    printf_to_char(ch, "\n\r{D%-25s %-8s %-20s %-20s{x\n\r",
+        "Field", "Type", "Old", "New");
+    printf_to_char(ch, "{D%.73s{x\n\r",
+        "-------------------------------------------------------------------------");
+
+    ITERATOR it;
+    iterator_start(&it, record->changes);
+    olc_committed_change_t *change;
+    while ((change = iterator_nextdata(&it)) != NULL) {
+        char old_buf[64], new_buf[64];
+        format_json_brief(old_buf, sizeof(old_buf), change->old_value);
+        format_json_brief(new_buf, sizeof(new_buf), change->new_value);
+
+        printf_to_char(ch, " {Y%-24s{x %-8s %-20s {W%-20s{x\n\r",
+            change->field_path,
+            field_type_label(change->field_type),
+            old_buf, new_buf);
+    }
+    iterator_stop(&it);
+
+    printf_to_char(ch, "\n\r{x%d change%s. Use '{Whistory revert %d{x' to undo.\n\r",
+        list_size(record->changes),
+        list_size(record->changes) == 1 ? "" : "s",
+        record->id);
+}
+
+static void do_history_revert(CHAR_DATA *ch, const OLC_EDITOR_DEF *def,
+    void *pEdit, olc_commit_history_t *history, char *argument)
+{
+    char arg_id[MIL], arg_confirm[MIL];
+    argument = one_argument(argument, arg_id);
+    argument = one_argument(argument, arg_confirm);
+
+    if (!is_number(arg_id)) {
+        send_to_char("Syntax: history revert <id> [confirm]\n\r", ch);
+        return;
+    }
+
+    int id = atoi(arg_id);
+    olc_commit_record_t *record = olc_commit_history_find(history, id);
+    if (!record) {
+        printf_to_char(ch, "No commit record with ID %d.\n\r", id);
+        return;
+    }
+
+    /* Preview mode: show what would change */
+    if (str_cmp(arg_confirm, "confirm")) {
+        printf_to_char(ch, "{WRevert preview for commit #%d{x by %s:\n\r\n\r",
+            record->id, record->author);
+
+        printf_to_char(ch, "{D%-25s %-20s %-20s{x\n\r",
+            "Field", "Current (new)", "Revert to (old)");
+        printf_to_char(ch, "{D%.65s{x\n\r",
+            "-----------------------------------------------------------------");
+
+        int revertable = 0;
+        int skipped = 0;
+        ITERATOR it;
+        iterator_start(&it, record->changes);
+        olc_committed_change_t *change;
+        while ((change = iterator_nextdata(&it)) != NULL) {
+            bool can_revert = (change->field_type <= OLC_FIELD_MULTIFLAGS
+                || change->field_type == OLC_FIELD_MULTILINE);
+            char cur_buf[64], old_buf[64];
+            format_json_brief(cur_buf, sizeof(cur_buf), change->new_value);
+            format_json_brief(old_buf, sizeof(old_buf), change->old_value);
+
+            if (can_revert) {
+                printf_to_char(ch, " {Y%-24s{x %-20s -> {W%-20s{x\n\r",
+                    change->field_path, cur_buf, old_buf);
+                revertable++;
+            } else {
+                printf_to_char(ch, " {D%-24s %-20s   (skip: %s){x\n\r",
+                    change->field_path, cur_buf,
+                    field_type_label(change->field_type));
+                skipped++;
+            }
+        }
+        iterator_stop(&it);
+
+        printf_to_char(ch, "\n\r%d field%s will be reverted",
+            revertable, revertable == 1 ? "" : "s");
+        if (skipped > 0)
+            printf_to_char(ch, ", %d skipped (non-scalar)", skipped);
+        printf_to_char(ch, ".\n\rType '{Whistory revert %d confirm{x' to proceed.\n\r", id);
+        return;
+    }
+
+    /* Confirmed: stage reverse changes, then commit */
+    olc_changeset_t *cs = olc_get_active_changeset(ch, def);
+    if (!cs) {
+        send_to_char("No active changeset — cannot revert.\n\r", ch);
+        return;
+    }
+
+    if (olc_changeset_count(cs) > 0) {
+        send_to_char("{RYou have pending changes.{x Commit or revert them first.\n\r", ch);
+        return;
+    }
+
+    int reverted = 0;
+    int skipped = 0;
+    ITERATOR it;
+    iterator_start(&it, record->changes);
+    olc_committed_change_t *change;
+    while ((change = iterator_nextdata(&it)) != NULL) {
+        bool can_revert = (change->field_type <= OLC_FIELD_MULTIFLAGS
+            || change->field_type == OLC_FIELD_MULTILINE);
+        if (!can_revert) {
+            skipped++;
+            continue;
+        }
+
+        /* Stage the reverse: new_value becomes old, old_value becomes new */
+        olc_changeset_add_change(cs, change->field_path, change->field_type,
+            change->new_value, change->old_value);
+        reverted++;
+    }
+    iterator_stop(&it);
+
+    if (reverted == 0) {
+        send_to_char("No revertable fields in this commit.\n\r", ch);
+        return;
+    }
+
+    /* Delegate to olc_staged_cmd_commit() which handles:
+     * archive -> commit -> area flag -> GMCP notification */
+    char revert_comment[MIL];
+    snprintf(revert_comment, sizeof(revert_comment), "Revert of commit #%d", id);
+    olc_staged_cmd_commit(ch, def, pEdit, revert_comment);
+
+    if (skipped > 0)
+        printf_to_char(ch, "{D(%d non-scalar field%s skipped){x\n\r",
+            skipped, skipped == 1 ? "" : "s");
+}
+
+void olc_staged_cmd_history(CHAR_DATA *ch, const OLC_EDITOR_DEF *def,
+    void *pEdit, char *argument)
+{
+    WNUM_LOAD wnum = olc_get_entity_wnum(def, pEdit);
+    olc_commit_history_t *history = olc_commit_history_get_or_load(
+        def->editor_type, wnum);
+
+    if (!history || olc_commit_history_count(history) == 0) {
+        if (IS_NULLSTR(argument) || is_number(argument)) {
+            send_to_char("No commit history for this entity.\n\r", ch);
+            return;
+        }
+    }
+
+    char arg1[MIL];
+    char *rest = one_argument(argument, arg1);
+
+    /* "history revert <id> [confirm]" */
+    if (!str_cmp(arg1, "revert")) {
+        do_history_revert(ch, def, pEdit, history, rest);
+        return;
+    }
+
+    /* "history <id>" — detail view */
+    if (is_number(arg1)) {
+        show_history_detail(ch, history, atoi(arg1));
+        return;
+    }
+
+    /* "history" or "history <count>" — list view */
+    show_history_list(ch, history, argument);
 }
 
 /* =========================================================================
