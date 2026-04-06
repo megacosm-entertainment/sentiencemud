@@ -23,6 +23,8 @@
 #include "../common/olc_display.h"
 #include "../common/olc_commands.h"
 #include "../common/olc_field_handlers.h"
+#include "../common/olc_staged.h"
+#include "../common/olc_changeset.h"
 
 /***************************************************************************
  * Framework Helpers                                                       *
@@ -131,6 +133,116 @@ OLC_FIELD_APPLY_STRING(aedit_apply_credits,     AREA_DATA, credits)
 OLC_FIELD_APPLY_INT16 (aedit_apply_age,         AREA_DATA, age)
 OLC_FIELD_APPLY_INT   (aedit_apply_security,    AREA_DATA, security)
 OLC_FIELD_APPLY_STRING(aedit_apply_topic,        AREA_DATA, area_topic)
+OLC_FIELD_APPLY_LONG  (aedit_apply_wilds,        AREA_DATA, wilds_uid)
+OLC_FIELD_APPLY_INT   (aedit_apply_areawho,      AREA_DATA, area_who)
+OLC_FIELD_APPLY_LONG  (aedit_apply_placetype,    AREA_DATA, place_flags)
+OLC_FIELD_APPLY_STRING(aedit_apply_file,         AREA_DATA, file_name)
+OLC_FIELD_APPLY_LONG  (aedit_apply_min_vnum,     AREA_DATA, min_vnum)
+OLC_FIELD_APPLY_LONG  (aedit_apply_max_vnum,     AREA_DATA, max_vnum)
+OLC_FIELD_APPLY_INT16 (aedit_apply_min_level,    AREA_DATA, min_level)
+OLC_FIELD_APPLY_INT16 (aedit_apply_max_level,    AREA_DATA, max_level)
+
+static bool aedit_apply_recall(void *entity, olc_pending_change_t *change) {
+    AREA_DATA *pArea = (AREA_DATA *)entity;
+    const char *val = json_string_value(change->new_value);
+
+    if (IS_NULLSTR(val) || !str_cmp(val, "0")) {
+        location_clear(&pArea->recall);
+        return true;
+    }
+
+    if (!str_prefix("room ", val)) {
+        long vnum = atol(val + 5);
+        location_set(&pArea->recall, 0, vnum, 0, 0);
+        return true;
+    }
+
+    if (!str_prefix("wilds ", val)) {
+        unsigned long wuid, x, y, z;
+        if (sscanf(val, "wilds %lu %lu %lu %lu", &wuid, &x, &y, &z) == 4) {
+            location_set(&pArea->recall, wuid, x, y, z);
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static bool aedit_apply_airshipland(void *entity, olc_pending_change_t *change) {
+    AREA_DATA *pArea = (AREA_DATA *)entity;
+    const char *val = json_string_value(change->new_value);
+
+    if (IS_NULLSTR(val) || !str_cmp(val, "0") || !str_cmp(val, "none") || !str_cmp(val, "clear")) {
+        pArea->airship_land_load.auid = 0;
+        pArea->airship_land_load.vnum = 0;
+        pArea->airship_land_wnum.pArea = NULL;
+        pArea->airship_land_wnum.vnum = 0;
+        return true;
+    }
+
+    WNUM room_wnum;
+    AREA_DATA *context = olc_relative_widevnum_context(pArea, val);
+    char buf[MAX_INPUT_LENGTH];
+    strlcpy(buf, val, sizeof(buf));
+    if (!parse_widevnum(buf, context, &room_wnum)) return false;
+
+    ROOM_INDEX_DATA *room = get_room_index(room_wnum.pArea, room_wnum.vnum);
+    if (!room) return false;
+
+    pArea->airship_land_load.auid = room_wnum.pArea->uid;
+    pArea->airship_land_load.vnum = room_wnum.vnum;
+    pArea->airship_land_wnum = room_wnum;
+    return true;
+}
+
+static bool aedit_apply_postoffice(void *entity, olc_pending_change_t *change) {
+    AREA_DATA *pArea = (AREA_DATA *)entity;
+    const char *val = json_string_value(change->new_value);
+
+    if (IS_NULLSTR(val) || !str_cmp(val, "0") || !str_cmp(val, "none") || !str_cmp(val, "clear")) {
+        pArea->post_office_load.auid = 0;
+        pArea->post_office_load.vnum = 0;
+        pArea->post_office_wnum.pArea = NULL;
+        pArea->post_office_wnum.vnum = 0;
+        return true;
+    }
+
+    WNUM room_wnum;
+    char buf[MAX_INPUT_LENGTH];
+    strlcpy(buf, val, sizeof(buf));
+    if (!parse_widevnum(buf, pArea, &room_wnum) || room_wnum.pArea != pArea) return false;
+
+    ROOM_INDEX_DATA *room = get_room_index(room_wnum.pArea, room_wnum.vnum);
+    if (!room) return false;
+
+    pArea->post_office_load.auid = pArea->uid;
+    pArea->post_office_load.vnum = room_wnum.vnum;
+    pArea->post_office_wnum = room_wnum;
+    return true;
+}
+
+static bool aedit_apply_var(void *entity, olc_pending_change_t *change) {
+    AREA_DATA *pArea = (AREA_DATA *)entity;
+
+    if (json_is_null(change->new_value)) {
+        const char *varname = change->field_path + 4; /* skip "var/" */
+        char buf[MAX_INPUT_LENGTH];
+        strlcpy(buf, varname, sizeof(buf));
+        olc_varclear(&pArea->index_vars, NULL, buf, true);
+        if (pArea->progs)
+            olc_varclear(&pArea->progs->vars, NULL, buf, true);
+        return true;
+    } else {
+        const char *arg = json_string_value(change->new_value);
+        if (!arg) return false;
+        char buf[MAX_INPUT_LENGTH];
+        strlcpy(buf, arg, sizeof(buf));
+        olc_varset(&pArea->index_vars, NULL, buf, true);
+        if (pArea->progs)
+            olc_varset(&pArea->progs->vars, NULL, buf, true);
+        return true;
+    }
+}
 
 static const olc_field_handler_t aedit_field_handlers[] = {
     { "Area Flags",        OLC_FIELD_FLAGS,     NULL, aedit_apply_area_flags,  NULL },
@@ -149,6 +261,18 @@ static const olc_field_handler_t aedit_field_handlers[] = {
     { "Age",               OLC_FIELD_INT16,      NULL, aedit_apply_age,         NULL },
     { "Security",          OLC_FIELD_INT,        NULL, aedit_apply_security,    NULL },
     { "Topic",             OLC_FIELD_STRING,     NULL, aedit_apply_topic,       NULL },
+    { "Wilderness",        OLC_FIELD_LONG,       NULL, aedit_apply_wilds,       NULL },
+    { "Area Who",          OLC_FIELD_INT,        NULL, aedit_apply_areawho,     NULL },
+    { "Place Type",        OLC_FIELD_LONG,       NULL, aedit_apply_placetype,   NULL },
+    { "File Name",         OLC_FIELD_STRING,     NULL, aedit_apply_file,        NULL },
+    { "Recall",            OLC_FIELD_STRING,     NULL, aedit_apply_recall,      NULL },
+    { "Airship Land",      OLC_FIELD_STRING,     NULL, aedit_apply_airshipland, NULL },
+    { "Post Office",       OLC_FIELD_STRING,     NULL, aedit_apply_postoffice,  NULL },
+    { "Min Vnum",          OLC_FIELD_LONG,       NULL, aedit_apply_min_vnum,    NULL },
+    { "Max Vnum",          OLC_FIELD_LONG,       NULL, aedit_apply_max_vnum,    NULL },
+    { "Min Level",         OLC_FIELD_INT16,      NULL, aedit_apply_min_level,   NULL },
+    { "Max Level",         OLC_FIELD_INT16,      NULL, aedit_apply_max_level,   NULL },
+    { "var/*",             OLC_FIELD_STRING,     NULL, aedit_apply_var,         NULL },
     { NULL, 0, NULL, NULL, NULL }
 };
 
@@ -651,24 +775,20 @@ AEDIT(aedit_wilds)
     }
 
     long wuid = atol(argument);
-
-    if( !get_wilds_from_uid(NULL, wuid) )
+    if (wuid != 0 && !get_wilds_from_uid(NULL, wuid))
     {
         send_to_char("Invalid wilds map.\n\r", ch);
         return false;
     }
 
-    pArea->wilds_uid = wuid;
-    send_to_char("Wilderness Map UID set set.\n\r", ch);
-
-    return true;
+    return olc_cmd_long(ch, argument, "Wilderness", NULL,
+        &pArea->wilds_uid, 0, LONG_MAX, NULL, NULL);
 }
 
 
 AEDIT(aedit_airshipland)
 {
     AREA_DATA *pArea;
-    char buf[MSL];
 
     EDIT_AREA(ch, pArea);
 
@@ -678,23 +798,66 @@ AEDIT(aedit_airshipland)
         return false;
     }
 
+    const char *stage_val = argument;
     WNUM room_wnum;
-    AREA_DATA *context = olc_relative_widevnum_context(pArea, argument);
-    if (!parse_widevnum(argument, context, &room_wnum)) {
-        send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
-        return false;
+    ROOM_INDEX_DATA *pRoom = NULL;
+
+    if (str_cmp(argument, "0") && str_cmp(argument, "none") && str_cmp(argument, "clear")) {
+        AREA_DATA *context = olc_relative_widevnum_context(pArea, argument);
+        if (!parse_widevnum(argument, context, &room_wnum)) {
+            send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
+            return false;
+        }
+        pRoom = get_room_index(room_wnum.pArea, room_wnum.vnum);
+        if (!pRoom) {
+            send_to_char("That room doesn't exist.\n\r", ch);
+            return false;
+        }
     }
 
-    ROOM_INDEX_DATA *pRoom = get_room_index(room_wnum.pArea, room_wnum.vnum);
-    if (!pRoom) {
-        send_to_char("That room doesn't exist.\n\r", ch);
-        return false;
+    /* Staged mode */
+    const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+    if (edef && edef->change_mode == OLC_CHANGE_STAGED) {
+        olc_changeset_t *cs = olc_get_active_changeset(ch, edef);
+        if (cs) {
+            if (!olc_check_staging_limits(ch, cs)) return false;
+
+            char old_buf[MAX_INPUT_LENGTH];
+            if (pArea->airship_land_load.vnum > 0)
+                snprintf(old_buf, sizeof(old_buf), "%ld#%ld",
+                    pArea->airship_land_load.auid, pArea->airship_land_load.vnum);
+            else
+                strlcpy(old_buf, "none", sizeof(old_buf));
+
+            json_t *old_val = json_string(old_buf);
+            json_t *new_val = json_string(stage_val);
+            olc_pending_change_t *result = olc_changeset_add_change(
+                cs, "Airship Land", OLC_FIELD_STRING, old_val, new_val);
+            json_decref(old_val);
+            json_decref(new_val);
+            if (result)
+                printf_to_char(ch, "{G[STAGED]{x Airship landing staged.\n\r");
+            else
+                send_to_char("Airship landing reverted to original value.\n\r", ch);
+            return result != NULL;
+        }
     }
 
+    /* Non-staged fallback */
+    if (!str_cmp(argument, "0") || !str_cmp(argument, "none") || !str_cmp(argument, "clear")) {
+        pArea->airship_land_load.auid = 0;
+        pArea->airship_land_load.vnum = 0;
+        pArea->airship_land_wnum.pArea = NULL;
+        pArea->airship_land_wnum.vnum = 0;
+        send_to_char("Airship landing cleared.\n\r", ch);
+        return true;
+    }
+
+    pArea->airship_land_load.auid = room_wnum.pArea->uid;
     pArea->airship_land_load.vnum = room_wnum.vnum;
-    sprintf(buf, "Set airship land spot of %s to %s - %s\n\r",
+    pArea->airship_land_wnum = room_wnum;
+    printf_to_char(ch, "Set airship land spot of %s to %s - %s\n\r",
         pArea->name, widevnum_string_room(pRoom, pArea), pRoom->name);
-    send_to_char(buf, ch);
     return true;
 }
 
@@ -1339,65 +1502,89 @@ AEDIT(aedit_credits)
 AEDIT(aedit_areawho)
 {
     AREA_DATA *pArea;
-    int value;
 
-    if (argument[0] != '\0')
-    {
     EDIT_AREA(ch, pArea);
 
-    if ( !str_prefix(argument, "blank") )
+    if (argument[0] == '\0')
     {
-        pArea->area_who = AREA_BLANK;
-
-        send_to_char("Area who title cleared.\n\r", ch);
-        return true;
+        send_to_char("Syntax:  areawho [title]\n\r"
+              "Type '? areawho' for a list of who titles.\n\r", ch);
+        return false;
     }
 
-    if ((value = flag_value(area_who_titles, argument)) != NO_FLAG)
-    {
-        if( value == AREA_INSTANCE || value == AREA_DUTY )
-        {
-            send_to_char("Area who title only allowed in blueprints.\n\r", ch);
-            return false;
-        }
-
-        pArea->area_who = value;
-
-        send_to_char("Area who title set.\n\r", ch);
-        return true;
-    }
+    /* "blank" is a special alias for AREA_BLANK (0) */
+    if (!str_prefix(argument, "blank")) {
+        char zero_str[] = "0";
+        return olc_cmd_type_set(ch, zero_str, "Area Who", NULL,
+            &pArea->area_who, area_who_titles, NULL, NULL);
     }
 
-    send_to_char("Syntax:  areawho [title]\n\r"
-          "Type '? areawho' for a list of who titles.\n\r", ch);
-    return false;
+    int value = flag_value(area_who_titles, argument);
+    if (value == NO_FLAG) {
+        send_to_char("Syntax:  areawho [title]\n\r"
+              "Type '? areawho' for a list of who titles.\n\r", ch);
+        return false;
+    }
+
+    if (value == AREA_INSTANCE || value == AREA_DUTY) {
+        send_to_char("Area who title only allowed in blueprints.\n\r", ch);
+        return false;
+    }
+
+    return olc_cmd_type_set(ch, argument, "Area Who", NULL,
+        &pArea->area_who, area_who_titles, NULL, NULL);
 }
 
 AEDIT(aedit_placetype)
 {
     AREA_DATA *pArea;
-    int value;
 
-    if (argument[0] != '\0')
+    if (argument[0] == '\0')
     {
-        EDIT_AREA(ch, pArea);
+        send_to_char("Syntax:  placetype [flag]\n\r"
+              "Type '? placetype' for a list of possible values.\n\r", ch);
+        return false;
+    }
 
-        if(!str_cmp(argument, "none")) {
-            pArea->place_flags = PLACE_NOWHERE;
+    EDIT_AREA(ch, pArea);
 
-            send_to_char("Area place type cleared.\n\r", ch);
-            return true;
-        } else if ((value = flag_value(place_flags, argument)) != NO_FLAG) {
-            pArea->place_flags = value;
+    long new_value;
+    if (!str_cmp(argument, "none")) {
+        new_value = PLACE_NOWHERE;
+    } else {
+        long val = flag_value(place_flags, argument);
+        if (val == NO_FLAG) {
+            send_to_char("Syntax:  placetype [flag]\n\r"
+                  "Type '? placetype' for a list of possible values.\n\r", ch);
+            return false;
+        }
+        new_value = val;
+    }
 
-            send_to_char("Area place type set.\n\r", ch);
-            return true;
+    /* Staged mode */
+    const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+    if (edef && edef->change_mode == OLC_CHANGE_STAGED) {
+        olc_changeset_t *cs = olc_get_active_changeset(ch, edef);
+        if (cs) {
+            if (!olc_check_staging_limits(ch, cs)) return false;
+            json_t *old_val = json_integer(pArea->place_flags);
+            json_t *new_val_j = json_integer(new_value);
+            olc_pending_change_t *result = olc_changeset_add_change(
+                cs, "Place Type", OLC_FIELD_LONG, old_val, new_val_j);
+            json_decref(old_val);
+            json_decref(new_val_j);
+            if (result)
+                send_to_char("{G[STAGED]{x Place type staged.\n\r", ch);
+            else
+                send_to_char("Place type reverted to original value.\n\r", ch);
+            return result != NULL;
         }
     }
 
-    send_to_char("Syntax:  placetype [flag]\n\r"
-          "Type '? placetype' for a list of possible values.\n\r", ch);
-    return false;
+    /* Non-staged fallback */
+    pArea->place_flags = new_value;
+    send_to_char("Area place type set.\n\r", ch);
+    return true;
 }
 
 
@@ -1413,38 +1600,29 @@ AEDIT(aedit_file)
 
     if (argument[0] == '\0')
     {
-    send_to_char("Syntax:  filename [$file]\n\r", ch);
-    return false;
-    }
-
-    /*
-     * Simple Syntax Check.
-     */
-    length = strlen(argument);
-    if (length > 12)
-    {
-    send_to_char("No more than twelve characters allowed.\n\r", ch);
-    return false;
-    }
-
-    /*
-     * Allow only letters and numbers.
-     */
-    for (i = 0; i < length; i++)
-    {
-    if (!ISALNUM(file[i]))
-    {
-        send_to_char("Only letters and numbers are valid.\n\r", ch);
+        send_to_char("Syntax:  filename [$file]\n\r", ch);
         return false;
     }
+
+    length = strlen(file);
+    if (length > 12)
+    {
+        send_to_char("No more than twelve characters allowed.\n\r", ch);
+        return false;
     }
 
-    free_string(pArea->file_name);
-    strcat(file, ".json");
-    pArea->file_name = str_dup(file);
+    for (i = 0; i < length; i++)
+    {
+        if (!ISALNUM(file[i]))
+        {
+            send_to_char("Only letters and numbers are valid.\n\r", ch);
+            return false;
+        }
+    }
 
-    send_to_char("Filename set.\n\r", ch);
-    return true;
+    strcat(file, ".json");
+    return olc_cmd_string(ch, file, "File Name", NULL,
+        &pArea->file_name, 0, NULL, NULL);
 }
 
 
@@ -1481,45 +1659,87 @@ AEDIT(aedit_recall)
         return false;
     }
 
-    // Check if it's clearing the recall
-    if(!str_cmp(arg1, "0") && !arg2[0]) {
-        location_clear(&pArea->recall);
-        send_to_char("Recall cleared.\n\r", ch);
-        return true;
-    }
+    /* Determine what we're staging */
+    char stage_val[MIL];
 
-    // If only one argument, try to parse as widevnum (room format)
-    if(!arg2[0]) {
+    if (!str_cmp(arg1, "0") && !arg2[0]) {
+        strlcpy(stage_val, "0", sizeof(stage_val));
+    } else if (!arg2[0]) {
+        /* Single arg - widevnum (room format) */
         WNUM room_wnum;
         AREA_DATA *context = olc_relative_widevnum_context(pArea, arg1);
         if (!parse_widevnum(arg1, context, &room_wnum)) {
             send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
             return false;
         }
-
-        if(!get_room_index(room_wnum.pArea, room_wnum.vnum)) {
+        if (!get_room_index(room_wnum.pArea, room_wnum.vnum)) {
             send_to_char("AEdit:  Room vnum does not exist.\n\r", ch);
             return false;
         }
+        snprintf(stage_val, sizeof(stage_val), "room %ld", room_wnum.vnum);
+    } else {
+        /* Multi-arg - wilderness format */
+        if (!arg3[0] || !arg4[0] || !is_number(arg1) || !is_number(arg2) || !is_number(arg3) || !is_number(arg4)) {
+            send_to_char("Syntax:  recall <widevnum>\n\r", ch);
+            send_to_char("         recall <wuid> <x> <y> <z>\n\r", ch);
+            return false;
+        }
+        long wuid = atol(arg1);
+        if (!get_wilds_from_uid(NULL, wuid)) {
+            send_to_char("AEdit:  Wilderness UID does not exist.\n\r", ch);
+            return false;
+        }
+        snprintf(stage_val, sizeof(stage_val), "wilds %s %s %s %s", arg1, arg2, arg3, arg4);
+    }
 
+    /* Staged mode */
+    const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+    if (edef && edef->change_mode == OLC_CHANGE_STAGED) {
+        olc_changeset_t *cs = olc_get_active_changeset(ch, edef);
+        if (cs) {
+            if (!olc_check_staging_limits(ch, cs)) return false;
+
+            /* Build old value string */
+            char old_buf[MIL];
+            if (pArea->recall.wuid)
+                snprintf(old_buf, sizeof(old_buf), "wilds %lu %lu %lu %lu",
+                    pArea->recall.wuid, pArea->recall.id[0], pArea->recall.id[1], pArea->recall.id[2]);
+            else if (pArea->recall.id[0] > 0)
+                snprintf(old_buf, sizeof(old_buf), "room %lu", pArea->recall.id[0]);
+            else
+                strlcpy(old_buf, "0", sizeof(old_buf));
+
+            json_t *old_val = json_string(old_buf);
+            json_t *new_val = json_string(stage_val);
+            olc_pending_change_t *result = olc_changeset_add_change(
+                cs, "Recall", OLC_FIELD_STRING, old_val, new_val);
+            json_decref(old_val);
+            json_decref(new_val);
+            if (result)
+                send_to_char("{G[STAGED]{x Recall staged.\n\r", ch);
+            else
+                send_to_char("Recall reverted to original value.\n\r", ch);
+            return result != NULL;
+        }
+    }
+
+    /* Non-staged fallback */
+    if (!str_cmp(arg1, "0") && !arg2[0]) {
+        location_clear(&pArea->recall);
+        send_to_char("Recall cleared.\n\r", ch);
+        return true;
+    }
+
+    if (!arg2[0]) {
+        WNUM room_wnum;
+        AREA_DATA *context = olc_relative_widevnum_context(pArea, arg1);
+        parse_widevnum(arg1, context, &room_wnum);
         location_set(&pArea->recall, 0, room_wnum.vnum, 0, 0);
         send_to_char("Recall set.\n\r", ch);
         return true;
     }
 
-    // Multiple arguments - wilderness format
-    if(!arg3[0] || !arg4[0] || !is_number(arg1) || !is_number(arg2) || !is_number(arg3) || !is_number(arg4)) {
-        send_to_char("Syntax:  recall <widevnum>\n\r", ch);
-        send_to_char("         recall <wuid> <x> <y> <z>\n\r", ch);
-        return false;
-    }
-
     long wuid = atol(arg1);
-    if(!get_wilds_from_uid(NULL, wuid)) {
-        send_to_char("AEdit:  Wilderness UID does not exist.\n\r", ch);
-        return false;
-    }
-
     int x = atoi(arg2);
     int y = atoi(arg3);
     int z = atoi(arg4);
@@ -1634,8 +1854,8 @@ AEDIT(aedit_vnum)
     AREA_DATA *pArea;
     char lower[MAX_STRING_LENGTH];
     char upper[MAX_STRING_LENGTH];
-    int  ilower;
-    int  iupper;
+    long ilower;
+    long iupper;
 
     EDIT_AREA(ch, pArea);
 
@@ -1645,42 +1865,68 @@ AEDIT(aedit_vnum)
     if (!is_number(lower) || lower[0] == '\0'
     || !is_number(upper) || upper[0] == '\0')
     {
-    send_to_char("Syntax:  vnum [#xlower] [#xupper]\n\r", ch);
-    return false;
+        send_to_char("Syntax:  vnum [#xlower] [#xupper]\n\r", ch);
+        return false;
     }
 
-    if ((ilower = atoi(lower)) > (iupper = atoi(upper)))
+    ilower = atol(lower);
+    iupper = atol(upper);
+
+    if (ilower > iupper)
     {
-    send_to_char("AEdit:  Upper must be larger then lower.\n\r", ch);
-    return false;
+        send_to_char("AEdit:  Upper must be larger then lower.\n\r", ch);
+        return false;
     }
 
-    if (!check_range(atoi(lower), atoi(upper)))
+    if (!check_range(ilower, iupper))
     {
-    send_to_char("AEdit:  Range must include only this area.\n\r", ch);
-    return false;
+        send_to_char("AEdit:  Range must include only this area.\n\r", ch);
+        return false;
     }
 
     if (get_vnum_area(ilower)
     && get_vnum_area(ilower) != pArea)
     {
-    send_to_char("AEdit:  Lower vnum already assigned.\n\r", ch);
-    return false;
+        send_to_char("AEdit:  Lower vnum already assigned.\n\r", ch);
+        return false;
     }
-
-    pArea->min_vnum = ilower;
-    send_to_char("Lower vnum set.\n\r", ch);
 
     if (get_vnum_area(iupper)
     && get_vnum_area(iupper) != pArea)
     {
-    send_to_char("AEdit:  Upper vnum already assigned.\n\r", ch);
-    return true;	/* The lower value has been set. */
+        send_to_char("AEdit:  Upper vnum already assigned.\n\r", ch);
+        return false;
     }
 
+    /* Staged mode */
+    const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+    if (edef && edef->change_mode == OLC_CHANGE_STAGED) {
+        olc_changeset_t *cs = olc_get_active_changeset(ch, edef);
+        if (cs) {
+            if (!olc_check_staging_limits(ch, cs)) return false;
+
+            json_t *old_lo = json_integer(pArea->min_vnum);
+            json_t *new_lo = json_integer(ilower);
+            olc_changeset_add_change(cs, "Min Vnum", OLC_FIELD_LONG, old_lo, new_lo);
+            json_decref(old_lo);
+            json_decref(new_lo);
+
+            json_t *old_hi = json_integer(pArea->max_vnum);
+            json_t *new_hi = json_integer(iupper);
+            olc_changeset_add_change(cs, "Max Vnum", OLC_FIELD_LONG, old_hi, new_hi);
+            json_decref(old_hi);
+            json_decref(new_hi);
+
+            send_to_char("{G[STAGED]{x Vnum range staged.\n\r", ch);
+            return true;
+        }
+    }
+
+    /* Non-staged fallback */
+    pArea->min_vnum = ilower;
+    send_to_char("Lower vnum set.\n\r", ch);
     pArea->max_vnum = iupper;
     send_to_char("Upper vnum set.\n\r", ch);
-
     return true;
 }
 
@@ -1689,8 +1935,8 @@ AEDIT(aedit_levels)
     AREA_DATA *pArea;
     char lower[MAX_STRING_LENGTH];
     char upper[MAX_STRING_LENGTH];
-    int  ilower;
-    int  iupper;
+    int ilower;
+    int iupper;
 
     EDIT_AREA(ch, pArea);
 
@@ -1700,28 +1946,54 @@ AEDIT(aedit_levels)
     if (!is_number(lower) || lower[0] == '\0'
     || !is_number(upper) || upper[0] == '\0')
     {
-    send_to_char("Syntax:  levels [#xlower] [#xupper]\n\r", ch);
-    return false;
+        send_to_char("Syntax:  levels [#xlower] [#xupper]\n\r", ch);
+        return false;
     }
 
-    if ((ilower = atoi(lower)) > (iupper = atoi(upper)))
+    ilower = atoi(lower);
+    iupper = atoi(upper);
+
+    if (ilower > iupper)
     {
-    send_to_char("AEdit:  Upper must be larger then lower.\n\r", ch);
-    return false;
+        send_to_char("AEdit:  Upper must be larger then lower.\n\r", ch);
+        return false;
     }
 
-    if ((ilower = atoi(lower)) > 120 || (iupper = atoi(upper)) < 1)
+    if (ilower > 120 || iupper < 1)
     {
-    send_to_char("AEdit:  Range must be between 1 and 120.\n\r", ch);
-    return false;
+        send_to_char("AEdit:  Range must be between 1 and 120.\n\r", ch);
+        return false;
     }
 
+    /* Staged mode */
+    const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+    if (edef && edef->change_mode == OLC_CHANGE_STAGED) {
+        olc_changeset_t *cs = olc_get_active_changeset(ch, edef);
+        if (cs) {
+            if (!olc_check_staging_limits(ch, cs)) return false;
+
+            json_t *old_lo = json_integer(pArea->min_level);
+            json_t *new_lo = json_integer(ilower);
+            olc_changeset_add_change(cs, "Min Level", OLC_FIELD_INT16, old_lo, new_lo);
+            json_decref(old_lo);
+            json_decref(new_lo);
+
+            json_t *old_hi = json_integer(pArea->max_level);
+            json_t *new_hi = json_integer(iupper);
+            olc_changeset_add_change(cs, "Max Level", OLC_FIELD_INT16, old_hi, new_hi);
+            json_decref(old_hi);
+            json_decref(new_hi);
+
+            send_to_char("{G[STAGED]{x Level range staged.\n\r", ch);
+            return true;
+        }
+    }
+
+    /* Non-staged fallback */
     pArea->min_level = ilower;
     send_to_char("Lower level set.\n\r", ch);
-
     pArea->max_level = iupper;
     send_to_char("Upper level set.\n\r", ch);
-
     return true;
 }
 
@@ -1729,32 +2001,73 @@ AEDIT(aedit_levels)
 AEDIT(aedit_postoffice)
 {
     AREA_DATA *pArea;
-    WNUM room_wnum;
-    char buf[MSL];
-    ROOM_INDEX_DATA *room;
 
     EDIT_AREA(ch, pArea);
 
     if (argument[0] == '\0') {
-    send_to_char("Syntax:   postoffice <widevnum in the area>\n\r", ch);
-    return false;
-    }
-
-    if (!parse_widevnum(argument, pArea, &room_wnum) || room_wnum.pArea != pArea) {
-        send_to_char("That room must be in the current area.\n\r", ch);
+        send_to_char("Syntax:   postoffice <widevnum in the area>\n\r", ch);
         return false;
     }
 
-    if ((room = get_room_index(room_wnum.pArea, room_wnum.vnum)) == NULL) {
-    send_to_char("That room vnum doesn't exist.\n\r", ch);
-    return false;
+    const char *stage_val = argument;
+    WNUM room_wnum;
+    ROOM_INDEX_DATA *room = NULL;
+
+    if (str_cmp(argument, "0") && str_cmp(argument, "none") && str_cmp(argument, "clear")) {
+        if (!parse_widevnum(argument, pArea, &room_wnum) || room_wnum.pArea != pArea) {
+            send_to_char("That room must be in the current area.\n\r", ch);
+            return false;
+        }
+        room = get_room_index(room_wnum.pArea, room_wnum.vnum);
+        if (!room) {
+            send_to_char("That room vnum doesn't exist.\n\r", ch);
+            return false;
+        }
     }
 
-    sprintf(buf, "Set post office of %s to %s(%s)\n\r", pArea->name, room->name, widevnum_string_room(room, pArea));
-    send_to_char(buf, ch);
+    /* Staged mode */
+    const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+    if (edef && edef->change_mode == OLC_CHANGE_STAGED) {
+        olc_changeset_t *cs = olc_get_active_changeset(ch, edef);
+        if (cs) {
+            if (!olc_check_staging_limits(ch, cs)) return false;
+
+            char old_buf[MAX_INPUT_LENGTH];
+            if (pArea->post_office_load.vnum > 0)
+                snprintf(old_buf, sizeof(old_buf), "%ld#%ld",
+                    pArea->post_office_load.auid, pArea->post_office_load.vnum);
+            else
+                strlcpy(old_buf, "none", sizeof(old_buf));
+
+            json_t *old_val = json_string(old_buf);
+            json_t *new_val = json_string(stage_val);
+            olc_pending_change_t *result = olc_changeset_add_change(
+                cs, "Post Office", OLC_FIELD_STRING, old_val, new_val);
+            json_decref(old_val);
+            json_decref(new_val);
+            if (result)
+                send_to_char("{G[STAGED]{x Post office staged.\n\r", ch);
+            else
+                send_to_char("Post office reverted to original value.\n\r", ch);
+            return result != NULL;
+        }
+    }
+
+    /* Non-staged fallback */
+    if (!str_cmp(argument, "0") || !str_cmp(argument, "none") || !str_cmp(argument, "clear")) {
+        pArea->post_office_load.auid = 0;
+        pArea->post_office_load.vnum = 0;
+        pArea->post_office_wnum.pArea = NULL;
+        pArea->post_office_wnum.vnum = 0;
+        send_to_char("Post office cleared.\n\r", ch);
+        return true;
+    }
 
     pArea->post_office_load.auid = pArea->uid;
     pArea->post_office_load.vnum = room_wnum.vnum;
+    pArea->post_office_wnum = room_wnum;
+    printf_to_char(ch, "Set post office of %s to %s(%s)\n\r",
+        pArea->name, room->name, widevnum_string_room(room, pArea));
     return true;
 }
 
@@ -1907,12 +2220,40 @@ AEDIT (aedit_delaprog)
 AEDIT(aedit_varset)
 {
     AREA_DATA *pArea;
- 
+
     EDIT_AREA(ch, pArea);
+
+    const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+    if (edef && edef->change_mode == OLC_CHANGE_STAGED) {
+        olc_changeset_t *cs = olc_get_active_changeset(ch, edef);
+        if (cs) {
+            char varname[MAX_INPUT_LENGTH - 8];
+            one_argument(argument, varname);
+            if (IS_NULLSTR(varname)) {
+                send_to_char("Syntax: varset <name> <type> <value>\n\r", ch);
+                return false;
+            }
+            char field_path[MAX_INPUT_LENGTH];
+            snprintf(field_path, sizeof(field_path), "var/%s", varname);
+
+            if (!olc_check_staging_limits(ch, cs)) return false;
+            json_t *old_val = json_null();
+            json_t *new_val = json_string(argument);
+            olc_pending_change_t *result = olc_changeset_add_change(
+                cs, field_path, OLC_FIELD_STRING, old_val, new_val);
+            json_decref(old_val);
+            json_decref(new_val);
+
+            if (result)
+                printf_to_char(ch, "{G[STAGED]{x Variable %s staged.\n\r", varname);
+            else
+                printf_to_char(ch, "Variable %s reverted.\n\r", varname);
+            return result != NULL;
+        }
+    }
 
     if (olc_varset(&pArea->index_vars, ch, argument, false))
     {
-        // Install variable into the "live"
         olc_varset(&pArea->progs->vars, ch, argument, true);
         return true;
     }
@@ -1925,9 +2266,37 @@ AEDIT(aedit_varclear)
 
     EDIT_AREA(ch, pArea);
 
+    const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+    if (edef && edef->change_mode == OLC_CHANGE_STAGED) {
+        olc_changeset_t *cs = olc_get_active_changeset(ch, edef);
+        if (cs) {
+            char varname[MAX_INPUT_LENGTH - 8];
+            one_argument(argument, varname);
+            if (IS_NULLSTR(varname)) {
+                send_to_char("Syntax: varclear <name>\n\r", ch);
+                return false;
+            }
+            char field_path[MAX_INPUT_LENGTH];
+            snprintf(field_path, sizeof(field_path), "var/%s", varname);
+
+            if (!olc_check_staging_limits(ch, cs)) return false;
+            json_t *old_val = json_null();
+            json_t *new_val = json_null();
+            olc_pending_change_t *result = olc_changeset_add_change(
+                cs, field_path, OLC_FIELD_STRING, old_val, new_val);
+            json_decref(old_val);
+            json_decref(new_val);
+
+            if (result)
+                printf_to_char(ch, "{G[STAGED]{x Variable %s clear staged.\n\r", varname);
+            else
+                printf_to_char(ch, "Variable %s reverted.\n\r", varname);
+            return result != NULL;
+        }
+    }
+
     if (olc_varclear(&pArea->index_vars, ch, argument, false))
     {
-        // Clear variable on "live"
         olc_varclear(&pArea->progs->vars, ch, argument, true);
         return true;
     }
