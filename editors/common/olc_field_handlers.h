@@ -33,6 +33,7 @@ bool olc_apply_generic_int(int *field_ptr, olc_pending_change_t *change);
 bool olc_apply_generic_int16(int16_t *field_ptr, olc_pending_change_t *change);
 bool olc_apply_generic_bool(bool *field_ptr, olc_pending_change_t *change);
 bool olc_apply_generic_flags(long *field_ptr, olc_pending_change_t *change);
+bool olc_apply_generic_long(long *field_ptr, olc_pending_change_t *change);
 
 /*
  * Macros for generating scalar field apply functions.
@@ -66,6 +67,11 @@ bool olc_apply_generic_flags(long *field_ptr, olc_pending_change_t *change);
 #define OLC_FIELD_APPLY_FLAGS(func_name, entity_type, member) \
     static bool func_name(void *entity, olc_pending_change_t *change) { \
         return olc_apply_generic_flags(&((entity_type *)entity)->member, change); \
+    }
+
+#define OLC_FIELD_APPLY_LONG(func_name, entity_type, member) \
+    static bool func_name(void *entity, olc_pending_change_t *change) { \
+        return olc_apply_generic_long(&((entity_type *)entity)->member, change); \
     }
 
 /* Commit/revert API */

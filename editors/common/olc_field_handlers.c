@@ -152,6 +152,22 @@ bool olc_apply_generic_flags(long *field_ptr, olc_pending_change_t *change)
 }
 
 /*
+ * Generic long apply: reads json integer from change->new_value,
+ * writes to *field_ptr as long.
+ */
+bool olc_apply_generic_long(long *field_ptr, olc_pending_change_t *change)
+{
+    if (!field_ptr || !change || !change->new_value)
+        return false;
+
+    if (!json_is_integer(change->new_value))
+        return false;
+
+    *field_ptr = (long)json_integer_value(change->new_value);
+    return true;
+}
+
+/*
  * Commit all pending changes in a changeset to a live entity.
  *
  * Iterates changes, looks up handler for each, calls apply_fn.

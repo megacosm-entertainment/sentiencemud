@@ -56,6 +56,17 @@ bool olc_staged_bool(olc_changeset_t *cs, const char *field, bool live)
     return live;
 }
 
+long olc_staged_long(olc_changeset_t *cs, const char *field, long live)
+{
+    if (!cs || !field) return live;
+
+    olc_pending_change_t *change = olc_changeset_find_change(cs, field);
+    if (!change || !change->new_value || !json_is_integer(change->new_value))
+        return live;
+
+    return (long)json_integer_value(change->new_value);
+}
+
 json_t *olc_staged_json(olc_changeset_t *cs, const char *field)
 {
     if (!cs || !field) return NULL;

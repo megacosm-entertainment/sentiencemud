@@ -317,6 +317,66 @@ bool olc_cmd_number_i16(CHAR_DATA *ch, char *argument, const char *label,
 }
 
 /* =========================================================================
+ * olc_cmd_long
+ * ========================================================================= */
+
+bool olc_cmd_long(CHAR_DATA *ch, char *argument, const char *label,
+    const char *syntax, long *field_ptr, long min_val, long max_val,
+    void *ctx, olc_cmd_record_fn record_fn)
+{
+    long value;
+
+    if (IS_NULLSTR(argument) || !is_number(argument)) {
+        if (syntax) {
+            send_to_char(syntax, ch);
+        } else if (min_val != LONG_MIN && max_val != LONG_MAX) {
+            send_to_char(formatf("Syntax: %s <number>  (%ld to %ld)\n\r",
+                label, min_val, max_val), ch);
+        } else {
+            send_to_char(formatf("Syntax: %s <number>\n\r", label), ch);
+        }
+        return false;
+    }
+
+    value = atol(argument);
+
+    if (value < min_val || value > max_val) {
+        send_to_char(formatf("%s must be between %ld and %ld.\n\r",
+            label, min_val, max_val), ch);
+        return false;
+    }
+
+    /* Staged mode: store change in overlay */
+    {
+        const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+        if (edef && edef->change_mode == OLC_CHANGE_STAGED) {
+            olc_changeset_t *cs = olc_get_active_changeset(ch, edef);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                json_t *old_val = json_integer(*field_ptr);
+                json_t *new_val = json_integer(value);
+                olc_pending_change_t *result = olc_changeset_add_change(
+                    cs, label, OLC_FIELD_LONG, old_val, new_val);
+                json_decref(old_val);
+                json_decref(new_val);
+                if (result)
+                    printf_to_char(ch, "{G[STAGED]{x %s set to %ld.\n\r", label, value);
+                else
+                    printf_to_char(ch, "%s reverted to original value.\n\r", label);
+                notify_field_change(cs, ch, label, json_integer(value), "long", result != NULL);
+                return result != NULL;
+            }
+        }
+    }
+
+    cmd_record(record_fn, ctx, ch, label,
+        formatf("%ld", *field_ptr), formatf("%ld", value));
+    *field_ptr = value;
+    send_to_char(formatf("%s set to %ld.\n\r", label, value), ch);
+    return true;
+}
+
+/* =========================================================================
  * olc_cmd_flag_toggle
  * ========================================================================= */
 

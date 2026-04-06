@@ -145,6 +145,14 @@ bool olc_cmd_number_i16(CHAR_DATA *ch, char *argument, const char *label,
     void *ctx, olc_cmd_record_fn record_fn);
 
 /**
+ * Set a long integer field with range validation.
+ * Same as olc_cmd_number() but for long fields.
+ */
+bool olc_cmd_long(CHAR_DATA *ch, char *argument, const char *label,
+    const char *syntax, long *field_ptr, long min_val, long max_val,
+    void *ctx, olc_cmd_record_fn record_fn);
+
+/**
  * Toggle bitwise flags on a long field.
  *
  * Uses flag_value() to parse the argument, then XORs the result into

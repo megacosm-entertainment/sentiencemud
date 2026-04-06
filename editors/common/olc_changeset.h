@@ -35,7 +35,8 @@ typedef enum {
     OLC_FIELD_LIST_REMOVE,
     OLC_FIELD_LIST_UPDATE,
     OLC_FIELD_MULTILINE,
-    OLC_FIELD_TYPE_DATA
+    OLC_FIELD_TYPE_DATA,
+    OLC_FIELD_LONG
 } olc_field_type_t;
 
 /**

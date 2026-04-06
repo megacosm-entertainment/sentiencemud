@@ -27,6 +27,9 @@ long olc_staged_flags(olc_changeset_t *cs, const char *field, long live);
 /** Returns staged bool if pending, otherwise live value. */
 bool olc_staged_bool(olc_changeset_t *cs, const char *field, bool live);
 
+/** Returns staged long if pending, otherwise live value. */
+long olc_staged_long(olc_changeset_t *cs, const char *field, long live);
+
 /** Returns raw JSON value if pending, otherwise NULL. */
 json_t *olc_staged_json(olc_changeset_t *cs, const char *field);
 
