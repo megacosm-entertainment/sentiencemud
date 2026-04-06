@@ -27,7 +27,7 @@
  * @param type_str Field type string for GMCP
  * @param staged  true if change was staged, false if collapsed to no-op
  */
-static void notify_field_change(olc_changeset_t *cs, CHAR_DATA *ch,
+void notify_field_change(olc_changeset_t *cs, CHAR_DATA *ch,
     const char *label, json_t *value, const char *type_str, bool staged)
 {
     if (!ch || !ch->desc || !cs) return;
@@ -774,4 +774,47 @@ bool olc_stage_bitvector(CHAR_DATA *ch, const char *label,
     notify_field_change(cs, ch, label,
         result ? result->new_value : json_null(), "bitvector", result != NULL);
     return result != NULL;
+}
+
+/* =========================================================================
+ * List Operation Staging Helpers
+ * ========================================================================= */
+
+/**
+ * Stage a list add operation.
+ * Builds path "list_name/add:N" with auto-incrementing sequence.
+ */
+olc_pending_change_t *olc_stage_list_add(olc_changeset_t *cs,
+    const char *list_name, json_t *value)
+{
+    char prefix[MIL];
+    snprintf(prefix, sizeof(prefix), "%s/add", list_name);
+    int seq = olc_changeset_next_seq(cs, prefix);
+
+    char path[MIL];
+    snprintf(path, sizeof(path), "%s:%d", prefix, seq);
+
+    return olc_changeset_add_change(cs, path, OLC_FIELD_LIST_ADD, NULL, value);
+}
+
+/**
+ * Stage a list remove operation.
+ * Builds path "list_name/rm:N" with auto-incrementing sequence.
+ * old_value should be a JSON snapshot of the item being removed (for history).
+ */
+olc_pending_change_t *olc_stage_list_remove(olc_changeset_t *cs,
+    const char *list_name, int index, json_t *old_value)
+{
+    char prefix[MIL];
+    snprintf(prefix, sizeof(prefix), "%s/rm", list_name);
+    int seq = olc_changeset_next_seq(cs, prefix);
+
+    char path[MIL];
+    snprintf(path, sizeof(path), "%s:%d", prefix, seq);
+
+    json_t *val = json_pack("{s:i}", "index", index);
+    olc_pending_change_t *result = olc_changeset_add_change(
+        cs, path, OLC_FIELD_LIST_REMOVE, old_value, val);
+    json_decref(val);
+    return result;
 }

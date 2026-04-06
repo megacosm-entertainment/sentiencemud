@@ -257,6 +257,70 @@ bool olc_changeset_remove_change(olc_changeset_t *cs, const char *field_path)
     return false;
 }
 
+/**
+ * Get the next available sequence number for a path prefix.
+ * Scans changes matching "{prefix}:" and returns max + 1.
+ * E.g., for prefix "affects/add" with existing changes "affects/add:0"
+ * and "affects/add:2", returns 3.
+ */
+int olc_changeset_next_seq(olc_changeset_t *cs, const char *prefix)
+{
+    if (!cs || !prefix)
+        return 0;
+
+    int max_seq = -1;
+    size_t prefix_len = strlen(prefix);
+
+    ITERATOR it;
+    iterator_start(&it, cs->changes);
+    olc_pending_change_t *change;
+    while ((change = iterator_nextdata(&it)) != NULL) {
+        if (strncmp(change->field_path, prefix, prefix_len) == 0
+            && change->field_path[prefix_len] == ':') {
+            int seq = atoi(change->field_path + prefix_len + 1);
+            if (seq > max_seq)
+                max_seq = seq;
+        }
+    }
+    iterator_stop(&it);
+
+    return max_seq + 1;
+}
+
+/**
+ * Remove all changes whose field_path starts with the given prefix followed
+ * by '/'. Also removes an exact match on the prefix itself.
+ * Returns the number of changes removed.
+ */
+int olc_changeset_revert_prefix(olc_changeset_t *cs, const char *prefix)
+{
+    if (!cs || !prefix)
+        return 0;
+
+    int removed = 0;
+    size_t prefix_len = strlen(prefix);
+
+    ITERATOR it;
+    iterator_start(&it, cs->changes);
+    olc_pending_change_t *change;
+    while ((change = iterator_nextdata(&it)) != NULL) {
+        bool match = (strcmp(change->field_path, prefix) == 0)
+            || (strncmp(change->field_path, prefix, prefix_len) == 0
+                && change->field_path[prefix_len] == '/');
+        if (match) {
+            iterator_remcurrent(&it);
+            olc_pending_change_destroy(change);
+            removed++;
+        }
+    }
+    iterator_stop(&it);
+
+    if (removed > 0)
+        cs->is_dirty = true;
+
+    return removed;
+}
+
 /*
  * Remove and destroy all changes in the changeset.
  */

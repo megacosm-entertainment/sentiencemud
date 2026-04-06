@@ -14,8 +14,8 @@
 /*
  * Check if a handler pattern matches a given field path.
  *
- * Supports exact match and simple wildcard: "exits/*" matches "exits/north".
- * The wildcard '*' must appear at the end of a pattern segment after '/'.
+ * Supports exact match, single-level wildcard (slash-star), and
+ * multi-level wildcard (slash-star-star).
  */
 static bool field_path_matches(const char *pattern, const char *path)
 {
@@ -26,12 +26,20 @@ static bool field_path_matches(const char *pattern, const char *path)
     if (strcmp(pattern, path) == 0)
         return true;
 
-    /* Wildcard match: pattern ends with "/*" */
     size_t plen = strlen(pattern);
+
+    /* Multi-level wildcard: pattern ends with slash-star-star */
+    if (plen >= 3 && pattern[plen - 1] == '*' && pattern[plen - 2] == '*'
+        && pattern[plen - 3] == '/') {
+        size_t prefix_len = plen - 2; /* include the '/' */
+        if (strncmp(pattern, path, prefix_len) == 0 && path[prefix_len] != '\0')
+            return true;
+    }
+
+    /* Single-level wildcard: pattern ends with slash-star */
     if (plen >= 2 && pattern[plen - 1] == '*' && pattern[plen - 2] == '/') {
         size_t prefix_len = plen - 1; /* include the '/' */
         if (strncmp(pattern, path, prefix_len) == 0 && path[prefix_len] != '\0') {
-            /* Ensure the remaining path has no further '/' (single-level wildcard) */
             if (strchr(path + prefix_len, '/') == NULL)
                 return true;
         }
@@ -189,11 +197,59 @@ bool olc_apply_generic_dice(DICE_DATA *field_ptr, olc_pending_change_t *change)
     return true;
 }
 
+/**
+ * Compare function for list operation ordering.
+ * Removes (rm:N paths) sort before adds (add:N paths).
+ * Within removes, sort by descending index.
+ * Within adds, sort by ascending sequence.
+ * Non-list changes sort to the front (applied first, preserving order).
+ */
+static int list_op_sort_compare(const void *a, const void *b)
+{
+    const olc_pending_change_t *ca = *(const olc_pending_change_t **)a;
+    const olc_pending_change_t *cb = *(const olc_pending_change_t **)b;
+
+    bool a_is_rm  = (strstr(ca->field_path, "/rm:") != NULL);
+    bool b_is_rm  = (strstr(cb->field_path, "/rm:") != NULL);
+    bool a_is_add = (strstr(ca->field_path, "/add:") != NULL);
+    bool b_is_add = (strstr(cb->field_path, "/add:") != NULL);
+    bool a_is_list = a_is_rm || a_is_add;
+    bool b_is_list = b_is_rm || b_is_add;
+
+    /* Non-list changes come first (preserve insertion order) */
+    if (!a_is_list && !b_is_list) return 0;
+    if (!a_is_list) return -1;
+    if (!b_is_list) return 1;
+
+    /* Removes come before adds */
+    if (a_is_rm && b_is_add) return -1;
+    if (a_is_add && b_is_rm) return 1;
+
+    /* Within removes, sort by descending target index */
+    if (a_is_rm && b_is_rm) {
+        int a_target = (int)json_integer_value(
+            json_object_get(ca->new_value, "index"));
+        int b_target = (int)json_integer_value(
+            json_object_get(cb->new_value, "index"));
+        return b_target - a_target; /* descending */
+    }
+
+    /* Within adds, sort by ascending sequence */
+    if (a_is_add && b_is_add) {
+        const char *a_seq = strstr(ca->field_path, "/add:") + 5;
+        const char *b_seq = strstr(cb->field_path, "/add:") + 5;
+        return atoi(a_seq) - atoi(b_seq);
+    }
+
+    return 0;
+}
+
 /*
  * Commit all pending changes in a changeset to a live entity.
  *
  * Iterates changes, looks up handler for each, calls apply_fn.
  * If handler has NULL apply_fn, logs a warning and skips.
+ * List operations are sorted: removes (descending index) before adds (ascending).
  * On success, clears the changeset and returns number of changes applied.
  * On error, returns -1 and sets *error_field if provided.
  */
@@ -206,36 +262,45 @@ int olc_changeset_commit(olc_changeset_t *cs, void *entity,
     }
 
     int applied = 0;
+    int change_count = list_size(cs->changes);
 
-    ITERATOR it;
-    iterator_start(&it, cs->changes);
-    olc_pending_change_t *change;
-    while ((change = (olc_pending_change_t *)iterator_nextdata(&it)) != NULL) {
-        const olc_field_handler_t *handler = olc_find_field_handler(
-            handlers, change->field_path, change->field_type);
+    if (change_count > 0) {
+        olc_pending_change_t **sorted = alloca(change_count * sizeof(*sorted));
+        int idx = 0;
+        ITERATOR it;
+        iterator_start(&it, cs->changes);
+        olc_pending_change_t *change;
+        while ((change = (olc_pending_change_t *)iterator_nextdata(&it)) != NULL)
+            sorted[idx++] = change;
+        iterator_stop(&it);
 
-        if (!handler) {
-            iterator_stop(&it);
-            if (error_field) *error_field = change->field_path;
-            return -1;
+        qsort(sorted, change_count, sizeof(*sorted), list_op_sort_compare);
+
+        for (int i = 0; i < change_count; i++) {
+            change = sorted[i];
+            const olc_field_handler_t *handler = olc_find_field_handler(
+                handlers, change->field_path, change->field_type);
+
+            if (!handler) {
+                if (error_field) *error_field = change->field_path;
+                return -1;
+            }
+
+            if (!handler->apply_fn) {
+                log_message_f(LOG_LEVEL_WARN, "olc",
+                    "Field handler for '%s' has no apply_fn, skipping",
+                    change->field_path);
+                continue;
+            }
+
+            if (!handler->apply_fn(entity, change)) {
+                if (error_field) *error_field = change->field_path;
+                return -1;
+            }
+
+            applied++;
         }
-
-        if (!handler->apply_fn) {
-            log_message_f(LOG_LEVEL_WARN, "olc",
-                "Field handler for '%s' has no apply_fn, skipping",
-                change->field_path);
-            continue;
-        }
-
-        if (!handler->apply_fn(entity, change)) {
-            iterator_stop(&it);
-            if (error_field) *error_field = change->field_path;
-            return -1;
-        }
-
-        applied++;
     }
-    iterator_stop(&it);
 
     olc_changeset_clear(cs);
     return applied;

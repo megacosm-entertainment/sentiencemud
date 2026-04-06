@@ -736,3 +736,47 @@ void olc_staged_cmd_discarddraft(CHAR_DATA *ch, const OLC_EDITOR_DEF *def,
     else
         send_to_char("{R[ERROR]{x Failed to discard draft.\n\r", ch);
 }
+
+/* =========================================================================
+ * Embedded Struct Snapshot Helpers
+ * ========================================================================= */
+
+/**
+ * Get the staged JSON snapshot for an embedded struct.
+ * Returns the pending new_value JSON, or NULL if no change is staged.
+ * The returned JSON is borrowed — do NOT decref.
+ */
+json_t *olc_staged_embedded(olc_changeset_t *cs, const char *struct_name)
+{
+    return olc_staged_json(cs, struct_name);
+}
+
+/**
+ * Modify a key within a staged embedded snapshot.
+ * If no snapshot is staged yet, this is a no-op and returns false.
+ * If the snapshot exists, sets key=value in the new_value JSON object.
+ */
+bool olc_staged_embedded_set(olc_changeset_t *cs, const char *struct_name,
+                              const char *key, json_t *value)
+{
+    if (!cs) return false;
+
+    olc_pending_change_t *change = olc_changeset_find_change(cs, struct_name);
+    if (!change || !change->new_value) return false;
+
+    json_object_set(change->new_value, key, value);
+    cs->is_dirty = true;
+    return true;
+}
+
+/**
+ * Get the staged flag value for a field, or the live value if not staged.
+ * Used by type commands to read the current effective flags before toggling.
+ */
+long olc_staged_flags_or(olc_changeset_t *cs, const char *field, long live_value)
+{
+    json_t *staged = olc_staged_json(cs, field);
+    if (staged && json_is_integer(staged))
+        return (long)json_integer_value(staged);
+    return live_value;
+}

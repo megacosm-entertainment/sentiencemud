@@ -24,6 +24,7 @@
 
 #include "../../merc.h"
 #include "../../tables.h"
+#include "olc_changeset.h"
 
 /* =========================================================================
  * History Recording Callback
@@ -255,5 +256,15 @@ bool olc_cmd_dice(CHAR_DATA *ch, char *argument, const char *label,
  */
 bool olc_stage_bitvector(CHAR_DATA *ch, const char *label,
     long *banks, long *toggle, int nbanks);
+
+/* GMCP field notification (used by editor-specific staging code) */
+void notify_field_change(olc_changeset_t *cs, CHAR_DATA *ch,
+    const char *label, json_t *value, const char *type_str, bool is_staged);
+
+/* List operation staging helpers */
+olc_pending_change_t *olc_stage_list_add(olc_changeset_t *cs,
+    const char *list_name, json_t *value);
+olc_pending_change_t *olc_stage_list_remove(olc_changeset_t *cs,
+    const char *list_name, int index, json_t *old_value);
 
 #endif /* !def __OLC_COMMANDS_H__ */

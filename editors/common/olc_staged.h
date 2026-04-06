@@ -97,4 +97,12 @@ void olc_staged_cmd_discarddraft(CHAR_DATA *ch, const struct olc_editor_def *def
 void olc_staged_cmd_history(CHAR_DATA *ch, const struct olc_editor_def *def,
     void *pEdit, char *argument);
 
+/* Embedded struct snapshot helpers */
+json_t *olc_staged_embedded(olc_changeset_t *cs, const char *struct_name);
+bool    olc_staged_embedded_set(olc_changeset_t *cs, const char *struct_name,
+                                 const char *key, json_t *value);
+
+/* Flag value helper */
+long olc_staged_flags_or(olc_changeset_t *cs, const char *field, long live_value);
+
 #endif /* !def __OLC_STAGED_H__ */

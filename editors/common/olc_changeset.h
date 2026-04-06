@@ -161,4 +161,8 @@ bool                    olc_draft_exists(const char *author, int editor_type,
 /** Auto-save all active changesets in an edit state as drafts. */
 void                    olc_draft_auto_save(olc_edit_state_t *state);
 
+/* List operation helpers */
+int  olc_changeset_next_seq(olc_changeset_t *cs, const char *prefix);
+int  olc_changeset_revert_prefix(olc_changeset_t *cs, const char *prefix);
+
 #endif /* __OLC_CHANGESET_H__ */
