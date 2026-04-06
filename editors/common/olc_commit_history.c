@@ -178,3 +178,154 @@ int olc_commit_history_count(olc_commit_history_t *history)
 {
     return (history && history->records) ? list_size(history->records) : 0;
 }
+
+/* --- Serialization --- */
+
+static json_t *committed_change_serialize(olc_committed_change_t *change)
+{
+    json_t *obj = json_object();
+    json_object_set_new(obj, "field_path", json_string(change->field_path ? change->field_path : ""));
+    json_object_set_new(obj, "field_type", json_integer(change->field_type));
+    if (change->old_value)
+        json_object_set(obj, "old_value", change->old_value);
+    if (change->new_value)
+        json_object_set(obj, "new_value", change->new_value);
+    return obj;
+}
+
+static olc_committed_change_t *committed_change_deserialize(json_t *json)
+{
+    if (!json_is_object(json)) return NULL;
+
+    json_t *j_fp = json_object_get(json, "field_path");
+    json_t *j_ft = json_object_get(json, "field_type");
+    if (!json_is_string(j_fp) || !json_is_integer(j_ft))
+        return NULL;
+
+    return olc_committed_change_create(
+        json_string_value(j_fp),
+        (olc_field_type_t)json_integer_value(j_ft),
+        json_object_get(json, "old_value"),
+        json_object_get(json, "new_value"));
+}
+
+json_t *olc_commit_record_serialize(olc_commit_record_t *record)
+{
+    if (!record) return NULL;
+
+    json_t *obj = json_object();
+    json_object_set_new(obj, "id", json_integer(record->id));
+    json_object_set_new(obj, "group_id", json_integer(record->group_id));
+    json_object_set_new(obj, "author", json_string(record->author ? record->author : ""));
+    json_object_set_new(obj, "comment", json_string(record->comment ? record->comment : ""));
+    json_object_set_new(obj, "timestamp", json_integer((json_int_t)record->timestamp));
+
+    json_t *changes_arr = json_array();
+    if (record->changes) {
+        ITERATOR it;
+        iterator_start(&it, record->changes);
+        olc_committed_change_t *change;
+        while ((change = iterator_nextdata(&it)) != NULL)
+            json_array_append_new(changes_arr, committed_change_serialize(change));
+        iterator_stop(&it);
+    }
+    json_object_set_new(obj, "changes", changes_arr);
+    return obj;
+}
+
+static olc_commit_record_t *commit_record_deserialize(json_t *json)
+{
+    if (!json_is_object(json)) return NULL;
+
+    json_t *j_id = json_object_get(json, "id");
+    json_t *j_group = json_object_get(json, "group_id");
+    json_t *j_author = json_object_get(json, "author");
+    if (!json_is_integer(j_id) || !json_is_integer(j_group) || !json_is_string(j_author))
+        return NULL;
+
+    olc_commit_record_t *record = olc_commit_record_create(
+        json_string_value(j_author), (int)json_integer_value(j_group));
+    record->id = (int)json_integer_value(j_id);
+
+    json_t *j_comment = json_object_get(json, "comment");
+    if (json_is_string(j_comment)) {
+        free_string(record->comment);
+        record->comment = str_dup(json_string_value(j_comment));
+    }
+
+    json_t *j_ts = json_object_get(json, "timestamp");
+    if (json_is_integer(j_ts))
+        record->timestamp = (time_t)json_integer_value(j_ts);
+
+    json_t *changes_arr = json_object_get(json, "changes");
+    if (json_is_array(changes_arr)) {
+        size_t idx;
+        json_t *entry;
+        json_array_foreach(changes_arr, idx, entry) {
+            olc_committed_change_t *change = committed_change_deserialize(entry);
+            if (change)
+                list_appendlink(record->changes, change);
+        }
+    }
+
+    return record;
+}
+
+json_t *olc_commit_history_serialize(olc_commit_history_t *history)
+{
+    if (!history) return NULL;
+
+    json_t *root = json_object();
+    json_object_set_new(root, "editor_type", json_integer(history->editor_type));
+    json_object_set_new(root, "entity_wnum_auid", json_integer(history->entity_wnum.auid));
+    json_object_set_new(root, "entity_wnum_vnum", json_integer(history->entity_wnum.vnum));
+    json_object_set_new(root, "next_id", json_integer(history->next_id));
+
+    json_t *records_arr = json_array();
+    if (history->records) {
+        ITERATOR it;
+        iterator_start(&it, history->records);
+        olc_commit_record_t *record;
+        while ((record = iterator_nextdata(&it)) != NULL)
+            json_array_append_new(records_arr, olc_commit_record_serialize(record));
+        iterator_stop(&it);
+    }
+    json_object_set_new(root, "records", records_arr);
+    return root;
+}
+
+olc_commit_history_t *olc_commit_history_deserialize(json_t *json)
+{
+    if (!json_is_object(json)) return NULL;
+
+    json_t *j_type = json_object_get(json, "editor_type");
+    json_t *j_auid = json_object_get(json, "entity_wnum_auid");
+    json_t *j_vnum = json_object_get(json, "entity_wnum_vnum");
+    if (!json_is_integer(j_type) || !json_is_integer(j_auid) || !json_is_integer(j_vnum))
+        return NULL;
+
+    WNUM_LOAD wnum = {
+        .auid = json_integer_value(j_auid),
+        .vnum = json_integer_value(j_vnum)
+    };
+    olc_commit_history_t *history = olc_commit_history_create(
+        (int)json_integer_value(j_type), wnum);
+
+    json_t *j_next = json_object_get(json, "next_id");
+    if (json_is_integer(j_next))
+        history->next_id = (int)json_integer_value(j_next);
+
+    json_t *records_arr = json_object_get(json, "records");
+    if (json_is_array(records_arr)) {
+        size_t idx;
+        json_t *entry;
+        json_array_foreach(records_arr, idx, entry) {
+            olc_commit_record_t *record = commit_record_deserialize(entry);
+            if (record)
+                list_appendlink(history->records, record);
+        }
+    }
+
+    history->is_dirty = false;
+    return history;
+}
