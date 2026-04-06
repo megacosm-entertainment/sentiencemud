@@ -16,7 +16,9 @@
 #include "gmcp_sentience.h"
 #include "protocol.h"
 #include "editors/common/olc_changeset.h"
+#include "editors/common/olc_commands.h"
 #include "editors/common/olc_editor.h"
+#include "editors/common/olc_field_handlers.h"
 #include "editors/common/olc_staged.h"
 #include "editors/common/olc_display.h"
 
@@ -490,11 +492,68 @@ static void handle_editor_set(descriptor_t *d, json_t *payload)
         return;
     }
 
-    /* Determine field type from JSON value type */
+    /* Determine field type from field path, then JSON value type */
     olc_field_type_t ftype = OLC_FIELD_STRING;
-    if (json_is_integer(value))      ftype = OLC_FIELD_INT;
-    else if (json_is_boolean(value)) ftype = OLC_FIELD_BOOL;
-    else if (json_is_array(value))   ftype = OLC_FIELD_MULTIFLAGS;
+    bool is_list_op = false;
+
+    /* Check for list operation suffix */
+    size_t flen = strlen(field);
+    if (flen > 4 && strcmp(field + flen - 4, "/add") == 0) {
+        ftype = OLC_FIELD_LIST_ADD;
+        is_list_op = true;
+    } else if (flen > 3 && strcmp(field + flen - 3, "/rm") == 0) {
+        ftype = OLC_FIELD_LIST_REMOVE;
+        is_list_op = true;
+    } else if (strncmp(field, "typedata/", 9) == 0) {
+        ftype = OLC_FIELD_TYPE_DATA;
+    } else if (json_is_integer(value)) {
+        ftype = OLC_FIELD_INT;
+    } else if (json_is_boolean(value)) {
+        ftype = OLC_FIELD_BOOL;
+    } else if (json_is_array(value)) {
+        ftype = OLC_FIELD_MULTIFLAGS;
+    } else if (json_is_object(value)) {
+        /* Classify as embedded only for known embedded fields */
+        static const char *embedded_fields[] = { "lock", "waypoints", NULL };
+        for (int i = 0; embedded_fields[i]; i++) {
+            if (strcmp(field, embedded_fields[i]) == 0) {
+                ftype = OLC_FIELD_EMBEDDED;
+                break;
+            }
+        }
+    }
+
+    if (is_list_op) {
+        /* Strip the operation suffix to get the list name */
+        char list_name[MIL];
+        strlcpy(list_name, field, sizeof(list_name));
+        char *slash = strrchr(list_name, '/');
+        if (slash) *slash = '\0';
+
+        olc_pending_change_t *result = NULL;
+        if (ftype == OLC_FIELD_LIST_ADD) {
+            result = olc_stage_list_add(cs, list_name, value);
+        } else if (ftype == OLC_FIELD_LIST_REMOVE) {
+            json_t *index_obj = json_object_get(value, "index");
+            if (!json_is_integer(index_obj)) {
+                gmcp_editor_send_error(d, entity_id, field,
+                    "invalid_request", "Missing or invalid 'index' for list remove.");
+                return;
+            }
+            int index = (int)json_integer_value(index_obj);
+            result = olc_stage_list_remove(cs, list_name, index, NULL);
+        }
+
+        if (result) {
+            const char *type_str = (ftype == OLC_FIELD_LIST_ADD) ? "list_add" : "list_remove";
+            gmcp_editor_send_field(d, entity_id, result->field_path,
+                result->new_value, type_str, true);
+        } else {
+            gmcp_editor_send_error(d, entity_id, field,
+                "staging_failed", "Failed to stage list operation.");
+        }
+        return;
+    }
 
     /* Get current live value for old_value if this is the first edit */
     json_t *old_value = NULL;
@@ -587,10 +646,14 @@ static void handle_editor_revert(descriptor_t *d, json_t *payload)
     if (!cs) return;
 
     if (field) {
-        if (!olc_changeset_revert_field(cs, field)) {
-            gmcp_editor_send_error(d, entity_id, field,
-                "not_found", "No pending change for this field.");
-            return;
+        bool reverted = olc_changeset_revert_field(cs, field);
+        if (!reverted) {
+            int prefix_removed = olc_changeset_revert_prefix(cs, field);
+            if (prefix_removed == 0) {
+                gmcp_editor_send_error(d, entity_id, field,
+                    "not_found", "No pending change for this field.");
+                return;
+            }
         }
     } else {
         if (olc_changeset_count(cs) == 0) {

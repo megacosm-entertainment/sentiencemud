@@ -205,6 +205,38 @@ static void format_json_brief(char *buf, size_t bufsz, json_t *val)
     }
 }
 
+/**
+ * Display grouped summary for list operations under a given prefix.
+ */
+static void display_list_group(CHAR_DATA *ch, olc_changeset_t *cs,
+    const char *prefix)
+{
+    int add_count = 0, rm_count = 0;
+    char add_prefix[MIL], rm_prefix[MIL];
+    snprintf(add_prefix, sizeof(add_prefix), "%s/add:", prefix);
+    snprintf(rm_prefix, sizeof(rm_prefix), "%s/rm:", prefix);
+    size_t add_len = strlen(add_prefix);
+    size_t rm_len = strlen(rm_prefix);
+
+    ITERATOR it;
+    iterator_start(&it, cs->changes);
+    olc_pending_change_t *change;
+    while ((change = iterator_nextdata(&it)) != NULL) {
+        if (strncmp(change->field_path, add_prefix, add_len) == 0)
+            add_count++;
+        else if (strncmp(change->field_path, rm_prefix, rm_len) == 0)
+            rm_count++;
+    }
+    iterator_stop(&it);
+
+    if (add_count > 0)
+        printf_to_char(ch, " {Y%-24s{x %-8s %-20s {G+%d added{x\n\r",
+            prefix, "list", "", add_count);
+    if (rm_count > 0)
+        printf_to_char(ch, " {Y%-24s{x %-8s %-20s {R-%d removed{x\n\r",
+            prefix, "list", "", rm_count);
+}
+
 void olc_staged_cmd_pending(CHAR_DATA *ch, const OLC_EDITOR_DEF *def,
     void *pEdit)
 {
@@ -220,10 +252,43 @@ void olc_staged_cmd_pending(CHAR_DATA *ch, const OLC_EDITOR_DEF *def,
     printf_to_char(ch, "{D%.73s{x\n\r",
         "-------------------------------------------------------------------------");
 
+    /* Track displayed list prefixes to avoid duplicates */
+    char seen_prefixes[20][MIL];
+    int seen_count = 0;
+
     ITERATOR it;
     iterator_start(&it, cs->changes);
     olc_pending_change_t *change;
     while ((change = (olc_pending_change_t *)iterator_nextdata(&it)) != NULL) {
+        /* Check if this is a list operation */
+        const char *add_sep = strstr(change->field_path, "/add:");
+        const char *rm_sep = strstr(change->field_path, "/rm:");
+        if (add_sep || rm_sep) {
+            /* Extract prefix */
+            char prefix[MIL];
+            const char *sep = add_sep ? add_sep : rm_sep;
+            size_t plen = (size_t)(sep - change->field_path);
+            if (plen >= sizeof(prefix)) plen = sizeof(prefix) - 1;
+            memcpy(prefix, change->field_path, plen);
+            prefix[plen] = '\0';
+
+            /* Check if already displayed */
+            bool already_seen = false;
+            for (int i = 0; i < seen_count; i++) {
+                if (strcmp(seen_prefixes[i], prefix) == 0) {
+                    already_seen = true;
+                    break;
+                }
+            }
+            if (!already_seen && seen_count < 20) {
+                strlcpy(seen_prefixes[seen_count], prefix, MIL);
+                seen_count++;
+                display_list_group(ch, cs, prefix);
+            }
+            continue;
+        }
+
+        /* Non-list: display as before */
         char old_buf[64], new_buf[64];
         format_json_brief(old_buf, sizeof(old_buf), change->old_value);
         format_json_brief(new_buf, sizeof(new_buf), change->new_value);
@@ -262,8 +327,14 @@ void olc_staged_cmd_revert(CHAR_DATA *ch, const OLC_EDITOR_DEF *def,
         if (olc_changeset_revert_field(cs, argument)) {
             printf_to_char(ch, "{G[REVERTED]{x Change to '%s' discarded.\n\r", argument);
         } else {
-            printf_to_char(ch, "No pending change for '%s'.\n\r", argument);
-            return;
+            int prefix_removed = olc_changeset_revert_prefix(cs, argument);
+            if (prefix_removed > 0) {
+                printf_to_char(ch, "{G[REVERTED]{x %d change%s to '%s' discarded.\n\r",
+                    prefix_removed, prefix_removed == 1 ? "" : "s", argument);
+            } else {
+                printf_to_char(ch, "No pending change for '%s'.\n\r", argument);
+                return;
+            }
         }
     }
 
