@@ -5,11 +5,13 @@
 
 #include "olc_commit_history.h"
 #include "../../merc.h"
+#include "../../olc.h"
 #include "../../tables.h"
 #include "../../log.h"
 #include "../../io/cache/redis_cache.h"
 #include <string.h>
 #include <sys/stat.h>
+#include <unistd.h>
 
 int olc_next_group_id = 1;
 
@@ -328,4 +330,192 @@ olc_commit_history_t *olc_commit_history_deserialize(json_t *json)
 
     history->is_dirty = false;
     return history;
+}
+
+/* --- Persistence helpers --- */
+
+static const char *editor_type_dir_name(int editor_type)
+{
+    switch (editor_type) {
+        case ED_AREA:   return "area";
+        case ED_ROOM:   return "room";
+        case ED_OBJECT: return "object";
+        case ED_MOBILE: return "mobile";
+        default:        return "unknown";
+    }
+}
+
+static void ensure_history_dir(int editor_type)
+{
+    char path[256];
+    snprintf(path, sizeof(path), "%shistory", DATA_DIR);
+    mkdir(path, 0755);
+    snprintf(path, sizeof(path), "%shistory/%s", DATA_DIR, editor_type_dir_name(editor_type));
+    mkdir(path, 0755);
+}
+
+static const char *history_disk_path(int editor_type, WNUM_LOAD wnum)
+{
+    static char path[256];
+    snprintf(path, sizeof(path), "%shistory/%s/%ld_%ld.json",
+        DATA_DIR, editor_type_dir_name(editor_type), wnum.auid, wnum.vnum);
+    return path;
+}
+
+static const char *history_redis_key(int editor_type, WNUM_LOAD wnum)
+{
+    static char key[128];
+    snprintf(key, sizeof(key), "olc:history:%s:%ld:%ld",
+        editor_type_dir_name(editor_type), wnum.auid, wnum.vnum);
+    return key;
+}
+
+/* --- Disk I/O --- */
+
+static bool history_save_to_disk(olc_commit_history_t *history)
+{
+    if (!history) return false;
+
+    ensure_history_dir(history->editor_type);
+
+    json_t *json = olc_commit_history_serialize(history);
+    if (!json) return false;
+
+    const char *path = history_disk_path(history->editor_type, history->entity_wnum);
+    int result = json_dump_file(json, path, JSON_INDENT(2) | JSON_SORT_KEYS);
+    json_decref(json);
+
+    return (result == 0);
+}
+
+static olc_commit_history_t *history_load_from_disk(int editor_type, WNUM_LOAD wnum)
+{
+    const char *path = history_disk_path(editor_type, wnum);
+
+    json_error_t error;
+    json_t *json = json_load_file(path, 0, &error);
+    if (!json) return NULL;
+
+    olc_commit_history_t *history = olc_commit_history_deserialize(json);
+    json_decref(json);
+    return history;
+}
+
+/* --- Redis cache --- */
+
+static void history_cache_to_redis(olc_commit_history_t *history)
+{
+    if (!history || !redis_is_available()) return;
+
+    json_t *json = olc_commit_history_serialize(history);
+    if (!json) return;
+
+    char *json_str = json_dumps(json, JSON_COMPACT);
+    json_decref(json);
+    if (!json_str) return;
+
+    redis_cache_persist_data(
+        history_redis_key(history->editor_type, history->entity_wnum),
+        json_str);
+    free(json_str);
+}
+
+static olc_commit_history_t *history_load_from_redis(int editor_type, WNUM_LOAD wnum)
+{
+    if (!redis_is_available()) return NULL;
+
+    char *json_str = redis_get_persist_data(history_redis_key(editor_type, wnum));
+    if (!json_str) return NULL;
+
+    json_error_t error;
+    json_t *json = json_loads(json_str, 0, &error);
+    free(json_str);
+    if (!json) return NULL;
+
+    olc_commit_history_t *history = olc_commit_history_deserialize(json);
+    json_decref(json);
+    return history;
+}
+
+/* --- Public persistence API --- */
+
+olc_commit_history_t *olc_commit_history_load(int editor_type, WNUM_LOAD wnum)
+{
+    /* Try Redis first */
+    olc_commit_history_t *history = history_load_from_redis(editor_type, wnum);
+    if (history) return history;
+
+    /* Fall back to disk */
+    history = history_load_from_disk(editor_type, wnum);
+    if (history) {
+        /* Populate Redis cache */
+        history_cache_to_redis(history);
+    }
+    return history;
+}
+
+bool olc_commit_history_save(olc_commit_history_t *history)
+{
+    if (!history) return false;
+
+    bool ok = history_save_to_disk(history);
+    if (ok) {
+        history_cache_to_redis(history);
+        history->is_dirty = false;
+    }
+    return ok;
+}
+
+void olc_commit_history_delete(int editor_type, WNUM_LOAD wnum)
+{
+    const char *path = history_disk_path(editor_type, wnum);
+    unlink(path);
+
+    if (redis_is_available())
+        redis_delete_persist_data(history_redis_key(editor_type, wnum));
+}
+
+/* --- In-memory cache and lazy loading --- */
+
+olc_commit_history_t *olc_commit_history_get_or_load(int editor_type, WNUM_LOAD wnum)
+{
+    ensure_loaded_histories();
+
+    /* Check in-memory cache */
+    ITERATOR it;
+    iterator_start(&it, loaded_histories);
+    olc_commit_history_t *history;
+    while ((history = iterator_nextdata(&it)) != NULL) {
+        if (history->editor_type == editor_type
+            && history->entity_wnum.auid == wnum.auid
+            && history->entity_wnum.vnum == wnum.vnum) {
+            iterator_stop(&it);
+            return history;
+        }
+    }
+    iterator_stop(&it);
+
+    /* Try loading from Redis/disk */
+    history = olc_commit_history_load(editor_type, wnum);
+    if (!history) {
+        /* Create fresh */
+        history = olc_commit_history_create(editor_type, wnum);
+    }
+
+    list_addlink(loaded_histories, history);
+    return history;
+}
+
+void olc_commit_history_save_all_dirty(void)
+{
+    if (!loaded_histories) return;
+
+    ITERATOR it;
+    iterator_start(&it, loaded_histories);
+    olc_commit_history_t *history;
+    while ((history = iterator_nextdata(&it)) != NULL) {
+        if (history->is_dirty)
+            olc_commit_history_save(history);
+    }
+    iterator_stop(&it);
 }
