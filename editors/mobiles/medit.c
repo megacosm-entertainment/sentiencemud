@@ -238,6 +238,115 @@ static bool medit_apply_gold(void *entity, olc_pending_change_t *change) {
 
 OLC_FIELD_APPLY_LONG(medit_apply_move, MOB_INDEX_DATA, move)
 
+/* Level: cascade dice recalculation after apply */
+static bool medit_apply_level(void *entity, olc_pending_change_t *change) {
+    MOB_INDEX_DATA *pMob = (MOB_INDEX_DATA *)entity;
+    if (!olc_apply_generic_int16(&pMob->level, change)) return false;
+    set_mob_hitdice(pMob);
+    set_mob_damdice(pMob);
+    if (!IS_SET(pMob->act[0], ACT_MOUNT))
+        set_mob_movedice(pMob);
+    if (IS_SET(pMob->off_flags, OFF_MAGIC))
+        set_mob_manadice(pMob);
+    return true;
+}
+
+/* Spec: resolve function pointer from name string */
+static bool medit_apply_spec(void *entity, olc_pending_change_t *change) {
+    MOB_INDEX_DATA *pMob = (MOB_INDEX_DATA *)entity;
+    const char *name = json_string_value(change->new_value);
+    if (IS_NULLSTR(name) || !str_cmp(name, "none")) {
+        pMob->spec_fun = NULL;
+        return true;
+    }
+    SPEC_FUN *fn = spec_lookup(name);
+    if (!fn) return false;
+    pMob->spec_fun = fn;
+    return true;
+}
+
+OLC_FIELD_APPLY_INT16(medit_apply_start_pos,   MOB_INDEX_DATA, start_pos)
+OLC_FIELD_APPLY_INT16(medit_apply_default_pos,  MOB_INDEX_DATA, default_pos)
+
+/* Act flags: force ACT_IS_NPC after applying */
+static bool medit_apply_act(void *entity, olc_pending_change_t *change) {
+    MOB_INDEX_DATA *pMob = (MOB_INDEX_DATA *)entity;
+    json_t *arr = change->new_value;
+    if (!json_is_array(arr)) return false;
+    for (size_t i = 0; i < json_array_size(arr) && i < 2; i++) {
+        json_t *elem = json_array_get(arr, i);
+        if (json_is_integer(elem))
+            pMob->act[i] = (long)json_integer_value(elem);
+    }
+    SET_BIT(pMob->act[0], ACT_IS_NPC);
+    return true;
+}
+
+static bool medit_apply_affect(void *entity, olc_pending_change_t *change) {
+    MOB_INDEX_DATA *pMob = (MOB_INDEX_DATA *)entity;
+    json_t *arr = change->new_value;
+    if (!json_is_array(arr)) return false;
+    for (size_t i = 0; i < json_array_size(arr) && i < 2; i++) {
+        json_t *elem = json_array_get(arr, i);
+        if (json_is_integer(elem))
+            pMob->affected_by[i] = (long)json_integer_value(elem);
+    }
+    return true;
+}
+
+OLC_FIELD_APPLY_INT16(medit_apply_ac_pierce, MOB_INDEX_DATA, ac[AC_PIERCE])
+OLC_FIELD_APPLY_INT16(medit_apply_ac_bash,   MOB_INDEX_DATA, ac[AC_BASH])
+OLC_FIELD_APPLY_INT16(medit_apply_ac_slash,  MOB_INDEX_DATA, ac[AC_SLASH])
+OLC_FIELD_APPLY_INT16(medit_apply_ac_exotic, MOB_INDEX_DATA, ac[AC_EXOTIC])
+
+OLC_FIELD_APPLY_DICE(medit_apply_hitdice,  MOB_INDEX_DATA, hit)
+OLC_FIELD_APPLY_DICE(medit_apply_manadice, MOB_INDEX_DATA, mana)
+OLC_FIELD_APPLY_DICE(medit_apply_damdice,  MOB_INDEX_DATA, damage)
+
+/* Parent: resolve WNUM from string */
+static bool medit_apply_parent(void *entity, olc_pending_change_t *change) {
+    MOB_INDEX_DATA *pMob = (MOB_INDEX_DATA *)entity;
+    const char *val = json_string_value(change->new_value);
+    if (IS_NULLSTR(val) || !str_cmp(val, "none") || !str_cmp(val, "clear") || !str_cmp(val, "0")) {
+        pMob->parent_load.auid = 0;
+        pMob->parent_load.vnum = 0;
+        pMob->parent_wnum.pArea = NULL;
+        pMob->parent_wnum.vnum = 0;
+        pMob->parent = NULL;
+        pMob->parent_inherited = false;
+        return true;
+    }
+    WNUM wnum;
+    char buf[MAX_INPUT_LENGTH];
+    strlcpy(buf, val, sizeof(buf));
+    if (!parse_widevnum(buf, pMob->area, &wnum)) return false;
+    MOB_INDEX_DATA *parent = get_mob_index(wnum.pArea, wnum.vnum);
+    if (!parent || parent == pMob) return false;
+    pMob->parent_load.auid = wnum.pArea->uid;
+    pMob->parent_load.vnum = wnum.vnum;
+    pMob->parent_wnum = wnum;
+    pMob->parent = parent;
+    pMob->parent_inherited = false;
+    return true;
+}
+
+/* Serialize functions for bitvector pending display */
+static json_t *medit_serialize_act(void *entity, const char *field_path) {
+    MOB_INDEX_DATA *pMob = (MOB_INDEX_DATA *)entity;
+    json_t *arr = json_array();
+    for (int i = 0; i < 2; i++)
+        json_array_append_new(arr, json_integer(pMob->act[i]));
+    return arr;
+}
+
+static json_t *medit_serialize_affect(void *entity, const char *field_path) {
+    MOB_INDEX_DATA *pMob = (MOB_INDEX_DATA *)entity;
+    json_t *arr = json_array();
+    for (int i = 0; i < 2; i++)
+        json_array_append_new(arr, json_integer(pMob->affected_by[i]));
+    return arr;
+}
+
 static bool medit_apply_corpsevnum(void *entity, olc_pending_change_t *change) {
     MOB_INDEX_DATA *pMob = (MOB_INDEX_DATA *)entity;
     const char *val = json_string_value(change->new_value);
@@ -330,6 +439,20 @@ static const olc_field_handler_t medit_field_handlers[] = {
     { "Corpse Vnum",      OLC_FIELD_STRING,  NULL, medit_apply_corpsevnum,   NULL },
     { "Zombie Vnum",      OLC_FIELD_STRING,  NULL, medit_apply_zombievnum,   NULL },
     { "var/*",            OLC_FIELD_STRING,  NULL, medit_apply_var,          NULL },
+    { "Level",            OLC_FIELD_INT16,      NULL, medit_apply_level,        NULL },
+    { "Spec",             OLC_FIELD_STRING,     NULL, medit_apply_spec,         NULL },
+    { "Start Position",   OLC_FIELD_INT16,      NULL, medit_apply_start_pos,    NULL },
+    { "Default Position", OLC_FIELD_INT16,      NULL, medit_apply_default_pos,  NULL },
+    { "Act",              OLC_FIELD_MULTIFLAGS, medit_serialize_act, medit_apply_act, NULL },
+    { "Affected By",      OLC_FIELD_MULTIFLAGS, medit_serialize_affect, medit_apply_affect, NULL },
+    { "AC Pierce",        OLC_FIELD_INT16,      NULL, medit_apply_ac_pierce,    NULL },
+    { "AC Bash",          OLC_FIELD_INT16,      NULL, medit_apply_ac_bash,      NULL },
+    { "AC Slash",         OLC_FIELD_INT16,      NULL, medit_apply_ac_slash,     NULL },
+    { "AC Exotic",        OLC_FIELD_INT16,      NULL, medit_apply_ac_exotic,    NULL },
+    { "Hit Dice",         OLC_FIELD_EMBEDDED,   NULL, medit_apply_hitdice,      NULL },
+    { "Mana Dice",        OLC_FIELD_EMBEDDED,   NULL, medit_apply_manadice,     NULL },
+    { "Damage Dice",      OLC_FIELD_EMBEDDED,   NULL, medit_apply_damdice,      NULL },
+    { "Parent",           OLC_FIELD_STRING,     NULL, medit_apply_parent,       NULL },
     { NULL, 0, NULL, NULL, NULL }
 };
 
@@ -1318,28 +1441,47 @@ MEDIT(medit_spec)
 
     if (argument[0] == '\0')
     {
-    send_to_char("Syntax:  spec [special function]\n\r", ch);
-    return false;
+        send_to_char("Syntax:  spec [special function]\n\r", ch);
+        return false;
     }
 
+    /* Validate */
+    if (str_cmp(argument, "none") && !spec_lookup(argument)) {
+        send_to_char("MEdit: No such special function.\n\r", ch);
+        return false;
+    }
 
-    if (!str_cmp(argument, "none"))
-    {
+    /* Staged mode: stage spec name as string */
+    const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+    if (edef && edef->change_mode == OLC_CHANGE_STAGED) {
+        olc_changeset_t *cs = olc_get_active_changeset(ch, edef);
+        if (cs) {
+            if (!olc_check_staging_limits(ch, cs)) return false;
+            const char *old_name = pMob->spec_fun ? spec_name(pMob->spec_fun) : "none";
+            json_t *old_val = json_string(old_name);
+            json_t *new_val = json_string(argument);
+            olc_pending_change_t *result = olc_changeset_add_change(
+                cs, "Spec", OLC_FIELD_STRING, old_val, new_val);
+            json_decref(old_val);
+            json_decref(new_val);
+            if (result)
+                printf_to_char(ch, "{G[STAGED]{x Spec set to %s.\n\r", argument);
+            else
+                printf_to_char(ch, "Spec reverted to original value.\n\r");
+            return result != NULL;
+        }
+    }
+
+    /* Non-staged fallback */
+    if (!str_cmp(argument, "none")) {
         pMob->spec_fun = NULL;
-
         send_to_char("Spec removed.\n\r", ch);
         return true;
     }
 
-    if (spec_lookup(argument))
-    {
     pMob->spec_fun = spec_lookup(argument);
     send_to_char("Spec set.\n\r", ch);
     return true;
-    }
-
-    send_to_char("MEdit: No such special function.\n\r", ch);
-    return false;
 }
 
 MEDIT(medit_damtype)
@@ -1376,45 +1518,8 @@ MEDIT(medit_level)
 {
     MOB_INDEX_DATA *pMob;
     EDIT_MOB(ch, pMob);
-    char buf[MSL];
-
-    if (argument[0] == '\0' || !is_number(argument))
-    {
-    send_to_char("Syntax:  level [number]\n\r", ch);
-    return false;
-    }
-
-    if (atoi(argument) == 0) {
-    send_to_char("Sorry, mob levels start at 1.\n\r", ch);
-    return false;
-    }
-
-    if (atoi(argument) > MAX_MOB_SKILL_LEVEL) {
-    sprintf(buf, "Sorry, max mob level is %d.\n\r", MAX_MOB_SKILL_LEVEL);
-    return false;
-    }
-
-    pMob->level = atoi(argument);
-
-    send_to_char("Level set.\n\r", ch);
-    set_mob_hitdice(pMob);
-    send_to_char("Hit Dice set.\n\r", ch);
-    set_mob_damdice(pMob);
-    send_to_char("Damage dice set.\n\r", ch);
-
-    if (!IS_SET(pMob->act[0], ACT_MOUNT)) {
-    set_mob_movedice(pMob);
-    send_to_char("Movement dice set.\n\r", ch);
-    }
-
-    if (IS_SET(pMob->off_flags, OFF_MAGIC))
-    {
-    set_mob_manadice(pMob);
-    send_to_char("Mana dice set.\n\r", ch);
-    }
-
-    return true;
-
+    return olc_cmd_number_i16(ch, argument, "Level", NULL,
+        &pMob->level, 1, MAX_MOB_SKILL_LEVEL, NULL, NULL);
 }
 
 MEDIT(medit_desc)
@@ -1576,7 +1681,7 @@ MEDIT(medit_tags)
 MEDIT(medit_parent)
 {
     MOB_INDEX_DATA *pMob;
-    MOB_INDEX_DATA *parent;
+    MOB_INDEX_DATA *parent = NULL;
     WNUM wnum;
 
     EDIT_MOB(ch, pMob);
@@ -1587,6 +1692,63 @@ MEDIT(medit_parent)
         return false;
     }
 
+    /* Determine the value to stage/apply */
+    const char *stage_val = argument;
+
+    if (str_cmp(argument, "none") && str_cmp(argument, "clear") && str_cmp(argument, "0"))
+    {
+        /* Not a clear — validate the widevnum */
+        if (!parse_widevnum(argument, pMob->area, &wnum))
+        {
+            send_to_char("Invalid widevnum. Use vnum, #vnum, or area#vnum.\n\r", ch);
+            return false;
+        }
+
+        parent = get_mob_index(wnum.pArea, wnum.vnum);
+        if (!parent)
+        {
+            send_to_char("That parent mobile does not exist.\n\r", ch);
+            return false;
+        }
+
+        if (parent == pMob)
+        {
+            send_to_char("A mobile cannot inherit from itself.\n\r", ch);
+            return false;
+        }
+    }
+
+    /* Staged mode */
+    {
+        const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+        if (edef && edef->change_mode == OLC_CHANGE_STAGED) {
+            olc_changeset_t *cs = olc_get_active_changeset(ch, edef);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+
+                char old_buf[MAX_INPUT_LENGTH];
+                if (pMob->parent_load.auid > 0)
+                    snprintf(old_buf, sizeof(old_buf), "%ld#%ld",
+                        pMob->parent_load.auid, pMob->parent_load.vnum);
+                else
+                    strlcpy(old_buf, "none", sizeof(old_buf));
+
+                json_t *old_val = json_string(old_buf);
+                json_t *new_val = json_string(stage_val);
+                olc_pending_change_t *result = olc_changeset_add_change(
+                    cs, "Parent", OLC_FIELD_STRING, old_val, new_val);
+                json_decref(old_val);
+                json_decref(new_val);
+                if (result)
+                    printf_to_char(ch, "{G[STAGED]{x Parent set to %s.\n\r", stage_val);
+                else
+                    printf_to_char(ch, "Parent reverted to original value.\n\r");
+                return result != NULL;
+            }
+        }
+    }
+
+    /* Non-staged: apply directly */
     if (!str_cmp(argument, "none") || !str_cmp(argument, "clear") || !str_cmp(argument, "0"))
     {
         pMob->parent_load.auid = 0;
@@ -1596,25 +1758,6 @@ MEDIT(medit_parent)
         pMob->parent = NULL;
         send_to_char("Parent mobile cleared.\n\r", ch);
         return true;
-    }
-
-    if (!parse_widevnum(argument, pMob->area, &wnum))
-    {
-        send_to_char("Invalid widevnum. Use vnum, #vnum, or area#vnum.\n\r", ch);
-        return false;
-    }
-
-    parent = get_mob_index(wnum.pArea, wnum.vnum);
-    if (!parent)
-    {
-        send_to_char("That parent mobile does not exist.\n\r", ch);
-        return false;
-    }
-
-    if (parent == pMob)
-    {
-        send_to_char("A mobile cannot inherit from itself.\n\r", ch);
-        return false;
     }
 
     pMob->parent_load.auid = wnum.pArea->uid;
@@ -3003,22 +3146,29 @@ MEDIT(medit_pronounrs)
 MEDIT(medit_act)
 {
     MOB_INDEX_DATA *pMob;
-    //long value;
 
     if (argument[0] != '\0')
     {
-            EDIT_MOB(ch, pMob);
+        EDIT_MOB(ch, pMob);
 
-        long bits[2];
-        if (bitvector_lookup(argument, 2, bits, act_flags, act2_flags))
+        long bits[2] = {0};
+        if (!bitvector_lookup(argument, 2, bits, act_flags, act2_flags))
         {
-            TOGGLE_BIT(pMob->act[0], bits[0]);
-            TOGGLE_BIT(pMob->act[1], bits[1]);
-            SET_BIT(pMob->act[0], ACT_IS_NPC);	// Force on, all the time
+            send_to_char("Syntax: act [flag]\n\rType '? act' for a list of flags.\n\r", ch);
+            return false;
+        }
 
-            send_to_char("Act flag toggled.\n\r", ch);
+        /* Staged mode */
+        if (olc_stage_bitvector(ch, "Act", pMob->act, bits, 2))
             return true;
-    }
+
+        /* Non-staged fallback */
+        TOGGLE_BIT(pMob->act[0], bits[0]);
+        TOGGLE_BIT(pMob->act[1], bits[1]);
+        SET_BIT(pMob->act[0], ACT_IS_NPC);
+
+        send_to_char("Act flag toggled.\n\r", ch);
+        return true;
     }
 
     send_to_char("Syntax: act [flag]\n\r"
@@ -3029,21 +3179,26 @@ MEDIT(medit_act)
 MEDIT(medit_affect)
 {
     MOB_INDEX_DATA *pMob;
-    //int value;
 
     if (argument[0] != '\0')
     {
         EDIT_MOB(ch, pMob);
-        long bits[2];
 
-        if (bitvector_lookup(argument, 2, bits, affect_flags, affect2_flags))
+        long bits[2] = {0};
+        if (!bitvector_lookup(argument, 2, bits, affect_flags, affect2_flags))
         {
-            TOGGLE_BIT(pMob->affected_by[0], bits[0]);
-            TOGGLE_BIT(pMob->affected_by[1], bits[1]);
+            send_to_char("Syntax: affect [flag]\n\rType '? affect' for a list of flags.\n\r", ch);
+            return false;
+        }
 
-            send_to_char("Affect flag toggled.\n\r", ch);
+        if (olc_stage_bitvector(ch, "Affected By", pMob->affected_by, bits, 2))
             return true;
-    }
+
+        TOGGLE_BIT(pMob->affected_by[0], bits[0]);
+        TOGGLE_BIT(pMob->affected_by[1], bits[1]);
+
+        send_to_char("Affect flag toggled.\n\r", ch);
+        return true;
     }
 
     send_to_char("Syntax: affect [flag]\n\r"
@@ -3055,57 +3210,67 @@ MEDIT(medit_ac)
 {
     MOB_INDEX_DATA *pMob;
     char arg[MAX_INPUT_LENGTH];
-    int pierce, bash, slash, exotic;
+    int16_t values[4];
+    bool has_value[4] = {false};
 
-    do   /* So that I can use break and send the syntax in one place */
-    {
-    if (argument[0] == '\0')  break;
+    if (argument[0] == '\0') {
+        send_to_char("Syntax:  ac [ac-pierce [ac-bash [ac-slash [ac-exotic]]]]\n\r"
+            "help MOB_AC  gives a list of reasonable ac-values.\n\r", ch);
+        return false;
+    }
 
     EDIT_MOB(ch, pMob);
+
+    /* Parse first argument (pierce) — required */
     argument = one_argument(argument, arg);
+    if (!is_number(arg)) {
+        send_to_char("Syntax:  ac [ac-pierce [ac-bash [ac-slash [ac-exotic]]]]\n\r", ch);
+        return false;
+    }
+    values[0] = (int16_t)atoi(arg);
+    has_value[0] = true;
 
-    if (!is_number(arg))  break;
-    pierce = atoi(arg);
-    argument = one_argument(argument, arg);
+    /* Parse optional arguments */
+    const char *labels[4] = {"AC Pierce", "AC Bash", "AC Slash", "AC Exotic"};
+    int16_t *fields[4] = {&pMob->ac[AC_PIERCE], &pMob->ac[AC_BASH], &pMob->ac[AC_SLASH], &pMob->ac[AC_EXOTIC]};
 
-    if (arg[0] != '\0')
-    {
-        if (!is_number(arg))  break;
-        bash = atoi(arg);
+    for (int i = 1; i < 4; i++) {
         argument = one_argument(argument, arg);
+        if (arg[0] == '\0') break;
+        if (!is_number(arg)) {
+            send_to_char("Syntax:  ac [ac-pierce [ac-bash [ac-slash [ac-exotic]]]]\n\r", ch);
+            return false;
+        }
+        values[i] = (int16_t)atoi(arg);
+        has_value[i] = true;
     }
-    else
-        bash = pMob->ac[AC_BASH];
 
-    if (arg[0] != '\0')
-    {
-        if (!is_number(arg))  break;
-        slash = atoi(arg);
-        argument = one_argument(argument, arg);
+    /* Stage or apply each provided value */
+    const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+    if (edef && edef->change_mode == OLC_CHANGE_STAGED) {
+        olc_changeset_t *cs = olc_get_active_changeset(ch, edef);
+        if (cs) {
+            if (!olc_check_staging_limits(ch, cs)) return false;
+            for (int i = 0; i < 4; i++) {
+                if (!has_value[i]) continue;
+                json_t *old_j = json_integer((int)*fields[i]);
+                json_t *new_j = json_integer((int)values[i]);
+                olc_changeset_add_change(cs, labels[i], OLC_FIELD_INT16, old_j, new_j);
+                json_decref(old_j);
+                json_decref(new_j);
+            }
+            send_to_char("{G[STAGED]{x AC values staged.\n\r", ch);
+            return true;
+        }
     }
-    else
-        slash = pMob->ac[AC_SLASH];
 
-    if (arg[0] != '\0')
-    {
-        if (!is_number(arg))  break;
-        exotic = atoi(arg);
+    /* Non-staged fallback */
+    for (int i = 0; i < 4; i++) {
+        if (has_value[i])
+            *fields[i] = values[i];
     }
-    else
-        exotic = pMob->ac[AC_EXOTIC];
-
-    pMob->ac[AC_PIERCE] = pierce;
-    pMob->ac[AC_BASH]   = bash;
-    pMob->ac[AC_SLASH]  = slash;
-    pMob->ac[AC_EXOTIC] = exotic;
-
     send_to_char("Ac set.\n\r", ch);
     return true;
-    } while (false);    /* Just do it once.. */
-
-    send_to_char("Syntax:  ac [ac-pierce [ac-bash [ac-slash [ac-exotic]]]]\n\r"
-          "help MOB_AC  gives a list of reasonable ac-values.\n\r", ch);
-    return false;
 }
 
 
@@ -3190,157 +3355,38 @@ MEDIT(medit_size)
 
 MEDIT(medit_hitdice)
 {
-    static char syntax[] = "Syntax:  hitdice <number> d <type> + <bonus>\n\r";
-    char *num, *type, *bonus, *cp;
     MOB_INDEX_DATA *pMob;
-
     EDIT_MOB(ch, pMob);
 
     if (ch->tot_level < 151)
     {
-    send_to_char("You do not have permission to edit hit dice.\n\r", ch);
-    return false;
+        send_to_char("You do not have permission to edit hit dice.\n\r", ch);
+        return false;
     }
 
-    if (argument[0] == '\0')
-    {
-    send_to_char(syntax, ch);
-    return false;
-    }
-
-    num = cp = argument;
-
-    while (ISDIGIT(*cp)) ++cp;
-    while (*cp != '\0' && !ISDIGIT(*cp))  *(cp++) = '\0';
-
-    type = cp;
-
-    while (ISDIGIT(*cp)) ++cp;
-    while (*cp != '\0' && !ISDIGIT(*cp)) *(cp++) = '\0';
-
-    bonus = cp;
-
-    while (ISDIGIT(*cp)) ++cp;
-    if (*cp != '\0') *cp = '\0';
-
-    if ((!is_number(num  ) || atoi(num  ) < 1)
-    ||   (!is_number(type ) || atoi(type ) < 1)
-    ||   (!is_number(bonus) || atoi(bonus) < 0))
-    {
-    send_to_char(syntax, ch);
-    return false;
-    }
-
-    pMob->hit.number = atoi(num  );
-    pMob->hit.size   = atoi(type );
-    pMob->hit.bonus  = atoi(bonus);
-
-    send_to_char("Hitdice set.\n\r", ch);
-    return true;
+    return olc_cmd_dice(ch, argument, "Hit Dice",
+        "Syntax:  hitdice <number> d <type> + <bonus>\n\r",
+        &pMob->hit, NULL, NULL);
 }
 
 
 MEDIT(medit_manadice)
 {
-    static char syntax[] = "Syntax:  manadice <number> d <type> + <bonus>\n\r";
-    char *num, *type, *bonus, *cp;
     MOB_INDEX_DATA *pMob;
-
     EDIT_MOB(ch, pMob);
-
-    if (argument[0] == '\0')
-    {
-    send_to_char(syntax, ch);
-    return false;
-    }
-
-    num = cp = argument;
-
-    while (ISDIGIT(*cp)) ++cp;
-    while (*cp != '\0' && !ISDIGIT(*cp))  *(cp++) = '\0';
-
-    type = cp;
-
-    while (ISDIGIT(*cp)) ++cp;
-    while (*cp != '\0' && !ISDIGIT(*cp)) *(cp++) = '\0';
-
-    bonus = cp;
-
-    while (ISDIGIT(*cp)) ++cp;
-    if (*cp != '\0') *cp = '\0';
-
-    if (!(is_number(num) && is_number(type) && is_number(bonus)))
-    {
-    send_to_char(syntax, ch);
-    return false;
-    }
-
-    if ((!is_number(num  ) || atoi(num  ) < 1)
-    ||   (!is_number(type ) || atoi(type ) < 1)
-    ||   (!is_number(bonus) || atoi(bonus) < 0))
-    {
-    send_to_char(syntax, ch);
-    return false;
-    }
-
-    pMob->mana.number = atoi(num  );
-    pMob->mana.size   = atoi(type );
-    pMob->mana.bonus  = atoi(bonus);
-
-    send_to_char("Manadice set.\n\r", ch);
-    return true;
+    return olc_cmd_dice(ch, argument, "Mana Dice",
+        "Syntax:  manadice <number> d <type> + <bonus>\n\r",
+        &pMob->mana, NULL, NULL);
 }
 
 
 MEDIT(medit_damdice)
 {
-    static char syntax[] = "Syntax:  damdice <number> d <type> + <bonus>\n\r";
-    char *num, *type, *bonus, *cp;
     MOB_INDEX_DATA *pMob;
-
     EDIT_MOB(ch, pMob);
-
-    if (argument[0] == '\0')
-    {
-    send_to_char(syntax, ch);
-    return false;
-    }
-
-    num = cp = argument;
-
-    while (ISDIGIT(*cp)) ++cp;
-    while (*cp != '\0' && !ISDIGIT(*cp))  *(cp++) = '\0';
-
-    type = cp;
-
-    while (ISDIGIT(*cp)) ++cp;
-    while (*cp != '\0' && !ISDIGIT(*cp)) *(cp++) = '\0';
-
-    bonus = cp;
-
-    while (ISDIGIT(*cp)) ++cp;
-    if (*cp != '\0') *cp = '\0';
-
-    if (!(is_number(num) && is_number(type) && is_number(bonus)))
-    {
-    send_to_char(syntax, ch);
-    return false;
-    }
-
-    if ((!is_number(num  ) || atoi(num  ) < 1)
-    ||   (!is_number(type ) || atoi(type ) < 1)
-    ||   (!is_number(bonus) || atoi(bonus) < 0))
-    {
-    send_to_char(syntax, ch);
-    return false;
-    }
-
-    pMob->damage.number = atoi(num  );
-    pMob->damage.size   = atoi(type );
-    pMob->damage.bonus  = atoi(bonus);
-
-    send_to_char("Damdice set.\n\r", ch);
-    return true;
+    return olc_cmd_dice(ch, argument, "Damage Dice",
+        "Syntax:  damdice <number> d <type> + <bonus>\n\r",
+        &pMob->damage, NULL, NULL);
 }
 
 
@@ -3399,42 +3445,19 @@ MEDIT(medit_position)
 {
     MOB_INDEX_DATA *pMob;
     char arg[MAX_INPUT_LENGTH];
-    int value;
 
     argument = one_argument(argument, arg);
 
-    switch (arg[0])
-    {
-    default:
-    break;
+    if (!str_prefix(arg, "start")) {
+        EDIT_MOB(ch, pMob);
+        return olc_cmd_type_set_i16(ch, argument, "Start Position", NULL,
+            &pMob->start_pos, position_flags, NULL, NULL);
+    }
 
-    case 'S':
-    case 's':
-    if (str_prefix(arg, "start"))
-        break;
-
-    if ((value = flag_value(position_flags, argument)) == NO_FLAG)
-        break;
-
-    EDIT_MOB(ch, pMob);
-
-    pMob->start_pos = value;
-    send_to_char("Start position set.\n\r", ch);
-    return true;
-
-    case 'D':
-    case 'd':
-    if (str_prefix(arg, "default"))
-        break;
-
-    if ((value = flag_value(position_flags, argument)) == NO_FLAG)
-        break;
-
-    EDIT_MOB(ch, pMob);
-
-    pMob->default_pos = value;
-    send_to_char("Default position set.\n\r", ch);
-    return true;
+    if (!str_prefix(arg, "default")) {
+        EDIT_MOB(ch, pMob);
+        return olc_cmd_type_set_i16(ch, argument, "Default Position", NULL,
+            &pMob->default_pos, position_flags, NULL, NULL);
     }
 
     send_to_char("Syntax:  position [start/default] [position]\n\r"
