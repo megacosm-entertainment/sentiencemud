@@ -224,4 +224,25 @@ bool olc_cmd_bool(CHAR_DATA *ch, char *argument, const char *label,
     const char *syntax, bool *field_ptr,
     void *ctx, olc_cmd_record_fn record_fn);
 
+/* =========================================================================
+ * Staged-Only Helpers
+ * ========================================================================= */
+
+/**
+ * Stage a multi-bank bitvector toggle.
+ *
+ * Caller has already called bitvector_lookup() to get toggle bits.
+ * This function reads current staged values, XORs toggle bits in,
+ * and stages the result as a JSON integer array.
+ *
+ * @param ch        Character making the change
+ * @param label     Field name for changeset/GMCP
+ * @param banks     Live entity bank values (array of nbanks longs)
+ * @param toggle    Toggle bits from bitvector_lookup (array of nbanks longs)
+ * @param nbanks    Number of banks
+ * @return true if change was staged (false = no-op, not staged mode, or error)
+ */
+bool olc_stage_bitvector(CHAR_DATA *ch, const char *label,
+    long *banks, long *toggle, int nbanks);
+
 #endif /* !def __OLC_COMMANDS_H__ */

@@ -633,3 +633,52 @@ bool olc_cmd_bool(CHAR_DATA *ch, char *argument, const char *label,
         label, *field_ptr ? "Yes" : "No"), ch);
     return true;
 }
+
+/* =========================================================================
+ * olc_stage_bitvector
+ * ========================================================================= */
+
+bool olc_stage_bitvector(CHAR_DATA *ch, const char *label,
+    long *banks, long *toggle, int nbanks)
+{
+    const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+    if (!edef || edef->change_mode != OLC_CHANGE_STAGED)
+        return false;
+
+    olc_changeset_t *cs = olc_get_active_changeset(ch, edef);
+    if (!cs) return false;
+    if (!olc_check_staging_limits(ch, cs)) return false;
+
+    /* Build old value: current live banks */
+    json_t *old_val = json_array();
+    for (int i = 0; i < nbanks; i++)
+        json_array_append_new(old_val, json_integer(banks[i]));
+
+    /* Compute new value: staged-current XOR toggle */
+    json_t *new_val = json_array();
+    json_t *pending = olc_staged_json(cs, label);
+    for (int i = 0; i < nbanks; i++) {
+        long current;
+        json_t *element = (pending && json_is_array(pending) && (int)json_array_size(pending) > i)
+            ? json_array_get(pending, i) : NULL;
+        if (element && json_is_integer(element))
+            current = (long)json_integer_value(element);
+        else
+            current = banks[i];
+        json_array_append_new(new_val, json_integer(current ^ toggle[i]));
+    }
+
+    olc_pending_change_t *result = olc_changeset_add_change(
+        cs, label, OLC_FIELD_MULTIFLAGS, old_val, new_val);
+    json_decref(old_val);
+    json_decref(new_val);
+
+    if (result)
+        printf_to_char(ch, "{G[STAGED]{x %s flags toggled.\n\r", label);
+    else
+        printf_to_char(ch, "%s reverted to original value.\n\r", label);
+
+    notify_field_change(cs, ch, label,
+        result ? result->new_value : json_null(), "bitvector", result != NULL);
+    return result != NULL;
+}
