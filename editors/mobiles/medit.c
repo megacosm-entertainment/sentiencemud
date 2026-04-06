@@ -39,6 +39,8 @@
 #include "../common/olc_display.h"
 #include "../common/olc_commands.h"
 #include "../common/olc_field_handlers.h"
+#include "../common/olc_staged.h"
+#include "../common/olc_changeset.h"
 #include "../../skill_data.h"
 
 /* Forward declarations for tab show functions */
@@ -208,6 +210,84 @@ static bool medit_apply_body_type(void *entity, olc_pending_change_t *change)
     return true;
 }
 
+/* Persist: use_imp_sig when enabling */
+static bool medit_apply_persist(void *entity, olc_pending_change_t *change) {
+    MOB_INDEX_DATA *pMob = (MOB_INDEX_DATA *)entity;
+    if (!olc_apply_generic_bool(&pMob->persist, change)) return false;
+    if (pMob->persist) use_imp_sig(pMob, NULL);
+    return true;
+}
+
+/* Boss: use_imp_sig when enabling */
+static bool medit_apply_boss(void *entity, olc_pending_change_t *change) {
+    MOB_INDEX_DATA *pMob = (MOB_INDEX_DATA *)entity;
+    if (!olc_apply_generic_bool(&pMob->boss, change)) return false;
+    if (pMob->boss) use_imp_sig(pMob, NULL);
+    return true;
+}
+
+OLC_FIELD_APPLY_STRING(medit_apply_sign, MOB_INDEX_DATA, sig)
+
+/* Gold: use_imp_sig on any gold change (original calls use_imp_sig unconditionally) */
+static bool medit_apply_gold(void *entity, olc_pending_change_t *change) {
+    MOB_INDEX_DATA *pMob = (MOB_INDEX_DATA *)entity;
+    if (!olc_apply_generic_long(&pMob->wealth, change)) return false;
+    use_imp_sig(pMob, NULL);
+    return true;
+}
+
+OLC_FIELD_APPLY_LONG(medit_apply_move, MOB_INDEX_DATA, move)
+
+static bool medit_apply_corpsevnum(void *entity, olc_pending_change_t *change) {
+    MOB_INDEX_DATA *pMob = (MOB_INDEX_DATA *)entity;
+    const char *val = json_string_value(change->new_value);
+    if (IS_NULLSTR(val) || !str_cmp(val, "0")) {
+        pMob->corpse_load.vnum = 0;
+        return true;
+    }
+    WNUM obj_wnum;
+    AREA_DATA *context = olc_relative_widevnum_context(pMob->area, val);
+    char buf[MAX_INPUT_LENGTH];
+    strlcpy(buf, val, sizeof(buf));
+    if (!parse_widevnum(buf, context, &obj_wnum)) return false;
+    if (!get_obj_index(obj_wnum.pArea, obj_wnum.vnum)) return false;
+    pMob->corpse_load.vnum = obj_wnum.vnum;
+    return true;
+}
+
+static bool medit_apply_zombievnum(void *entity, olc_pending_change_t *change) {
+    MOB_INDEX_DATA *pMob = (MOB_INDEX_DATA *)entity;
+    const char *val = json_string_value(change->new_value);
+    if (IS_NULLSTR(val) || !str_cmp(val, "0")) {
+        pMob->zombie_load.vnum = 0;
+        return true;
+    }
+    WNUM obj_wnum;
+    AREA_DATA *context = olc_relative_widevnum_context(pMob->area, val);
+    char buf[MAX_INPUT_LENGTH];
+    strlcpy(buf, val, sizeof(buf));
+    if (!parse_widevnum(buf, context, &obj_wnum)) return false;
+    if (!get_obj_index(obj_wnum.pArea, obj_wnum.vnum)) return false;
+    pMob->zombie_load.vnum = obj_wnum.vnum;
+    return true;
+}
+
+static bool medit_apply_var(void *entity, olc_pending_change_t *change) {
+    MOB_INDEX_DATA *pMob = (MOB_INDEX_DATA *)entity;
+    if (json_is_null(change->new_value)) {
+        const char *varname = change->field_path + 4; /* skip "var/" */
+        char buf[MAX_INPUT_LENGTH];
+        strlcpy(buf, varname, sizeof(buf));
+        return olc_varclear(&pMob->index_vars, NULL, buf, true);
+    } else {
+        const char *arg = json_string_value(change->new_value);
+        if (!arg) return false;
+        char buf[MAX_INPUT_LENGTH];
+        strlcpy(buf, arg, sizeof(buf));
+        return olc_varset(&pMob->index_vars, NULL, buf, true);
+    }
+}
+
 /*
  * Field Handler Table — maps staged field names to apply functions.
  */
@@ -242,6 +322,14 @@ static const olc_field_handler_t medit_field_handlers[] = {
     { "Script Keywords",  OLC_FIELD_STRING,    NULL, medit_apply_skeywds,       NULL },
     { "Dam Type",         OLC_FIELD_INT16,     NULL, medit_apply_dam_type,      NULL },
     { "Attacks",          OLC_FIELD_INT,       NULL, medit_apply_attacks,       NULL },
+    { "Persist",          OLC_FIELD_BOOL,    NULL, medit_apply_persist,      NULL },
+    { "Boss",             OLC_FIELD_BOOL,    NULL, medit_apply_boss,         NULL },
+    { "Signature",        OLC_FIELD_STRING,  NULL, medit_apply_sign,         NULL },
+    { "Gold",             OLC_FIELD_LONG,    NULL, medit_apply_gold,         NULL },
+    { "Movement",         OLC_FIELD_LONG,    NULL, medit_apply_move,         NULL },
+    { "Corpse Vnum",      OLC_FIELD_STRING,  NULL, medit_apply_corpsevnum,   NULL },
+    { "Zombie Vnum",      OLC_FIELD_STRING,  NULL, medit_apply_zombievnum,   NULL },
+    { "var/*",            OLC_FIELD_STRING,  NULL, medit_apply_var,          NULL },
     { NULL, 0, NULL, NULL, NULL }
 };
 
@@ -1041,25 +1129,17 @@ MEDIT(medit_persist)
 
     EDIT_MOB(ch, pMob);
 
-
-    if (!str_cmp(argument,"on")) {
-        if (!str_cmp(pMob->sig, "none") && ch->tot_level < MAX_LEVEL) {
-            send_to_char("You can't do this without an IMP's permission.\n\r", ch);
-            return false;
-        }
-
-        pMob->persist = true;
-        use_imp_sig(pMob, NULL);
-        send_to_char("Persistance enabled.\n\r", ch);
-    } else if (!str_cmp(argument,"off")) {
-        pMob->persist = false;
-        send_to_char("Persistance disabled.\n\r", ch);
-    } else {
-        send_to_char("Usage: persist on/off\n\r", ch);
+    /* IMP check only when enabling persistence */
+    bool enabling = (!str_cmp(argument, "on") || !str_cmp(argument, "yes")
+        || !str_cmp(argument, "true") || IS_NULLSTR(argument));
+    if (enabling && !str_cmp(pMob->sig, "none") && ch->tot_level < MAX_LEVEL) {
+        send_to_char("You can't do this without an IMP's permission.\n\r", ch);
         return false;
     }
 
-    return true;
+    return olc_cmd_bool(ch, argument, "Persist",
+        "Usage: persist on/off\n\r",
+        &pMob->persist, NULL, NULL);
 }
 
 MEDIT(medit_boss)
@@ -1068,24 +1148,16 @@ MEDIT(medit_boss)
 
     EDIT_MOB(ch, pMob);
 
-    if (!str_cmp(argument,"on")) {
-        if (!str_cmp(pMob->sig, "none") && ch->tot_level < MAX_LEVEL) {
-            send_to_char("You can't do this without an IMP's permission.\n\r", ch);
-            return false;
-        }
-
-        pMob->boss = true;
-        use_imp_sig(pMob, NULL);
-        send_to_char("Boss status enabled.\n\r", ch);
-    } else if (!str_cmp(argument,"off")) {
-        pMob->boss= false;
-        send_to_char("Boss status disabled.\n\r", ch);
-    } else {
-        send_to_char("Usage: boss on/off\n\r", ch);
+    bool enabling = (!str_cmp(argument, "on") || !str_cmp(argument, "yes")
+        || !str_cmp(argument, "true") || IS_NULLSTR(argument));
+    if (enabling && !str_cmp(pMob->sig, "none") && ch->tot_level < MAX_LEVEL) {
+        send_to_char("You can't do this without an IMP's permission.\n\r", ch);
         return false;
     }
 
-    return true;
+    return olc_cmd_bool(ch, argument, "Boss",
+        "Usage: boss on/off\n\r",
+        &pMob->boss, NULL, NULL);
 }
 
 MEDIT(medit_prev)
@@ -1441,18 +1513,13 @@ MEDIT(medit_sign)
 
     EDIT_MOB(ch, pMob);
 
-    if (ch->tot_level < 154)
-    {
-    send_to_char("Sorry, only immortals of level 154 and above can do that.\n\r", ch);
-    return false;
+    if (ch->tot_level < 154) {
+        send_to_char("Sorry, only immortals of level 154 and above can do that.\n\r", ch);
+        return false;
     }
 
-    free_string(pMob->sig);
-    pMob->sig = str_dup(ch->name);
-
-    send_to_char("Mobile signed.\n\r", ch);
-
-    return true;
+    return olc_cmd_string(ch, ch->name, "Signature", NULL,
+        &pMob->sig, OLC_STR_DEFAULT, NULL, NULL);
 }
 
 MEDIT(medit_skeywds)
@@ -1567,6 +1634,35 @@ MEDIT(medit_varset)
 
     EDIT_MOB(ch, pMob);
 
+    const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+    if (edef && edef->change_mode == OLC_CHANGE_STAGED) {
+        olc_changeset_t *cs = olc_get_active_changeset(ch, edef);
+        if (cs) {
+            char varname[MAX_INPUT_LENGTH - 8];
+            one_argument(argument, varname);
+            if (IS_NULLSTR(varname)) {
+                send_to_char("Syntax: varset <name> <type> <value>\n\r", ch);
+                return false;
+            }
+            char field_path[MAX_INPUT_LENGTH];
+            snprintf(field_path, sizeof(field_path), "var/%s", varname);
+
+            if (!olc_check_staging_limits(ch, cs)) return false;
+            json_t *old_val = json_null();
+            json_t *new_val = json_string(argument);
+            olc_pending_change_t *result = olc_changeset_add_change(
+                cs, field_path, OLC_FIELD_STRING, old_val, new_val);
+            json_decref(old_val);
+            json_decref(new_val);
+
+            if (result)
+                printf_to_char(ch, "{G[STAGED]{x Variable %s staged.\n\r", varname);
+            else
+                printf_to_char(ch, "Variable %s reverted.\n\r", varname);
+            return result != NULL;
+        }
+    }
+
     return olc_varset(&pMob->index_vars, ch, argument, false);
 }
 
@@ -1575,6 +1671,35 @@ MEDIT(medit_varclear)
     MOB_INDEX_DATA *pMob;
 
     EDIT_MOB(ch, pMob);
+
+    const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+    if (edef && edef->change_mode == OLC_CHANGE_STAGED) {
+        olc_changeset_t *cs = olc_get_active_changeset(ch, edef);
+        if (cs) {
+            char varname[MAX_INPUT_LENGTH - 8];
+            one_argument(argument, varname);
+            if (IS_NULLSTR(varname)) {
+                send_to_char("Syntax: varclear <name>\n\r", ch);
+                return false;
+            }
+            char field_path[MAX_INPUT_LENGTH];
+            snprintf(field_path, sizeof(field_path), "var/%s", varname);
+
+            if (!olc_check_staging_limits(ch, cs)) return false;
+            json_t *old_val = json_null();
+            json_t *new_val = json_null();
+            olc_pending_change_t *result = olc_changeset_add_change(
+                cs, field_path, OLC_FIELD_STRING, old_val, new_val);
+            json_decref(old_val);
+            json_decref(new_val);
+
+            if (result)
+                printf_to_char(ch, "{G[STAGED]{x Variable %s clear staged.\n\r", varname);
+            else
+                printf_to_char(ch, "Variable %s reverted.\n\r", varname);
+            return result != NULL;
+        }
+    }
 
     return olc_varclear(&pMob->index_vars, ch, argument, false);
 }
@@ -1594,15 +1719,52 @@ MEDIT(medit_corpsevnum)
 
     EDIT_MOB(ch, pMob);
 
-    if (argument[0] == '\0')
-    {
+    if (argument[0] == '\0') {
         send_to_char("Syntax: corpsevnum [widevnum] (0 to clear)\n\r", ch);
         return false;
     }
 
-    if (!str_cmp(argument, "0"))
+    /* Validate before staging */
+    if (str_cmp(argument, "0")) {
+        WNUM obj_wnum;
+        AREA_DATA *context = olc_relative_widevnum_context(pMob->area, argument);
+        if (!parse_widevnum(argument, context, &obj_wnum)) {
+            send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
+            return false;
+        }
+        if (!get_obj_index(obj_wnum.pArea, obj_wnum.vnum)) {
+            send_to_char("Object does not exist.\n\r", ch);
+            return false;
+        }
+    }
+
+    /* Staged mode */
     {
-        send_to_char("Corpse object cleared.\n\r",ch);
+        const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+        if (edef && edef->change_mode == OLC_CHANGE_STAGED) {
+            olc_changeset_t *cs = olc_get_active_changeset(ch, edef);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                char old_buf[32];
+                snprintf(old_buf, sizeof(old_buf), "%ld", pMob->corpse_load.vnum);
+                json_t *old_val = json_string(old_buf);
+                json_t *new_val = json_string(argument);
+                olc_pending_change_t *result = olc_changeset_add_change(
+                    cs, "Corpse Vnum", OLC_FIELD_STRING, old_val, new_val);
+                json_decref(old_val);
+                json_decref(new_val);
+                if (result)
+                    printf_to_char(ch, "{G[STAGED]{x Corpse vnum set to %s.\n\r", argument);
+                else
+                    printf_to_char(ch, "Corpse vnum reverted to original value.\n\r");
+                return result != NULL;
+            }
+        }
+    }
+
+    /* Non-staged fallback (existing behavior) */
+    if (!str_cmp(argument, "0")) {
+        send_to_char("Corpse object cleared.\n\r", ch);
         pMob->corpse_load.vnum = 0;
         return true;
     }
@@ -1613,13 +1775,11 @@ MEDIT(medit_corpsevnum)
         send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
         return false;
     }
-
-    if(!get_obj_index(obj_wnum.pArea, obj_wnum.vnum)) {
-        send_to_char("Object does not exist.\n\r",ch);
+    if (!get_obj_index(obj_wnum.pArea, obj_wnum.vnum)) {
+        send_to_char("Object does not exist.\n\r", ch);
         return false;
     }
-
-    send_to_char("Corpse object vnum set.\n\r",ch);
+    send_to_char("Corpse object vnum set.\n\r", ch);
     pMob->corpse_load.vnum = obj_wnum.vnum;
     return true;
 }
@@ -1630,15 +1790,52 @@ MEDIT(medit_zombievnum)
 
     EDIT_MOB(ch, pMob);
 
-    if (argument[0] == '\0')
-    {
+    if (argument[0] == '\0') {
         send_to_char("Syntax: zombievnum [widevnum] (0 to clear)\n\r", ch);
         return false;
     }
 
-    if (!str_cmp(argument, "0"))
+    /* Validate before staging */
+    if (str_cmp(argument, "0")) {
+        WNUM obj_wnum;
+        AREA_DATA *context = olc_relative_widevnum_context(pMob->area, argument);
+        if (!parse_widevnum(argument, context, &obj_wnum)) {
+            send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
+            return false;
+        }
+        if (!get_obj_index(obj_wnum.pArea, obj_wnum.vnum)) {
+            send_to_char("Object does not exist.\n\r", ch);
+            return false;
+        }
+    }
+
+    /* Staged mode */
     {
-        send_to_char("Zombie corpse object cleared.\n\r",ch);
+        const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+        if (edef && edef->change_mode == OLC_CHANGE_STAGED) {
+            olc_changeset_t *cs = olc_get_active_changeset(ch, edef);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                char old_buf[32];
+                snprintf(old_buf, sizeof(old_buf), "%ld", pMob->zombie_load.vnum);
+                json_t *old_val = json_string(old_buf);
+                json_t *new_val = json_string(argument);
+                olc_pending_change_t *result = olc_changeset_add_change(
+                    cs, "Zombie Vnum", OLC_FIELD_STRING, old_val, new_val);
+                json_decref(old_val);
+                json_decref(new_val);
+                if (result)
+                    printf_to_char(ch, "{G[STAGED]{x Zombie vnum set to %s.\n\r", argument);
+                else
+                    printf_to_char(ch, "Zombie vnum reverted to original value.\n\r");
+                return result != NULL;
+            }
+        }
+    }
+
+    /* Non-staged fallback (existing behavior) */
+    if (!str_cmp(argument, "0")) {
+        send_to_char("Zombie corpse object cleared.\n\r", ch);
         pMob->zombie_load.vnum = 0;
         return true;
     }
@@ -1649,13 +1846,11 @@ MEDIT(medit_zombievnum)
         send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
         return false;
     }
-
-    if(!get_obj_index(obj_wnum.pArea, obj_wnum.vnum)) {
-        send_to_char("Object does not exist.\n\r",ch);
+    if (!get_obj_index(obj_wnum.pArea, obj_wnum.vnum)) {
+        send_to_char("Object does not exist.\n\r", ch);
         return false;
     }
-
-    send_to_char("Zombie corpse object set.\n\r",ch);
+    send_to_char("Zombie corpse object set.\n\r", ch);
     pMob->zombie_load.vnum = obj_wnum.vnum;
     return true;
 }
@@ -3253,46 +3448,27 @@ MEDIT(medit_movedice)
     MOB_INDEX_DATA *pMob;
 
     EDIT_MOB(ch, pMob);
-
-    if (argument[0] == '\0' || !is_number(argument))
-    {
-    send_to_char("Syntax:  move [number]\n\r", ch);
-    return false;
-    }
-
-    pMob->move = atoi(argument);
-
-    send_to_char("Movement set.\n\r", ch);
-    return true;
+    return olc_cmd_long(ch, argument, "Movement", NULL,
+        &pMob->move, 0, LONG_MAX, NULL, NULL);
 }
 
 
 MEDIT(medit_gold)
 {
     MOB_INDEX_DATA *pMob;
-    long value;
 
     EDIT_MOB(ch, pMob);
 
-    if (argument[0] == '\0' || !is_number(argument))
-    {
-    send_to_char("Syntax:  wealth [number]\n\r", ch);
-    return false;
+    if (!IS_NULLSTR(argument) && is_number(argument)) {
+        long value = atol(argument);
+        if (value > 1000 && !has_imp_sig(pMob, NULL)) {
+            send_to_char("Sorry, that's too much. Have an IMP sign this mob if you want to set that much gold.\n\r", ch);
+            return false;
+        }
     }
 
-    value = atol(argument);
-
-    if (value > 1000 && !has_imp_sig(pMob, NULL))
-    {
-    send_to_char("Sorry, that's too much. Have an IMP sign this mob if you want to set that much gold.\n\r", ch);
-    return false;
-    }
-
-    pMob->wealth = value;
-    use_imp_sig(pMob, NULL);
-
-    send_to_char("Wealth set.\n\r", ch);
-    return true;
+    return olc_cmd_long(ch, argument, "Gold", NULL,
+        &pMob->wealth, 0, LONG_MAX, NULL, NULL);
 }
 
 
