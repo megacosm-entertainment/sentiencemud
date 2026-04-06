@@ -1098,6 +1098,63 @@ static test_result_t test_olccs_draft_save_load(test_case_t *test)
     return TEST_SUCCESS;
 }
 
+static test_result_t test_olccs_apply_long(test_case_t *test)
+{
+    long field = 500;
+    olc_pending_change_t change = {
+        .field_path = "Cost",
+        .field_type = OLC_FIELD_LONG,
+        .old_value = json_integer(500),
+        .new_value = json_integer(99999)
+    };
+    TEST_ASSERT_TRUE(olc_apply_generic_long(&field, &change));
+    TEST_ASSERT_TRUE(field == 99999);
+    json_decref(change.old_value);
+    json_decref(change.new_value);
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_olccs_apply_dice(test_case_t *test)
+{
+    DICE_DATA dice = { .number = 1, .size = 6, .bonus = 0 };
+    json_t *new_val = json_pack("{s:i, s:i, s:i}", "number", 10, "size", 8, "bonus", 200);
+    olc_pending_change_t change = {
+        .field_path = "Hit Dice",
+        .field_type = OLC_FIELD_EMBEDDED,
+        .old_value = json_null(),
+        .new_value = new_val
+    };
+    TEST_ASSERT_TRUE(olc_apply_generic_dice(&dice, &change));
+    TEST_ASSERT_INT_EQ(dice.number, 10);
+    TEST_ASSERT_INT_EQ(dice.size, 8);
+    TEST_ASSERT_INT_EQ(dice.bonus, 200);
+    json_decref(new_val);
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_olccs_long_roundtrip(test_case_t *test)
+{
+    WNUM_LOAD wl = { .auid = 1, .vnum = 100 };
+    olc_changeset_t *cs = olc_changeset_create(ED_OBJECT, wl, "Test Obj", "tester");
+    json_t *old_v = json_integer(0);
+    json_t *new_v = json_integer(2000000000L);
+    olc_changeset_add_change(cs, "Cost", OLC_FIELD_LONG, old_v, new_v);
+    json_decref(old_v);
+    json_decref(new_v);
+
+    json_t *j = olc_changeset_serialize(cs);
+    olc_changeset_t *cs2 = olc_changeset_deserialize(j);
+    json_decref(j);
+
+    olc_pending_change_t *ch = olc_changeset_find_change(cs2, "Cost");
+    TEST_ASSERT_NOT_NULL(ch);
+    TEST_ASSERT_TRUE(json_integer_value(ch->new_value) == 2000000000L);
+
+    olc_changeset_destroy(cs);
+    olc_changeset_destroy(cs2);
+    return TEST_SUCCESS;
+}
+
 /*
  * Test dispatcher — routes test_type to specific test functions.
  */
@@ -1171,6 +1228,12 @@ test_result_t run_olc_changeset_test_case(test_case_t *test)
         return test_olccs_draft_save_load(test);
     if (strcmp(test->test_type, "olccs_commit_all_types") == 0)
         return test_olccs_commit_all_types(test);
+    if (strcmp(test->test_type, "olccs_apply_long") == 0)
+        return test_olccs_apply_long(test);
+    if (strcmp(test->test_type, "olccs_apply_dice") == 0)
+        return test_olccs_apply_dice(test);
+    if (strcmp(test->test_type, "olccs_long_roundtrip") == 0)
+        return test_olccs_long_roundtrip(test);
 
     log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
                   "Unknown OLC changeset test type: %s", test->test_type);

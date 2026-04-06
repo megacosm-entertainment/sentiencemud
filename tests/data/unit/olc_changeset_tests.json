@@ -274,6 +274,30 @@
       "expected_result": "PASS",
       "input": {},
       "expected_output": {}
+    },
+    {
+      "name": "olccs_apply_long",
+      "test_type": "olccs_apply_long",
+      "description": "Generic long apply from JSON integer",
+      "expected_result": "PASS",
+      "input": {},
+      "expected_output": {}
+    },
+    {
+      "name": "olccs_apply_dice",
+      "test_type": "olccs_apply_dice",
+      "description": "Generic dice apply from JSON object with number/size/bonus",
+      "expected_result": "PASS",
+      "input": {},
+      "expected_output": {}
+    },
+    {
+      "name": "olccs_long_roundtrip",
+      "test_type": "olccs_long_roundtrip",
+      "description": "Long field value survives changeset serialize/deserialize roundtrip",
+      "expected_result": "PASS",
+      "input": {},
+      "expected_output": {}
     }
   ]
 }
