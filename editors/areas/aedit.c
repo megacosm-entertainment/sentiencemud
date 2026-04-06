@@ -129,6 +129,8 @@ OLC_FIELD_APPLY_STRING(aedit_apply_notes,       AREA_DATA, notes)
 OLC_FIELD_APPLY_INT   (aedit_apply_repop,       AREA_DATA, repop)
 OLC_FIELD_APPLY_STRING(aedit_apply_credits,     AREA_DATA, credits)
 OLC_FIELD_APPLY_INT16 (aedit_apply_age,         AREA_DATA, age)
+OLC_FIELD_APPLY_INT   (aedit_apply_security,    AREA_DATA, security)
+OLC_FIELD_APPLY_STRING(aedit_apply_topic,        AREA_DATA, area_topic)
 
 static const olc_field_handler_t aedit_field_handlers[] = {
     { "Area Flags",        OLC_FIELD_FLAGS,     NULL, aedit_apply_area_flags,  NULL },
@@ -145,6 +147,8 @@ static const olc_field_handler_t aedit_field_handlers[] = {
     { "Repop Time",        OLC_FIELD_INT,       NULL, aedit_apply_repop,       NULL },
     { "Credits",           OLC_FIELD_STRING,     NULL, aedit_apply_credits,     NULL },
     { "Age",               OLC_FIELD_INT16,      NULL, aedit_apply_age,         NULL },
+    { "Security",          OLC_FIELD_INT,        NULL, aedit_apply_security,    NULL },
+    { "Topic",             OLC_FIELD_STRING,     NULL, aedit_apply_topic,       NULL },
     { NULL, 0, NULL, NULL, NULL }
 };
 
@@ -1262,23 +1266,10 @@ AEDIT(aedit_regions)
 AEDIT(aedit_topic)
 {
     AREA_DATA *pArea;
-
     EDIT_AREA(ch, pArea);
 
-    if (IS_NULLSTR(argument))
-    {
-        send_to_char("Syntax: topic <topic|clear>\n\r", ch);
-        return false;
-    }
-
-    free_string(pArea->area_topic);
-    if (!str_prefix(argument, "clear"))
-        pArea->area_topic = str_dup("");
-    else
-        pArea->area_topic = str_dup(argument);
-
-    send_to_char("Area topic changed.\n\r", ch);
-    return true;
+    return olc_cmd_string(ch, argument, "Topic", NULL,
+        &pArea->area_topic, OLC_STR_CLEARABLE, NULL, NULL);
 }
 
 
@@ -1542,37 +1533,32 @@ AEDIT(aedit_security)
 {
     AREA_DATA *pArea;
     char sec[MAX_STRING_LENGTH];
-    char buf[MAX_STRING_LENGTH];
-    int  value;
+    int value;
 
     EDIT_AREA(ch, pArea);
 
     one_argument(argument, sec);
 
-    if (!is_number(sec) || sec[0] == '\0')
-    {
-    send_to_char("Syntax:  security [#xlevel]\n\r", ch);
-    return false;
+    if (!is_number(sec) || sec[0] == '\0') {
+        send_to_char("Syntax:  security [#xlevel]\n\r", ch);
+        return false;
     }
 
     value = atoi(sec);
 
-    if (value > ch->pcdata->security || value < 0)
-    {
-    if (ch->pcdata->security != 0)
-    {
-        sprintf(buf, "Security is 0-%d.\n\r", ch->pcdata->security);
-        send_to_char(buf, ch);
-    }
-    else
-        send_to_char("Security is 0 only.\n\r", ch);
-    return false;
+    if (value > ch->pcdata->security || value < 0) {
+        if (ch->pcdata->security != 0) {
+            char buf[MAX_STRING_LENGTH];
+            sprintf(buf, "Security is 0-%d.\n\r", ch->pcdata->security);
+            send_to_char(buf, ch);
+        } else {
+            send_to_char("Security is 0 only.\n\r", ch);
+        }
+        return false;
     }
 
-    pArea->security = value;
-
-    send_to_char("Security set.\n\r", ch);
-    return true;
+    return olc_cmd_number(ch, sec, "Security", NULL,
+        &pArea->security, 0, ch->pcdata->security, NULL, NULL);
 }
 
 
