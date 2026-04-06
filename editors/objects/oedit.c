@@ -41,6 +41,8 @@
 #include "../common/olc_display.h"
 #include "../common/olc_commands.h"
 #include "../common/olc_field_handlers.h"
+#include "../common/olc_staged.h"
+#include "../common/olc_changeset.h"
 #include "../../utils/localization.h"
 #include "../../skill_data.h"
 
@@ -252,6 +254,85 @@ OLC_FIELD_APPLY_INT   (oedit_apply_timer,            OBJ_INDEX_DATA, timer)
 OLC_FIELD_APPLY_STRING(oedit_apply_short_descr,     OBJ_INDEX_DATA, short_descr)
 OLC_FIELD_APPLY_STRING(oedit_apply_long_descr,       OBJ_INDEX_DATA, description)
 OLC_FIELD_APPLY_STRING(oedit_apply_material,         OBJ_INDEX_DATA, material)
+OLC_FIELD_APPLY_LONG  (oedit_apply_cost,             OBJ_INDEX_DATA, cost)
+OLC_FIELD_APPLY_STRING(oedit_apply_sign,             OBJ_INDEX_DATA, imp_sig)
+OLC_FIELD_APPLY_FLAGS (oedit_apply_wear,             OBJ_INDEX_DATA, wear_flags)
+
+static bool oedit_apply_level(void *entity, olc_pending_change_t *change) {
+    OBJ_INDEX_DATA *pObj = (OBJ_INDEX_DATA *)entity;
+    if (!olc_apply_generic_int16(&pObj->level, change)) return false;
+    pObj->points = (int)pObj->level / 10;
+    if (pObj->item_type == ITEM_WEAPON)
+        set_weapon_dice(pObj);
+    if (pObj->item_type == ITEM_ARMOUR) {
+        int armour = (int)calc_obj_armour(pObj->level, pObj->value[4]);
+        int armour_exotic = (int)(armour * .90);
+        pObj->value[0] = armour;
+        pObj->value[1] = armour;
+        pObj->value[2] = armour;
+        pObj->value[3] = armour_exotic;
+    }
+    return true;
+}
+
+static bool oedit_apply_persist(void *entity, olc_pending_change_t *change) {
+    OBJ_INDEX_DATA *pObj = (OBJ_INDEX_DATA *)entity;
+    if (!olc_apply_generic_bool(&pObj->persist, change)) return false;
+    if (pObj->persist) use_imp_sig(NULL, pObj);
+    return true;
+}
+
+static bool oedit_apply_parent(void *entity, olc_pending_change_t *change) {
+    OBJ_INDEX_DATA *pObj = (OBJ_INDEX_DATA *)entity;
+    const char *val = json_string_value(change->new_value);
+    if (IS_NULLSTR(val) || !str_cmp(val, "none") || !str_cmp(val, "clear") || !str_cmp(val, "0")) {
+        pObj->parent_load.auid = 0;
+        pObj->parent_load.vnum = 0;
+        pObj->parent_wnum.pArea = NULL;
+        pObj->parent_wnum.vnum = 0;
+        pObj->parent = NULL;
+        pObj->parent_inherited = false;
+        return true;
+    }
+    WNUM wnum;
+    char buf[MAX_INPUT_LENGTH];
+    strlcpy(buf, val, sizeof(buf));
+    if (!parse_widevnum(buf, pObj->area, &wnum)) return false;
+    OBJ_INDEX_DATA *parent = get_obj_index(wnum.pArea, wnum.vnum);
+    if (!parent || parent == pObj) return false;
+    pObj->parent_load.auid = wnum.pArea->uid;
+    pObj->parent_load.vnum = wnum.vnum;
+    pObj->parent_wnum = wnum;
+    pObj->parent = parent;
+    pObj->parent_inherited = false;
+    return true;
+}
+
+static bool oedit_apply_fragility(void *entity, olc_pending_change_t *change) {
+    OBJ_INDEX_DATA *pObj = (OBJ_INDEX_DATA *)entity;
+    if (!olc_apply_generic_int16(&pObj->fragility, change)) return false;
+    if (pObj->fragility == OBJ_FRAGILE_SOLID) use_imp_sig(NULL, pObj);
+    return true;
+}
+
+static bool oedit_apply_var(void *entity, olc_pending_change_t *change) {
+    OBJ_INDEX_DATA *pObj = (OBJ_INDEX_DATA *)entity;
+
+    if (json_is_null(change->new_value)) {
+        /* varclear */
+        const char *varname = change->field_path + 4; /* skip "var/" */
+        char buf[MAX_INPUT_LENGTH];
+        strlcpy(buf, varname, sizeof(buf));
+        return olc_varclear(&pObj->index_vars, NULL, buf, true);
+    } else {
+        /* varset: new_value is the full argument string */
+        const char *arg = json_string_value(change->new_value);
+        if (!arg) return false;
+        char buf[MAX_INPUT_LENGTH];
+        strlcpy(buf, arg, sizeof(buf));
+        return olc_varset(&pObj->index_vars, NULL, buf, true);
+    }
+}
 
 /*
  * Field Handler Table — maps staged field names to apply functions.
@@ -272,6 +353,14 @@ static const olc_field_handler_t oedit_field_handlers[] = {
     { "Short",            OLC_FIELD_STRING,     NULL, oedit_apply_short_descr,   NULL },
     { "Long",             OLC_FIELD_STRING,     NULL, oedit_apply_long_descr,    NULL },
     { "Material",         OLC_FIELD_STRING,     NULL, oedit_apply_material,      NULL },
+    { "Cost",             OLC_FIELD_LONG,       NULL, oedit_apply_cost,          NULL },
+    { "Level",            OLC_FIELD_INT16,      NULL, oedit_apply_level,         NULL },
+    { "Persist",          OLC_FIELD_BOOL,       NULL, oedit_apply_persist,       NULL },
+    { "Signature",        OLC_FIELD_STRING,     NULL, oedit_apply_sign,          NULL },
+    { "Parent",           OLC_FIELD_STRING,     NULL, oedit_apply_parent,        NULL },
+    { "Fragility",        OLC_FIELD_INT16,      NULL, oedit_apply_fragility,     NULL },
+    { "Wear",             OLC_FIELD_FLAGS,      NULL, oedit_apply_wear,          NULL },
+    { "var/*",            OLC_FIELD_STRING,     NULL, oedit_apply_var,           NULL },
     { NULL, 0, NULL, NULL, NULL }
 };
 
@@ -1839,28 +1928,19 @@ OEDIT(oedit_lock)
 OEDIT(oedit_persist)
 {
     OBJ_INDEX_DATA *pObj;
-
     EDIT_OBJ(ch, pObj);
 
-
-    if (!str_cmp(argument,"on")) {
-        if (!str_cmp(pObj->imp_sig, "none") && ch->tot_level < MAX_LEVEL) {
-            send_to_char("You can't do this without an IMP's permission.\n\r", ch);
-            return false;
-        }
-
-        pObj->persist = true;
-        use_imp_sig(NULL, pObj);
-        send_to_char("Persistance enabled.\n\r", ch);
-    } else if (!str_cmp(argument,"off")) {
-        pObj->persist = false;
-        send_to_char("Persistance disabled.\n\r", ch);
-    } else {
-        send_to_char("Usage: persist on/off\n\r", ch);
+    /* IMP check only when enabling persistence */
+    bool enabling = (!str_cmp(argument, "on") || !str_cmp(argument, "yes")
+        || !str_cmp(argument, "true") || IS_NULLSTR(argument));
+    if (enabling && !str_cmp(pObj->imp_sig, "none") && ch->tot_level < MAX_LEVEL) {
+        send_to_char("You can't do this without an IMP's permission.\n\r", ch);
         return false;
     }
 
-    return true;
+    return olc_cmd_bool(ch, argument, "Persist",
+        "Usage: persist on/off\n\r",
+        &pObj->persist, NULL, NULL);
 }
 
 OEDIT(oedit_prev)
@@ -2029,20 +2109,16 @@ OEDIT(oedit_name)
 OEDIT(oedit_sign)
 {
     OBJ_INDEX_DATA *pObj;
-
     EDIT_OBJ(ch, pObj);
 
     if (ch->tot_level < MAX_LEVEL)
     {
-    send_to_char("This is not for you to do.\n\r" , ch);
-    return false;
+        send_to_char("This is not for you to do.\n\r" , ch);
+        return false;
     }
 
-    free_string(pObj->imp_sig);
-    pObj->imp_sig = str_dup(ch->name);
-
-    send_to_char("Object signed.\n\r", ch);
-    return true;
+    return olc_cmd_string(ch, ch->name, "Signature", NULL,
+        &pObj->imp_sig, OLC_STR_DEFAULT, NULL, NULL);
 }
 
 OEDIT(oedit_skeywds)
@@ -2080,7 +2156,7 @@ OEDIT(oedit_tags)
 OEDIT(oedit_parent)
 {
     OBJ_INDEX_DATA *pObj;
-    OBJ_INDEX_DATA *parent;
+    OBJ_INDEX_DATA *parent = NULL;
     WNUM wnum;
 
     EDIT_OBJ(ch, pObj);
@@ -2091,6 +2167,63 @@ OEDIT(oedit_parent)
         return false;
     }
 
+    /* Determine the value to stage/apply */
+    const char *stage_val = argument;
+
+    if (str_cmp(argument, "none") && str_cmp(argument, "clear") && str_cmp(argument, "0"))
+    {
+        /* Not a clear — validate the widevnum */
+        if (!parse_widevnum(argument, pObj->area, &wnum))
+        {
+            send_to_char("Invalid widevnum. Use vnum, #vnum, or area#vnum.\n\r", ch);
+            return false;
+        }
+
+        parent = get_obj_index(wnum.pArea, wnum.vnum);
+        if (!parent)
+        {
+            send_to_char("That parent object does not exist.\n\r", ch);
+            return false;
+        }
+
+        if (parent == pObj)
+        {
+            send_to_char("An object cannot inherit from itself.\n\r", ch);
+            return false;
+        }
+    }
+
+    /* Staged mode */
+    {
+        const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+        if (edef && edef->change_mode == OLC_CHANGE_STAGED) {
+            olc_changeset_t *cs = olc_get_active_changeset(ch, edef);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+
+                char old_buf[MAX_INPUT_LENGTH];
+                if (pObj->parent_load.auid > 0)
+                    snprintf(old_buf, sizeof(old_buf), "%ld#%ld",
+                        pObj->parent_load.auid, pObj->parent_load.vnum);
+                else
+                    strlcpy(old_buf, "none", sizeof(old_buf));
+
+                json_t *old_val = json_string(old_buf);
+                json_t *new_val = json_string(stage_val);
+                olc_pending_change_t *result = olc_changeset_add_change(
+                    cs, "Parent", OLC_FIELD_STRING, old_val, new_val);
+                json_decref(old_val);
+                json_decref(new_val);
+                if (result)
+                    printf_to_char(ch, "{G[STAGED]{x Parent set to %s.\n\r", stage_val);
+                else
+                    printf_to_char(ch, "Parent reverted to original value.\n\r");
+                return result != NULL;
+            }
+        }
+    }
+
+    /* Non-staged: apply directly */
     if (!str_cmp(argument, "none") || !str_cmp(argument, "clear") || !str_cmp(argument, "0"))
     {
         pObj->parent_load.auid = 0;
@@ -2100,25 +2233,6 @@ OEDIT(oedit_parent)
         pObj->parent = NULL;
         send_to_char("Parent object cleared.\n\r", ch);
         return true;
-    }
-
-    if (!parse_widevnum(argument, pObj->area, &wnum))
-    {
-        send_to_char("Invalid widevnum. Use vnum, #vnum, or area#vnum.\n\r", ch);
-        return false;
-    }
-
-    parent = get_obj_index(wnum.pArea, wnum.vnum);
-    if (!parent)
-    {
-        send_to_char("That parent object does not exist.\n\r", ch);
-        return false;
-    }
-
-    if (parent == pObj)
-    {
-        send_to_char("An object cannot inherit from itself.\n\r", ch);
-        return false;
     }
 
     pObj->parent_load.auid = wnum.pArea->uid;
@@ -2134,8 +2248,36 @@ OEDIT(oedit_parent)
 OEDIT(oedit_varset)
 {
     OBJ_INDEX_DATA *pObj;
-
     EDIT_OBJ(ch, pObj);
+
+    const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+    if (edef && edef->change_mode == OLC_CHANGE_STAGED) {
+        olc_changeset_t *cs = olc_get_active_changeset(ch, edef);
+        if (cs) {
+            char varname[MAX_INPUT_LENGTH - 8];
+            one_argument(argument, varname);
+            if (IS_NULLSTR(varname)) {
+                send_to_char("Syntax: varset <name> <type> <value>\n\r", ch);
+                return false;
+            }
+            char field_path[MAX_INPUT_LENGTH];
+            snprintf(field_path, sizeof(field_path), "var/%s", varname);
+
+            if (!olc_check_staging_limits(ch, cs)) return false;
+            json_t *old_val = json_null();
+            json_t *new_val = json_string(argument);
+            olc_pending_change_t *result = olc_changeset_add_change(
+                cs, field_path, OLC_FIELD_STRING, old_val, new_val);
+            json_decref(old_val);
+            json_decref(new_val);
+
+            if (result)
+                printf_to_char(ch, "{G[STAGED]{x Variable %s staged.\n\r", varname);
+            else
+                printf_to_char(ch, "Variable %s reverted.\n\r", varname);
+            return result != NULL;
+        }
+    }
 
     return olc_varset(&pObj->index_vars, ch, argument, false);
 }
@@ -2143,8 +2285,36 @@ OEDIT(oedit_varset)
 OEDIT(oedit_varclear)
 {
     OBJ_INDEX_DATA *pObj;
-
     EDIT_OBJ(ch, pObj);
+
+    const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+    if (edef && edef->change_mode == OLC_CHANGE_STAGED) {
+        olc_changeset_t *cs = olc_get_active_changeset(ch, edef);
+        if (cs) {
+            char varname[MAX_INPUT_LENGTH - 8];
+            one_argument(argument, varname);
+            if (IS_NULLSTR(varname)) {
+                send_to_char("Syntax: varclear <name>\n\r", ch);
+                return false;
+            }
+            char field_path[MAX_INPUT_LENGTH];
+            snprintf(field_path, sizeof(field_path), "var/%s", varname);
+
+            if (!olc_check_staging_limits(ch, cs)) return false;
+            json_t *old_val = json_null();
+            json_t *new_val = json_null();
+            olc_pending_change_t *result = olc_changeset_add_change(
+                cs, field_path, OLC_FIELD_STRING, old_val, new_val);
+            json_decref(old_val);
+            json_decref(new_val);
+
+            if (result)
+                printf_to_char(ch, "{G[STAGED]{x Variable %s clear staged.\n\r", varname);
+            else
+                printf_to_char(ch, "Variable %s reverted.\n\r", varname);
+            return result != NULL;
+        }
+    }
 
     return olc_varclear(&pObj->index_vars, ch, argument, false);
 }
@@ -2320,19 +2490,9 @@ OEDIT(oedit_weight)
 OEDIT(oedit_cost)
 {
     OBJ_INDEX_DATA *pObj;
-
     EDIT_OBJ(ch, pObj);
-
-    if (argument[0] == '\0' || !is_number(argument))
-    {
-    send_to_char("Syntax:  cost [number]\n\r", ch);
-    return false;
-    }
-
-    pObj->cost = atoi(argument);
-
-    send_to_char("Cost set.\n\r", ch);
-    return true;
+    return olc_cmd_long(ch, argument, "Cost", NULL,
+        &pObj->cost, 0, LONG_MAX, NULL, NULL);
 }
 
 
@@ -2642,13 +2802,12 @@ OEDIT(oedit_ed)
 OEDIT(oedit_extra)
 {
     OBJ_INDEX_DATA *pObj;
-    //int value;
 
     if (argument[0] != '\0')
     {
         EDIT_OBJ(ch, pObj);
-        
-        long extra[4];
+
+        long extra[4] = {0};
 
         if (!bitvector_lookup(argument, 4, extra, extra_flags, extra2_flags, extra3_flags, extra4_flags))
         {
@@ -2657,7 +2816,11 @@ OEDIT(oedit_extra)
             return false;
         }
 
-        //TOGGLE_BIT(pObj->extra_flags, value);
+        /* Staged mode */
+        if (olc_stage_bitvector(ch, "extra", pObj->extra, extra, 4))
+            return true;
+
+        /* Non-staged: toggle directly */
         TOGGLE_BIT(pObj->extra[0], extra[0]);
         TOGGLE_BIT(pObj->extra[1], extra[1]);
         TOGGLE_BIT(pObj->extra[2], extra[2]);
@@ -2665,7 +2828,6 @@ OEDIT(oedit_extra)
 
         send_to_char("Extra flag toggled.\n\r", ch);
         return true;
-    
     }
 
     send_to_char("Syntax:  extra [flag]\n\r"
@@ -2790,36 +2952,43 @@ OEDIT(oedit_wear)
     EDIT_OBJ(ch, pObj);
 
     value = flag_value(wear_flags, argument);
+    if (value == NO_FLAG) {
+        return olc_cmd_flag_toggle(ch, argument, "Wear", NULL,
+            &pObj->wear_flags, wear_flags, NULL, NULL);
+    }
 
-    wear = (pObj->wear_flags ^ value) & ~(ITEM_TAKE|ITEM_CONCEALS|ITEM_NO_SAC);
+    /* Use staged flags for accurate conflict check */
+    long current_wear = pObj->wear_flags;
+    {
+        const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+        if (edef && edef->change_mode == OLC_CHANGE_STAGED) {
+            olc_changeset_t *cs = olc_get_active_changeset(ch, edef);
+            if (cs)
+                current_wear = olc_staged_flags(cs, "Wear", pObj->wear_flags);
+        }
+    }
+
+    wear = (current_wear ^ value) & ~(ITEM_TAKE|ITEM_CONCEALS|ITEM_NO_SAC);
 
     if((wear & -wear) != wear) {
         send_to_char("You can't set an object to be worn in more than one spot at once.\n\r", ch);
         return false;
     }
 
-        if ((flag_value(wear_flags, argument) == ITEM_WEAR_BACK)
-    &&     pObj->item_type != ITEM_RANGED_WEAPON)
+    if (value == ITEM_WEAR_BACK && pObj->item_type != ITEM_RANGED_WEAPON)
     {
         send_to_char("Only ranged weapons can be slung behind the back.\n\r", ch);
         return false;
     }
 
-    if ((flag_value(wear_flags, argument) == ITEM_WEAR_SHOULDER)
-    &&     pObj->item_type != ITEM_WEAPON_CONTAINER)
+    if (value == ITEM_WEAR_SHOULDER && pObj->item_type != ITEM_WEAPON_CONTAINER)
     {
         send_to_char("Only weapon containers can be worn on the shoulder.\n\r", ch);
         return false;
     }
 
-    if ((value = flag_value(wear_flags, argument)) != NO_FLAG)
-    {
-        TOGGLE_BIT(pObj->wear_flags, value);
-
-        send_to_char("Wear flag toggled.\n\r", ch);
-
-        return true;
-    }
+    return olc_cmd_flag_toggle(ch, argument, "Wear", NULL,
+        &pObj->wear_flags, wear_flags, NULL, NULL);
     }
 
     send_to_char("Syntax:  wear [flag]\n\r"
@@ -2993,50 +3162,9 @@ OEDIT(oedit_material)
 OEDIT(oedit_level)
 {
     OBJ_INDEX_DATA *pObj;
-    char buf[MAX_STRING_LENGTH];
-    int armour;
-    int armour_exotic;
-
     EDIT_OBJ(ch, pObj);
-
-    if (argument[0] == '\0' || !is_number(argument))
-    {
-    send_to_char("Syntax:  level [number]\n\r", ch);
-    return false;
-    }
-
-    pObj->level = atoi(argument);
-
-    send_to_char("Level set.\n\r", ch);
-
-    pObj->points = (int)pObj->level/10;
-    sprintf(buf, "This object is now assigned {Y%d{x points.\n\r",
-            pObj->points);
-    send_to_char(buf, ch);
-
-    /* auto setting weapon dice stuff */
-    if (pObj->item_type == ITEM_WEAPON)
-    {
-        set_weapon_dice(pObj);
-    send_to_char("Damage dice set.\n\r", ch);
-    }
-
-
-    /* auto setting armour stuff */
-    if (pObj->item_type == ITEM_ARMOUR)
-    {
-        armour=(int) calc_obj_armour(pObj->level, pObj->value[4]);
-    armour_exotic=(int) armour * .90;
-
-    pObj->value[0] = armour;
-    pObj->value[1] = armour;
-    pObj->value[2] = armour;
-    pObj->value[3] = armour_exotic;
-
-    send_to_char("Armour class set.\n\r", ch);
-    }
-
-    return true;
+    return olc_cmd_number_i16(ch, argument, "Level", NULL,
+        &pObj->level, 0, MAX_LEVEL, NULL, NULL);
 }
 
 
@@ -3054,7 +3182,7 @@ OEDIT(oedit_condition)
 OEDIT(oedit_fragility)
 {
     OBJ_INDEX_DATA *pObj;
-    bool set = false;
+    int16_t new_val;
 
     if (argument[0] != '\0')
     {
@@ -3069,35 +3197,50 @@ OEDIT(oedit_fragility)
             "permission.\n\r", ch);
         return false;
         }
+        new_val = OBJ_FRAGILE_SOLID;
+    }
+    else if (!str_cmp(argument, "Strong"))
+        new_val = OBJ_FRAGILE_STRONG;
+    else if (!str_cmp(argument, "Normal"))
+        new_val = OBJ_FRAGILE_NORMAL;
+    else if (!str_cmp(argument, "Weak"))
+        new_val = OBJ_FRAGILE_WEAK;
+    else
+    {
+        send_to_char("Syntax:  fragility  Solid|Strong|Normal|Weak\n\r"
+            "Fragility.\n\r",
+            ch);
+        return false;
+    }
 
-        pObj->fragility = OBJ_FRAGILE_SOLID;
-        set = true;
+    /* Staged mode */
+    {
+        const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+        if (edef && edef->change_mode == OLC_CHANGE_STAGED) {
+            olc_changeset_t *cs = olc_get_active_changeset(ch, edef);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                json_t *old_j = json_integer((int)pObj->fragility);
+                json_t *new_j = json_integer((int)new_val);
+                olc_pending_change_t *result = olc_changeset_add_change(
+                    cs, "Fragility", OLC_FIELD_INT16, old_j, new_j);
+                json_decref(old_j);
+                json_decref(new_j);
+                if (result)
+                    printf_to_char(ch, "{G[STAGED]{x Fragility set to %s.\n\r", argument);
+                else
+                    printf_to_char(ch, "Fragility reverted to original value.\n\r");
+                return result != NULL;
+            }
+        }
+    }
+
+    /* Non-staged: apply directly */
+    pObj->fragility = new_val;
+    if (pObj->fragility == OBJ_FRAGILE_SOLID)
         use_imp_sig(NULL, pObj);
-    }
-
-    if (!str_cmp(argument, "Strong"))
-    {
-        pObj->fragility = OBJ_FRAGILE_STRONG;
-        set = true;
-    }
-
-    if (!str_cmp(argument, "Normal"))
-    {
-        pObj->fragility = OBJ_FRAGILE_NORMAL;
-        set = true;
-    }
-
-    if (!str_cmp(argument, "Weak"))
-    {
-        pObj->fragility = OBJ_FRAGILE_WEAK;
-        set = true;
-    }
-
-    if (set)
-    {
-        send_to_char("Fragility set.\n\r", ch);
-        return true;
-    }
+    send_to_char("Fragility set.\n\r", ch);
+    return true;
     }
 
     send_to_char("Syntax:  fragility  Solid|Strong|Normal|Weak\n\r"
