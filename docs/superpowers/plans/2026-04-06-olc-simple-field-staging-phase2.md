@@ -148,9 +148,9 @@ Validate widevnum, stage raw string. Custom apply resolves reference at commit:
 ```
 
 ### Pattern G — Variable Set/Clear
-Stage with field_path `"var:<keyname>"`. Custom apply calls `olc_varset()`/`olc_varclear()`:
+Stage with field_path `"var/<keyname>"`. Custom apply calls `olc_varset()`/`olc_varclear()`:
 ```c
-// Stage: olc_changeset_add_change(cs, "var:myvar", OLC_FIELD_STRING, old_json, new_json)
+// Stage: olc_changeset_add_change(cs, "var/myvar", OLC_FIELD_STRING, old_json, new_json)
 // Apply: olc_varset(&pEntity->index_vars, ...) at commit time
 ```
 
@@ -552,7 +552,8 @@ bool olc_cmd_dice(CHAR_DATA *ch, char *argument, const char *label,
             else
                 printf_to_char(ch, "%s reverted to original value.\n\r", label);
 
-            notify_field_change(cs, ch, label, new_val, "dice", result != NULL);
+            notify_field_change(cs, ch, label,
+                result ? result->new_value : json_null(), "dice", result != NULL);
             return result != NULL;
         }
     }
@@ -820,7 +821,7 @@ Add to `oedit_field_handlers[]` before the `{ NULL }` terminator:
     { "Wear",             OLC_FIELD_FLAGS,      NULL, oedit_apply_wear,       NULL },
 ```
 
-**Note:** `oedit_extra` already has a handler entry. `varset`/`varclear` use dynamic field paths (`"var:<key>"`) — see Step 4.
+**Note:** `oedit_extra` already has a handler entry. `varset`/`varclear` use dynamic field paths (`"var/<key>"`) — see Step 4.
 
 - [ ] **Step 3: Convert simple command functions**
 
@@ -1014,7 +1015,7 @@ OEDIT(oedit_varset) {
                 return false;
             }
             char field_path[MAX_INPUT_LENGTH];
-            snprintf(field_path, sizeof(field_path), "var:%s", varname);
+            snprintf(field_path, sizeof(field_path), "var/%s", varname);
 
             /* Stage the full argument for replay at apply time */
             json_t *old_val = json_null(); /* variable state is complex */
@@ -1038,12 +1039,12 @@ OEDIT(oedit_varset) {
 }
 ```
 
-**oedit_varclear** follows the same pattern but stages with `"var:clear:<name>"` field path or similar.
+**oedit_varclear** follows the same pattern but stages with `"var/<name>"` field path and `json_null()` as new_value (the apply function distinguishes set vs clear by checking for null).
 
 For the varset/varclear **apply functions**, add a wildcard handler entry:
 
 ```c
-{ "var:*", OLC_FIELD_STRING, NULL, oedit_apply_var, NULL },
+{ "var/*", OLC_FIELD_STRING, NULL, oedit_apply_var, NULL },
 ```
 
 The apply function replays the stored argument:
@@ -1054,12 +1055,12 @@ static bool oedit_apply_var(void *entity, olc_pending_change_t *change) {
     const char *arg = json_string_value(change->new_value);
     if (!arg) return false;
 
-    if (str_prefix("var:", change->field_path))
+    if (str_prefix("var/", change->field_path))
         return false;
 
     /* Determine if varset or varclear based on null new_value convention */
     if (json_is_null(change->new_value)) {
-        /* varclear: field_path is "var:<name>" */
+        /* varclear: field_path is "var/<name>" */
         const char *varname = change->field_path + 4;
         char buf[MAX_INPUT_LENGTH];
         strlcpy(buf, varname, sizeof(buf));
@@ -1191,7 +1192,7 @@ Add to `medit_field_handlers[]` before the `{ NULL }` terminator:
     { "Movement",         OLC_FIELD_LONG,    NULL, medit_apply_move,        NULL },
     { "Corpse Vnum",      OLC_FIELD_STRING,  NULL, medit_apply_corpsevnum,  NULL },
     { "Zombie Vnum",      OLC_FIELD_STRING,  NULL, medit_apply_zombievnum,  NULL },
-    { "var:*",            OLC_FIELD_STRING,  NULL, medit_apply_var,         NULL },
+    { "var/*",            OLC_FIELD_STRING,  NULL, medit_apply_var,         NULL },
 ```
 
 - [ ] **Step 3: Convert command functions**
@@ -1643,7 +1644,7 @@ Variable apply: same pattern as oedit/medit. **Additional note for aedit**: the 
     { "Max Vnum",         OLC_FIELD_LONG,    NULL, aedit_apply_max_vnum,    NULL },
     { "Min Level",        OLC_FIELD_INT16,   NULL, aedit_apply_min_level,   NULL },
     { "Max Level",        OLC_FIELD_INT16,   NULL, aedit_apply_max_level,   NULL },
-    { "var:*",            OLC_FIELD_STRING,  NULL, aedit_apply_var,         NULL },
+    { "var/*",            OLC_FIELD_STRING,  NULL, aedit_apply_var,         NULL },
 ```
 
 - [ ] **Step 3: Convert command functions**
@@ -1842,7 +1843,7 @@ static bool redit_apply_parent(void *entity, olc_pending_change_t *change) {
     { "Sector",           OLC_FIELD_INT,     NULL, redit_apply_sector,    NULL },
     { "Region",           OLC_FIELD_STRING,  NULL, redit_apply_region,    NULL },
     { "Parent",           OLC_FIELD_STRING,  NULL, redit_apply_parent,    NULL },
-    { "var:*",            OLC_FIELD_STRING,  NULL, redit_apply_var,       NULL },
+    { "var/*",            OLC_FIELD_STRING,  NULL, redit_apply_var,       NULL },
 ```
 
 - [ ] **Step 3: Convert command functions**
