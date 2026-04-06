@@ -249,6 +249,9 @@ OLC_FIELD_APPLY_INT16 (oedit_apply_allowed_fixed,    OBJ_INDEX_DATA, times_allow
 OLC_FIELD_APPLY_STRING(oedit_apply_description,      OBJ_INDEX_DATA, full_description)
 OLC_FIELD_APPLY_STRING(oedit_apply_comments,         OBJ_INDEX_DATA, comments)
 OLC_FIELD_APPLY_INT   (oedit_apply_timer,            OBJ_INDEX_DATA, timer)
+OLC_FIELD_APPLY_STRING(oedit_apply_short_descr,     OBJ_INDEX_DATA, short_descr)
+OLC_FIELD_APPLY_STRING(oedit_apply_long_descr,       OBJ_INDEX_DATA, description)
+OLC_FIELD_APPLY_STRING(oedit_apply_material,         OBJ_INDEX_DATA, material)
 
 /*
  * Field Handler Table — maps staged field names to apply functions.
@@ -266,6 +269,9 @@ static const olc_field_handler_t oedit_field_handlers[] = {
     { "Comments",         OLC_FIELD_MULTILINE,  NULL, oedit_apply_comments,      NULL },
     { "Timer",            OLC_FIELD_INT,        NULL, oedit_apply_timer,         NULL },
     { "extra",            OLC_FIELD_MULTIFLAGS, oedit_serialize_extra, oedit_apply_extra, NULL },
+    { "Short",            OLC_FIELD_STRING,     NULL, oedit_apply_short_descr,   NULL },
+    { "Long",             OLC_FIELD_STRING,     NULL, oedit_apply_long_descr,    NULL },
+    { "Material",         OLC_FIELD_STRING,     NULL, oedit_apply_material,      NULL },
     { NULL, 0, NULL, NULL, NULL }
 };
 
@@ -2147,45 +2153,30 @@ OEDIT(oedit_varclear)
 OEDIT(oedit_short)
 {
     OBJ_INDEX_DATA *pObj;
-
     EDIT_OBJ(ch, pObj);
 
-    if (argument[0] == '\0')
-    {
-    send_to_char("Syntax:  short [string]\n\r", ch);
-    return false;
-    }
+    if (!olc_cmd_string(ch, argument, "Short", NULL,
+            &pObj->short_descr, 0, NULL, NULL))
+        return false;
 
-    free_string(pObj->short_descr);
-    pObj->short_descr = str_dup(argument);
-
-    if (pObj->area)
-        SET_BIT(pObj->area->area_flags, AREA_CHANGED);
-
-    send_to_char("Short description set.\n\r", ch);
-
-    if (IS_SET(ch->act[0], PLR_AUTOSETNAME))
-    {
+    /* Auto-set keywords from short description (if PLR_AUTOSETNAME) */
+    if (IS_SET(ch->act[0], PLR_AUTOSETNAME)) {
         char *keywords = NULL;
         char *invalid = NULL;
-        LOCALIZATION_ERROR err = localization_short_to_keywords(pObj->short_descr, &keywords, &invalid);
+        LOCALIZATION_ERROR err = localization_short_to_keywords(argument, &keywords, &invalid);
         if (err != LOC_OK || IS_NULLSTR(keywords)) {
             send_to_char("{RNone of the short description could be applied to the name.{x\n\r", ch);
-            if (keywords) free(keywords); // Since it can't be used
+            if (keywords) free(keywords);
         } else {
-            free_string(pObj->name);
-            pObj->name = keywords;
-            send_to_char("Name keywords set.\n\r", ch);
-
-            // If there were any invalid words, tell the builder, in case they want to redo the whole name field
-            if (!IS_NULLSTR(invalid))
-            {
-                send_to_char(formatf("{RCould not apply the following words from the short to the name:{x\n\r{W%s{x\n\r",invalid), ch);
-            }
+            olc_cmd_string(ch, keywords, "Name", NULL,
+                &pObj->name, 0, NULL, NULL);
+            free(keywords);
         }
-        if (invalid) free(invalid);
+        if (invalid) {
+            printf_to_char(ch, "{DSkipped noise words: %s{x\n\r", invalid);
+            free(invalid);
+        }
     }
-    oedit_rebuild_auto_tags(pObj);
     return true;
 }
 
@@ -2193,23 +2184,21 @@ OEDIT(oedit_short)
 OEDIT(oedit_long)
 {
     OBJ_INDEX_DATA *pObj;
-
     EDIT_OBJ(ch, pObj);
 
-    if (argument[0] == '\0')
-    {
-    send_to_char("Syntax:  long [string]\n\r", ch);
-    return false;
+    if (IS_NULLSTR(argument)) {
+        send_to_char("Syntax:  long [string]\n\r", ch);
+        return false;
     }
 
-    strcat(argument, "{x");
+    /* Pre-process: uppercase first letter, append color reset */
+    char processed[MSL];
+    snprintf(processed, sizeof(processed), "%s{x", argument);
+    if (processed[0] != '\0')
+        processed[0] = UPPER(processed[0]);
 
-    free_string(pObj->description);
-    pObj->description = str_dup(argument);
-    pObj->description[0] = UPPER(pObj->description[0]);
-
-    send_to_char("Long description set.\n\r", ch);
-    return true;
+    return olc_cmd_string(ch, processed, "Long", NULL,
+        &pObj->description, 0, NULL, NULL);
 }
 
 
@@ -2977,35 +2966,27 @@ OEDIT(oedit_removetype)
 OEDIT(oedit_material)
 {
     OBJ_INDEX_DATA *pObj;
-    int num;
-    char *name;
-
     EDIT_OBJ(ch, pObj);
 
-    if (argument[0] == '\0')
-    {
-    send_to_char("Syntax:  material [string]\n\r", ch);
-    return false;
+    if (IS_NULLSTR(argument)) {
+        send_to_char("Syntax:  material [string]\n\r", ch);
+        return false;
     }
 
-    if ((num = material_lookup(argument)) == -1)
-    {
-    send_to_char("Invalid material. Type '? material.'\n\r", ch);
-    return false;
+    int num = material_lookup(argument);
+    if (num == -1) {
+        send_to_char("Invalid material. Type '? material.'\n\r", ch);
+        return false;
     }
 
-    name = material_name(num);
-    if (IS_NULLSTR(name))
-    {
-    send_to_char("Material exists but has no name; please fix it in matedit.\n\r", ch);
-    return false;
+    char *name = material_name(num);
+    if (IS_NULLSTR(name)) {
+        send_to_char("Material exists but has no name; please fix it in matedit.\n\r", ch);
+        return false;
     }
 
-    free_string(pObj->material);
-    pObj->material = str_dup(name);
-
-    send_to_char("Material set.\n\r", ch);
-    return true;
+    return olc_cmd_string(ch, name, "Material", NULL,
+        &pObj->material, 0, NULL, NULL);
 }
 
 
