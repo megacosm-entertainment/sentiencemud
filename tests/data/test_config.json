@@ -79,6 +79,7 @@
             "gmcp_sentience_unit_tests",
             "sentience_link_unit_tests",
             "olc_changeset_unit_tests",
+            "olc_commit_history_tests",
             "gmcp_editor_tests",
             "olc_schema_capture_tests"
         ],
@@ -241,6 +242,7 @@
                     "gmcp_sentience_unit_tests",
                     "sentience_link_unit_tests",
                     "olc_changeset_unit_tests",
+                    "olc_commit_history_tests",
                     "gmcp_editor_tests",
                     "olc_schema_capture_tests"
                 ],

@@ -1,0 +1,64 @@
+{
+    "type": "test_suite",
+    "test_suite": "olc_commit_history_tests",
+    "description": "Unit tests for OLC commit history data model",
+    "version": "1.0",
+    "requires_mud_environment": false,
+    "test_level": "unit",
+    "tests": [
+        {
+            "name": "olchist_create_destroy",
+            "description": "Create a history, verify all fields, then destroy it",
+            "test_type": "olchist_create_destroy",
+            "input": {},
+            "expected_output": {
+                "success": true
+            }
+        },
+        {
+            "name": "olchist_archive",
+            "description": "Archive a changeset into history and verify the commit record",
+            "test_type": "olchist_archive",
+            "input": {},
+            "expected_output": {
+                "success": true
+            }
+        },
+        {
+            "name": "olchist_eviction",
+            "description": "Verify oldest records are evicted when max_records is exceeded",
+            "test_type": "olchist_eviction",
+            "input": {},
+            "expected_output": {
+                "success": true
+            }
+        },
+        {
+            "name": "olchist_serialize_roundtrip",
+            "description": "Serialize and deserialize history, verify data integrity",
+            "test_type": "olchist_serialize_roundtrip",
+            "input": {},
+            "expected_output": {
+                "success": true
+            }
+        },
+        {
+            "name": "olchist_group_id",
+            "description": "Verify group ID is shared across multiple entity histories",
+            "test_type": "olchist_group_id",
+            "input": {},
+            "expected_output": {
+                "success": true
+            }
+        },
+        {
+            "name": "olchist_empty_changeset",
+            "description": "Verify empty changeset is not archived into history",
+            "test_type": "olchist_empty_changeset",
+            "input": {},
+            "expected_output": {
+                "success": true
+            }
+        }
+    ]
+}
