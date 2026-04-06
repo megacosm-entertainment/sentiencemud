@@ -164,6 +164,12 @@ OLC_FIELD_APPLY_STRING(medit_apply_material,            MOB_INDEX_DATA, material
 OLC_FIELD_APPLY_FLAGS (medit_apply_off_flags,           MOB_INDEX_DATA, off_flags)
 OLC_FIELD_APPLY_INT16 (medit_apply_size,                MOB_INDEX_DATA, size)
 OLC_FIELD_APPLY_INT16 (medit_apply_hitroll,             MOB_INDEX_DATA, hitroll)
+OLC_FIELD_APPLY_STRING(medit_apply_player_name,        MOB_INDEX_DATA, player_name)
+OLC_FIELD_APPLY_STRING(medit_apply_short_descr,        MOB_INDEX_DATA, short_descr)
+OLC_FIELD_APPLY_STRING(medit_apply_long_descr,         MOB_INDEX_DATA, long_descr)
+OLC_FIELD_APPLY_STRING(medit_apply_skeywds,            MOB_INDEX_DATA, skeywds)
+OLC_FIELD_APPLY_INT16 (medit_apply_dam_type,           MOB_INDEX_DATA, dam_type)
+OLC_FIELD_APPLY_INT   (medit_apply_attacks,            MOB_INDEX_DATA, attacks)
 
 /* Custom handler: body type changes also update sex and pronouns */
 static bool medit_apply_body_type(void *entity, olc_pending_change_t *change)
@@ -229,6 +235,12 @@ static const olc_field_handler_t medit_field_handlers[] = {
     { "Offensive",                      OLC_FIELD_FLAGS,     NULL, medit_apply_off_flags,      NULL },
     { "Size",                           OLC_FIELD_INT16,     NULL, medit_apply_size,           NULL },
     { "Hitroll",                        OLC_FIELD_INT16,     NULL, medit_apply_hitroll,        NULL },
+    { "Name",             OLC_FIELD_STRING,    NULL, medit_apply_player_name,   NULL },
+    { "Short",            OLC_FIELD_STRING,    NULL, medit_apply_short_descr,   NULL },
+    { "Long",             OLC_FIELD_STRING,    NULL, medit_apply_long_descr,    NULL },
+    { "Script Keywords",  OLC_FIELD_STRING,    NULL, medit_apply_skeywds,       NULL },
+    { "Dam Type",         OLC_FIELD_INT16,     NULL, medit_apply_dam_type,      NULL },
+    { "Attacks",          OLC_FIELD_INT,       NULL, medit_apply_attacks,       NULL },
     { NULL, 0, NULL, NULL, NULL }
 };
 
@@ -1108,21 +1120,21 @@ MEDIT(medit_prev)
 MEDIT(medit_attacks)
 {
     MOB_INDEX_DATA *pMob;
-    int value;
-
     EDIT_MOB(ch, pMob);
 
-
-    if (!str_prefix(argument,"scripted"))
-        value = -1;
-    else if ((value = atoi(argument)) < 0 || value > 10) {
-        send_to_char("Invalid number.\n\r", ch);
+    if (IS_NULLSTR(argument)) {
+        send_to_char("Syntax:  attacks [number|scripted]\n\r", ch);
         return false;
     }
 
-    pMob->attacks = value;
-    send_to_char("Number of attacks set.\n\r", ch);
-    return true;
+    if (!str_prefix(argument, "scripted")) {
+        char neg_one[] = "-1";
+        return olc_cmd_number(ch, neg_one, "Attacks", NULL,
+            &pMob->attacks, -1, 10, NULL, NULL);
+    }
+
+    return olc_cmd_number(ch, argument, "Attacks", NULL,
+        &pMob->attacks, 0, 10, NULL, NULL);
 }
 
 MEDIT(medit_owner)
@@ -1260,19 +1272,19 @@ MEDIT(medit_spec)
 MEDIT(medit_damtype)
 {
     MOB_INDEX_DATA *pMob;
-
     EDIT_MOB(ch, pMob);
 
-    if (argument[0] == '\0')
-    {
-    send_to_char("Syntax:  damtype [damage message]\n\r", ch);
-    send_to_char("For a list of damtypes, type '? weapon'.\n\r", ch);
-    return false;
+    if (IS_NULLSTR(argument)) {
+        send_to_char("Syntax:  damtype [damage message]\n\r"
+                     "For a list of damtypes, type '? weapon'.\n\r", ch);
+        return false;
     }
 
-    pMob->dam_type = attack_lookup(argument);
-    send_to_char("Damage type set.\n\r", ch);
-    return true;
+    int16_t val = (int16_t)attack_lookup(argument);
+    char num_buf[16];
+    snprintf(num_buf, sizeof(num_buf), "%d", val);
+    return olc_cmd_number_i16(ch, num_buf, "Dam Type", NULL,
+        &pMob->dam_type, 0, 32767, NULL, NULL);
 }
 
 MEDIT(medit_align)
@@ -1348,48 +1360,40 @@ MEDIT(medit_comments)
 MEDIT(medit_long)
 {
     MOB_INDEX_DATA *pMob;
-
     EDIT_MOB(ch, pMob);
 
-    if (argument[0] == '\0')
-    {
-    send_to_char("Syntax:  long [string]\n\r", ch);
-    return false;
+    if (IS_NULLSTR(argument)) {
+        send_to_char("Syntax:  long [string]\n\r", ch);
+        return false;
     }
 
-    free_string(pMob->long_descr);
-    strcat(argument, "{x\n\r");
-    pMob->long_descr = str_dup(argument);
-    pMob->long_descr[0] = UPPER(pMob->long_descr[0] );
+    char processed[MSL];
+    snprintf(processed, sizeof(processed), "%s{x\n\r", argument);
+    if (processed[0] != '\0')
+        processed[0] = UPPER(processed[0]);
 
-    send_to_char("Long description set.\n\r", ch);
-    return true;
+    return olc_cmd_string(ch, processed, "Long", NULL,
+        &pMob->long_descr, 0, NULL, NULL);
 }
 
 
 MEDIT(medit_short)
 {
     MOB_INDEX_DATA *pMob;
-
     EDIT_MOB(ch, pMob);
 
-    if (argument[0] == '\0')
-    {
-    send_to_char("Syntax:  short [string]\n\r", ch);
-    return false;
-    }
+    if (!olc_cmd_string(ch, argument, "Short", NULL,
+            &pMob->short_descr, 0, NULL, NULL))
+        return false;
 
-    free_string(pMob->short_descr);
-    pMob->short_descr = str_dup(argument);
-
-    send_to_char("Short description set.\n\r", ch);
-    if (IS_SET(ch->act[0], PLR_AUTOSETNAME))
-    {
-    free_string(pMob->player_name);
-    pMob->player_name = short_to_name(pMob->short_descr);
-    send_to_char("Name keywords set.\n\r", ch);
+    if (IS_SET(ch->act[0], PLR_AUTOSETNAME)) {
+        char *auto_name = short_to_name(argument);
+        if (!IS_NULLSTR(auto_name)) {
+            olc_cmd_string(ch, auto_name, "Name", NULL,
+                &pMob->player_name, 0, NULL, NULL);
+            free_string(auto_name);
+        }
     }
-    medit_rebuild_auto_tags(pMob);
     return true;
 }
 
@@ -1404,35 +1408,25 @@ MEDIT(medit_name)
 
     EDIT_MOB(ch, pMob);
 
-    if (argument[0] == '\0')
-    {
+    if (IS_NULLSTR(argument)) {
         send_to_char("Syntax:  name <text**>\n\r"
                      "** - <text> must conform to naming restrictions.\n\r", ch);
         return false;
     }
 
-    // Validate the input can be a name
     if (!olc_validate_name(ch, argument))
         return false;
 
     player_dir = resolve_game_path(PLAYER_DIR, player_dir_buf, sizeof(player_dir_buf));
     snprintf(name, sizeof(name), "%s%c/%s", player_dir, tolower(argument[0]), capitalize(argument));
-    if ((fp = fopen(name, "r")) == NULL)
-    {
-    free_string(pMob->player_name);
-    pMob->player_name = str_dup(argument);
-    medit_rebuild_auto_tags(pMob);
-
-    send_to_char("Name set.\n\r", ch);
-    }
-    else
-    {
-    send_to_char("Sorry, there is a player with that name, so you can't set it on your mob.\n\r", ch);
-    fclose(fp);
-    return false;
+    if ((fp = fopen(name, "r")) != NULL) {
+        send_to_char("Sorry, there is a player with that name, so you can't set it on your mob.\n\r", ch);
+        fclose(fp);
+        return false;
     }
 
-    return true;
+    return olc_cmd_string(ch, argument, "Name", NULL,
+        &pMob->player_name, 0, NULL, NULL);
 }
 
 
@@ -1466,29 +1460,21 @@ MEDIT(medit_skeywds)
 
     EDIT_MOB(ch, pMob);
 
-    if (argument[0] == '\0')
-    {
-    send_to_char("Syntax:  skwds [string]\n\r", ch);
-    return false;
+    if (IS_NULLSTR(argument)) {
+        send_to_char("Syntax:  skwds [string]\n\r", ch);
+        return false;
     }
 
     player_dir = resolve_game_path(PLAYER_DIR, player_dir_buf, sizeof(player_dir_buf));
     snprintf(name, sizeof(name), "%s%c/%s", player_dir, tolower(argument[0]), capitalize(argument));
-    if ((fp = fopen(name, "r")) == NULL)
-    {
-    free_string(pMob->skeywds);
-    pMob->skeywds = str_dup(argument);
-
-    send_to_char("Script keywords set.\n\r", ch);
-    }
-    else
-    {
-    send_to_char("Sorry, there is a player with that name, so you can't set it on your mob.\n\r", ch);
-    fclose(fp);
-    return false;
+    if ((fp = fopen(name, "r")) != NULL) {
+        send_to_char("Sorry, there is a player with that name, so you can't set it on your mob.\n\r", ch);
+        fclose(fp);
+        return false;
     }
 
-    return true;
+    return olc_cmd_string(ch, argument, "Script Keywords", NULL,
+        &pMob->skeywds, 0, NULL, NULL);
 }
 
 MEDIT(medit_listname)
