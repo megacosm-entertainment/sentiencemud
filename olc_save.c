@@ -21,6 +21,7 @@
 #include "scripts.h"
 #include "wilds.h"
 #include "wilderness_storage.h"
+#include "editors/common/olc_commit_history.h"
 #include "io/json/json_area.h"
 #include "io/json/json_obj_types.h"
 
@@ -133,6 +134,7 @@ void do_asave_new(CHAR_DATA *ch, char *argument)
         }
 
         wilderness_storage_save_all_now();
+        olc_commit_history_save_all_dirty();
 
         send_to_char("You saved the world.\n\r", ch);
         return;
@@ -230,6 +232,8 @@ void do_asave_new(CHAR_DATA *ch, char *argument)
 
         if (!str_cmp(buf, "None.\n\r"))
             send_to_char(buf, ch);
+
+        olc_commit_history_save_all_dirty();
 
         return;
     }
