@@ -264,17 +264,6 @@ void olc_staged_cmd_revert(CHAR_DATA *ch, const OLC_EDITOR_DEF *def,
     }
 }
 
-static void archive_changeset_to_history(olc_changeset_t *cs, int group_id, const char *comment)
-{
-    if (!cs || olc_changeset_count(cs) == 0) return;
-
-    olc_commit_history_t *history = olc_commit_history_get_or_load(
-        cs->editor_type, cs->entity_wnum);
-    if (!history) return;
-
-    olc_commit_history_archive(history, cs, group_id, comment);
-}
-
 void olc_staged_cmd_commit(CHAR_DATA *ch, const OLC_EDITOR_DEF *def,
     void *pEdit, char *argument)
 {
@@ -289,14 +278,25 @@ void olc_staged_cmd_commit(CHAR_DATA *ch, const OLC_EDITOR_DEF *def,
         return;
     }
 
-    /* Archive to history BEFORE commit (commit clears the changeset) */
-    archive_changeset_to_history(cs, 0, argument);
+    /* Archive to history BEFORE commit (commit clears the changeset).
+     * If commit fails, roll back the archived record. */
+    olc_commit_history_t *history = olc_commit_history_get_or_load(
+        cs->editor_type, cs->entity_wnum);
+    olc_commit_record_t *archived = NULL;
+    if (history && olc_changeset_count(cs) > 0)
+        archived = olc_commit_history_archive(history, cs, 0, argument);
 
     const char *error_field = NULL;
     int applied = olc_changeset_commit(cs, pEdit,
         def->field_handlers, &error_field);
 
     if (applied < 0) {
+        /* Roll back the archived record on commit failure */
+        if (archived && history) {
+            list_remlink(history->records, archived, false);
+            olc_commit_record_destroy(archived);
+            history->next_id--;
+        }
         printf_to_char(ch, "{RCommit failed:{x Error applying field '%s'.\n\r",
             error_field ? error_field : "unknown");
         return;
@@ -356,13 +356,23 @@ void olc_staged_cmd_commit_group(CHAR_DATA *ch, char *argument)
         if (ch->desc->editor != cs->editor_type)
             continue;
 
-        archive_changeset_to_history(cs, group_id, argument);
+        olc_commit_history_t *cs_history = olc_commit_history_get_or_load(
+            cs->editor_type, cs->entity_wnum);
+        olc_commit_record_t *cs_archived = NULL;
+        if (cs_history && olc_changeset_count(cs) > 0)
+            cs_archived = olc_commit_history_archive(cs_history, cs, group_id, argument);
 
         const char *error_field = NULL;
         int applied = olc_changeset_commit(cs, ch->desc->pEdit,
             edef->field_handlers, &error_field);
 
         if (applied < 0) {
+            /* Roll back the archived record on commit failure */
+            if (cs_archived && cs_history) {
+                list_remlink(cs_history->records, cs_archived, false);
+                olc_commit_record_destroy(cs_archived);
+                cs_history->next_id--;
+            }
             printf_to_char(ch, "{RGroup commit failed:{x Error on %s field '%s'.\n\r",
                 cs->entity_label, error_field ? error_field : "unknown");
             iterator_stop(&it);

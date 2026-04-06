@@ -56,6 +56,7 @@ static AREA_DATA *medit_get_area(void *pEdit)
     return pMob ? pMob->area : NULL;
 }
 
+/* Currently unused — will be called from commit-time hooks in Phase 2. */
 static void medit_rebuild_auto_tags(MOB_INDEX_DATA *pMob)
 {
     if (!pMob)
@@ -1281,6 +1282,10 @@ MEDIT(medit_damtype)
     }
 
     int16_t val = (int16_t)attack_lookup(argument);
+    if (val == 0 && str_cmp(argument, attack_table[0].name)) {
+        send_to_char("Invalid attack type. Type '? weapon' for a list.\n\r", ch);
+        return false;
+    }
     char num_buf[16];
     snprintf(num_buf, sizeof(num_buf), "%d", val);
     return olc_cmd_number_i16(ch, num_buf, "Dam Type", NULL,

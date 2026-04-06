@@ -249,6 +249,7 @@ void do_asave_new(CHAR_DATA *ch, char *argument)
         save_area_list();
         save_area_new(ch->in_room->area);
         wilderness_storage_save_area_now(ch->in_room->area);
+        olc_commit_history_save_all_dirty();
         act("Saved $t.", ch, NULL, NULL, NULL, NULL, ch->in_room->area->name, NULL, TO_CHAR, NULL, NULL);
         return;
     }

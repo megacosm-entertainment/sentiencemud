@@ -978,7 +978,7 @@ void olc_editor_interp(CHAR_DATA *ch, char *argument, const OLC_EDITOR_DEF *def)
             send_to_char("Draft loading not yet implemented.\n\r", ch);
             return;
         }
-        if (!str_cmp(command, "discardraft")) {
+        if (!str_cmp(command, "discarddraft")) {
             send_to_char("Draft discarding not yet implemented.\n\r", ch);
             return;
         }
