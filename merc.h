@@ -350,11 +350,12 @@ struct script_type {
 #define SETTING_CAT_MSSP 9
 #define SETTING_CAT_REDIS 10
 #define SETTING_CAT_DEBUG 11
+#define SETTING_CAT_OLC 12
 
 #define MIN_SECURITY_GAMEEDIT 9
 
 #define GAMEEDIT(fun) bool fun(CHAR_DATA *ch, char *argument)
-#define SETTING_CAT_MAX 12 /* Number of setting categories */
+#define SETTING_CAT_MAX 13 /* Number of setting categories */
 
 #define AES_KEY_SIZE 32  // 256 bits
 #define AES_IV_SIZE 16   // 128 bits
@@ -1546,6 +1547,9 @@ struct game_settings_data
     char *crypto_salt_file;               // Path to salt file for key derivation (default: data/system/.crypto_salt_v{version})
     bool crypto_use_passphrase;           // Use passphrase-based key derivation instead of file-based key
     int crypto_key_version;               // Current encryption key version (for rotation support)
+
+    /* OLC Settings */
+    int olc_history_limit;                // Max commit history records per entity (default 20, 0 = unlimited)
 
     /* Preference Defaults */
     PREF_ENTRY *pref_defaults;            // Server-wide preference defaults (overrides pc_set_table hardcoded defaults)

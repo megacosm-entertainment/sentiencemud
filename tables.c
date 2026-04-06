@@ -3971,6 +3971,9 @@ const struct game_setting_type game_settings_table[] = {
     { "crypto_use_passphrase", &game_settings.crypto_use_passphrase, SETTING_TYPE_BOOL, SETTING_CAT_SECURITY, "Whether to use passphrase-based key generation instead of file-based key", true, false, false, NULL },
     { "crypto_key_version",     &game_settings.crypto_key_version,     SETTING_TYPE_INT,    SETTING_CAT_SECURITY, "Version number for the current encryption key, used for key rotation", true, false, false, NULL },
 
+    /* OLC Settings */
+    { "olc_history_limit", &game_settings.olc_history_limit, SETTING_TYPE_INT, SETTING_CAT_OLC, "Max commit history records per OLC entity (0 = unlimited, default 20)", true, false, false, NULL },
+
     { NULL, NULL, 0, 0, NULL, false, false, NULL }  /* Terminator */
 };
 
@@ -3988,7 +3991,8 @@ const char *setting_category_names[] = {
     "Security",  // SETTING_CAT_SECURITY = 8
     "MSSP",      // SETTING_CAT_MSSP = 9
     "Redis",     // SETTING_CAT_REDIS = 10
-    "Debug"      // SETTING_CAT_DEBUG = 11
+    "Debug",     // SETTING_CAT_DEBUG = 11
+    "OLC"        // SETTING_CAT_OLC = 12
 };
 
 /* Setting type names for display purposes */
