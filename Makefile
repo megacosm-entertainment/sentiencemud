@@ -158,6 +158,7 @@ C_FILES = \
     editors/common/olc_commands.c \
     editors/common/olc_display.c \
     editors/common/olc_changeset.c \
+    editors/common/olc_commit_history.c \
     editors/common/olc_field_handlers.c \
     editors/common/olc_staged.c \
     effects.c \
