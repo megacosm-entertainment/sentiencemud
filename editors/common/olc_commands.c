@@ -635,6 +635,99 @@ bool olc_cmd_bool(CHAR_DATA *ch, char *argument, const char *label,
 }
 
 /* =========================================================================
+ * olc_cmd_dice
+ * ========================================================================= */
+
+bool olc_cmd_dice(CHAR_DATA *ch, char *argument, const char *label,
+    const char *syntax, DICE_DATA *field_ptr,
+    void *ctx, olc_cmd_record_fn record_fn)
+{
+    char *num_str, *size_str, *bonus_str;
+    int number, size, bonus;
+
+    if (IS_NULLSTR(argument)) {
+        if (syntax)
+            send_to_char(syntax, ch);
+        else
+            send_to_char(formatf("Syntax: %s <number>d<size>+<bonus>\n\r", label), ch);
+        return false;
+    }
+
+    /* Parse XdY+Z - modifies argument in place */
+    num_str = argument;
+    size_str = strchr(argument, 'd');
+    if (!size_str) {
+        send_to_char(formatf("Syntax: %s <number>d<size>+<bonus>\n\r", label), ch);
+        return false;
+    }
+    *size_str++ = '\0';
+    bonus_str = strchr(size_str, '+');
+    if (!bonus_str) {
+        send_to_char(formatf("Syntax: %s <number>d<size>+<bonus>\n\r", label), ch);
+        return false;
+    }
+    *bonus_str++ = '\0';
+
+    if (!is_number(num_str) || !is_number(size_str) || !is_number(bonus_str)) {
+        send_to_char(formatf("Syntax: %s <number>d<size>+<bonus>\n\r", label), ch);
+        return false;
+    }
+
+    number = atoi(num_str);
+    size   = atoi(size_str);
+    bonus  = atoi(bonus_str);
+
+    /* Staged mode */
+    {
+        const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+        if (edef && edef->change_mode == OLC_CHANGE_STAGED) {
+            olc_changeset_t *cs = olc_get_active_changeset(ch, edef);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+
+                json_t *old_val = json_pack("{s:i, s:i, s:i}",
+                    "number", field_ptr->number,
+                    "size",   field_ptr->size,
+                    "bonus",  field_ptr->bonus);
+                json_t *new_val = json_pack("{s:i, s:i, s:i}",
+                    "number", number, "size", size, "bonus", bonus);
+
+                olc_pending_change_t *result = olc_changeset_add_change(
+                    cs, label, OLC_FIELD_EMBEDDED, old_val, new_val);
+                json_decref(old_val);
+                json_decref(new_val);
+
+                if (result)
+                    printf_to_char(ch, "{G[STAGED]{x %s set to %dd%d+%d.\n\r",
+                        label, number, size, bonus);
+                else
+                    printf_to_char(ch, "%s reverted to original value.\n\r", label);
+
+                notify_field_change(cs, ch, label,
+                    result ? result->new_value : json_null(), "dice", result != NULL);
+                return result != NULL;
+            }
+        }
+    }
+
+    /* Non-staged: apply directly */
+    {
+        char old_str[64];
+        snprintf(old_str, sizeof(old_str), "%dd%d+%d",
+            field_ptr->number, field_ptr->size, field_ptr->bonus);
+
+        field_ptr->number = number;
+        field_ptr->size   = size;
+        field_ptr->bonus  = bonus;
+
+        cmd_record(record_fn, ctx, ch, label, old_str,
+            formatf("%dd%d+%d", number, size, bonus));
+        printf_to_char(ch, "%s set to %dd%d+%d.\n\r", label, number, size, bonus);
+    }
+    return true;
+}
+
+/* =========================================================================
  * olc_stage_bitvector
  * ========================================================================= */
 

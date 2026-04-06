@@ -168,6 +168,28 @@ bool olc_apply_generic_long(long *field_ptr, olc_pending_change_t *change)
 }
 
 /*
+ * Generic dice apply: reads JSON object with "number", "size", "bonus"
+ * from change->new_value, writes to DICE_DATA fields.
+ */
+bool olc_apply_generic_dice(DICE_DATA *field_ptr, olc_pending_change_t *change)
+{
+    if (!field_ptr || !change || !change->new_value) return false;
+    if (!json_is_object(change->new_value)) return false;
+
+    json_t *jnum = json_object_get(change->new_value, "number");
+    json_t *jsiz = json_object_get(change->new_value, "size");
+    json_t *jbon = json_object_get(change->new_value, "bonus");
+
+    if (!json_is_integer(jnum) || !json_is_integer(jsiz) || !json_is_integer(jbon))
+        return false;
+
+    field_ptr->number = (int)json_integer_value(jnum);
+    field_ptr->size   = (int)json_integer_value(jsiz);
+    field_ptr->bonus  = (int)json_integer_value(jbon);
+    return true;
+}
+
+/*
  * Commit all pending changes in a changeset to a live entity.
  *
  * Iterates changes, looks up handler for each, calls apply_fn.

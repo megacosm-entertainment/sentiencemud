@@ -224,6 +224,17 @@ bool olc_cmd_bool(CHAR_DATA *ch, char *argument, const char *label,
     const char *syntax, bool *field_ptr,
     void *ctx, olc_cmd_record_fn record_fn);
 
+/**
+ * Set a dice field (DICE_DATA) from "XdY+Z" format.
+ *
+ * Parses number, size, bonus. Records as JSON object with keys
+ * "number", "size", "bonus". The field_ptr is used to read
+ * old values for the changeset.
+ */
+bool olc_cmd_dice(CHAR_DATA *ch, char *argument, const char *label,
+    const char *syntax, DICE_DATA *field_ptr,
+    void *ctx, olc_cmd_record_fn record_fn);
+
 /* =========================================================================
  * Staged-Only Helpers
  * ========================================================================= */

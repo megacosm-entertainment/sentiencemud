@@ -74,6 +74,14 @@ bool olc_apply_generic_long(long *field_ptr, olc_pending_change_t *change);
         return olc_apply_generic_long(&((entity_type *)entity)->member, change); \
     }
 
+/* Generic apply for dice fields (DICE_DATA: number, size, bonus) */
+bool olc_apply_generic_dice(DICE_DATA *field_ptr, olc_pending_change_t *change);
+
+#define OLC_FIELD_APPLY_DICE(func_name, entity_type, member) \
+    static bool func_name(void *entity, olc_pending_change_t *change) { \
+        return olc_apply_generic_dice(&((entity_type *)entity)->member, change); \
+    }
+
 /* Commit/revert API */
 int olc_changeset_commit(olc_changeset_t *cs, void *entity,
     const olc_field_handler_t *handlers, const char **error_field);
