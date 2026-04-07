@@ -238,6 +238,98 @@ static bool oedit_apply_extra(void *entity, olc_pending_change_t *change)
 }
 
 /*
+ * Lock state serialize/apply for staged embedded mode.
+ */
+static json_t *oedit_serialize_lock(void *entity, const char *field_path)
+{
+    OBJ_INDEX_DATA *pObj = (OBJ_INDEX_DATA *)entity;
+    if (!pObj->lock) return json_null();
+
+    return json_pack("{s:I, s:I, s:i, s:i}",
+        "key_auid",    (json_int_t)pObj->lock->key_load.auid,
+        "key_vnum",    (json_int_t)pObj->lock->key_load.vnum,
+        "flags",       pObj->lock->flags,
+        "pick_chance", pObj->lock->pick_chance);
+}
+
+static bool oedit_apply_lock(void *entity, olc_pending_change_t *change)
+{
+    OBJ_INDEX_DATA *pObj = (OBJ_INDEX_DATA *)entity;
+    json_t *data = change->new_value;
+
+    if (json_is_null(data)) {
+        if (pObj->lock) { free_lock_state(pObj->lock); pObj->lock = NULL; }
+        return true;
+    }
+
+    if (!pObj->lock) pObj->lock = new_lock_state();
+
+    pObj->lock->key_load.auid = (long)json_integer_value(json_object_get(data, "key_auid"));
+    pObj->lock->key_load.vnum = (long)json_integer_value(json_object_get(data, "key_vnum"));
+    resolve_wnum_load(&pObj->lock->key_load, &pObj->lock->key_wnum, NULL);
+    pObj->lock->flags       = (int)json_integer_value(json_object_get(data, "flags"));
+    pObj->lock->pick_chance = (int)json_integer_value(json_object_get(data, "pick_chance"));
+
+    return true;
+}
+
+/*
+ * Waypoints serialize/apply for staged embedded mode.
+ */
+static json_t *oedit_serialize_waypoints(void *entity, const char *field_path)
+{
+    OBJ_INDEX_DATA *pObj = (OBJ_INDEX_DATA *)entity;
+    json_t *arr = json_array();
+
+    if (pObj->waypoints && IS_VALID(pObj->waypoints)) {
+        ITERATOR it;
+        WAYPOINT_DATA *wp;
+        iterator_start(&it, pObj->waypoints);
+        while ((wp = (WAYPOINT_DATA *)iterator_nextdata(&it))) {
+            json_t *obj = json_pack("{s:I, s:i, s:i, s:s}",
+                "w", (json_int_t)wp->w,
+                "y", wp->y,
+                "x", wp->x,
+                "name", wp->name ? wp->name : "");
+            json_array_append_new(arr, obj);
+        }
+        iterator_stop(&it);
+    }
+    return arr;
+}
+
+static bool oedit_apply_waypoints(void *entity, olc_pending_change_t *change)
+{
+    OBJ_INDEX_DATA *pObj = (OBJ_INDEX_DATA *)entity;
+    json_t *data = change->new_value;
+
+    if (pObj->waypoints) {
+        list_destroy(pObj->waypoints);
+        pObj->waypoints = NULL;
+    }
+
+    if (!json_is_array(data) || json_array_size(data) == 0)
+        return true;
+
+    pObj->waypoints = new_waypoints_list();
+
+    size_t idx;
+    json_t *entry;
+    json_array_foreach(data, idx, entry) {
+        WAYPOINT_DATA *wp = new_waypoint();
+        wp->w = (long)json_integer_value(json_object_get(entry, "w"));
+        wp->y = (int)json_integer_value(json_object_get(entry, "y"));
+        wp->x = (int)json_integer_value(json_object_get(entry, "x"));
+        const char *name = json_string_value(json_object_get(entry, "name"));
+        free_string(wp->name);
+        wp->name = str_dup(name ? name : "");
+        list_appendlink(pObj->waypoints, wp);
+    }
+
+    return true;
+}
+
+/*
  * Scalar field apply functions — generated via macros.
  */
 OLC_FIELD_APPLY_STRING(oedit_apply_name,             OBJ_INDEX_DATA, name)
@@ -695,6 +787,8 @@ static const olc_field_handler_t oedit_field_handlers[] = {
     { "catalysts/**",     OLC_FIELD_LIST_ADD,   NULL, oedit_apply_catalyst_ops, NULL },
     { "quests/**",        OLC_FIELD_LIST_ADD,   NULL, oedit_apply_quest_ops,    NULL },
     { "oprogs/**",        OLC_FIELD_LIST_ADD,   NULL, oedit_apply_oprog_ops,    NULL },
+    { "lock",             OLC_FIELD_EMBEDDED,   oedit_serialize_lock,      oedit_apply_lock,      NULL },
+    { "waypoints",        OLC_FIELD_EMBEDDED,   oedit_serialize_waypoints, oedit_apply_waypoints, NULL },
     { NULL, 0, NULL, NULL, NULL }
 };
 
@@ -2218,10 +2312,49 @@ OEDIT(oedit_waypoints)
             return false;
         }
 
+        char *clean_name = nocolour(argument);
+
+        /* Staged mode */
+        {
+            const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+            if (edef && edef->change_mode == OLC_CHANGE_STAGED) {
+                olc_changeset_t *cs = olc_get_active_changeset(ch, edef);
+                if (cs) {
+                    if (!olc_check_staging_limits(ch, cs)) {
+                        free_string(clean_name);
+                        return false;
+                    }
+                    json_t *snapshot = olc_staged_embedded(cs, "waypoints");
+                    if (!snapshot) {
+                        json_t *old_val = oedit_serialize_waypoints(pObj, "waypoints");
+                        json_t *new_val = json_deep_copy(old_val);
+                        json_t *entry = json_pack("{s:I, s:i, s:i, s:s}",
+                            "w", (json_int_t)uid, "y", y, "x", x,
+                            "name", clean_name);
+                        json_array_append_new(new_val, entry);
+                        olc_changeset_add_change(cs, "waypoints", OLC_FIELD_EMBEDDED, old_val, new_val);
+                        json_decref(old_val);
+                        json_decref(new_val);
+                    } else {
+                        json_t *entry = json_pack("{s:I, s:i, s:i, s:s}",
+                            "w", (json_int_t)uid, "y", y, "x", x,
+                            "name", clean_name);
+                        json_array_append_new(snapshot, entry);
+                        cs->is_dirty = true;
+                    }
+                    free_string(clean_name);
+                    notify_field_change(cs, ch, "waypoints", json_null(), "embedded", true);
+                    send_to_char("{G[STAGED]{x Waypoint added.\n\r", ch);
+                    return true;
+                }
+            }
+        }
+
+        /* Non-staged: apply directly */
         WAYPOINT_DATA *wp = new_waypoint();
 
         free_string(wp->name);
-        wp->name = nocolour(argument);
+        wp->name = clean_name;
         wp->w = uid;
         wp->x = x;
         wp->y = y;
@@ -2246,6 +2379,47 @@ OEDIT(oedit_waypoints)
             return false;
         }
 
+        /* Staged mode */
+        {
+            const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+            if (edef && edef->change_mode == OLC_CHANGE_STAGED) {
+                olc_changeset_t *cs = olc_get_active_changeset(ch, edef);
+                if (cs) {
+                    json_t *snapshot = olc_staged_embedded(cs, "waypoints");
+                    int count;
+                    if (snapshot) {
+                        count = (int)json_array_size(snapshot);
+                    } else {
+                        count = pObj->waypoints ? list_size(pObj->waypoints) : 0;
+                    }
+
+                    value = atoi(argument);
+                    if (value < 1 || value > count) {
+                        send_to_char("No such waypoint.\n\r", ch);
+                        return false;
+                    }
+
+                    if (!olc_check_staging_limits(ch, cs)) return false;
+
+                    if (!snapshot) {
+                        json_t *old_val = oedit_serialize_waypoints(pObj, "waypoints");
+                        json_t *new_val = json_deep_copy(old_val);
+                        json_array_remove(new_val, value - 1);
+                        olc_changeset_add_change(cs, "waypoints", OLC_FIELD_EMBEDDED, old_val, new_val);
+                        json_decref(old_val);
+                        json_decref(new_val);
+                    } else {
+                        json_array_remove(snapshot, value - 1);
+                        cs->is_dirty = true;
+                    }
+                    notify_field_change(cs, ch, "waypoints", json_null(), "embedded", true);
+                    send_to_char("{G[STAGED]{x Waypoint deleted.\n\r", ch);
+                    return true;
+                }
+            }
+        }
+
+        /* Non-staged: apply directly */
         if( !IS_VALID(pObj->waypoints) )
         {
             send_to_char("There are no waypoints to delete.\n\r", ch);
@@ -2290,12 +2464,6 @@ OEDIT(oedit_lock)
 
     if( !str_prefix(arg, "add") )
     {
-        if( pObj->lock )
-        {
-            send_to_char("Object already has a lock state.\n\r", ch);
-            return false;
-        }
-
         // TODO: Add closeability to weapon_containers and drinkcontainers
         if( pObj->item_type != ITEM_CONTAINER &&
             pObj->item_type != ITEM_PORTAL &&
@@ -2313,6 +2481,39 @@ OEDIT(oedit_lock)
             return false;
         }
 
+        /* Staged mode */
+        {
+            const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+            if (edef && edef->change_mode == OLC_CHANGE_STAGED) {
+                olc_changeset_t *cs = olc_get_active_changeset(ch, edef);
+                if (cs) {
+                    json_t *snapshot = olc_staged_embedded(cs, "lock");
+                    bool has_lock = (pObj->lock != NULL) || (snapshot && !json_is_null(snapshot));
+                    if (has_lock) {
+                        send_to_char("Object already has a lock state.\n\r", ch);
+                        return false;
+                    }
+                    if (!olc_check_staging_limits(ch, cs)) return false;
+                    json_t *old_val = json_null();
+                    json_t *new_val = json_pack("{s:i, s:i, s:i, s:i}",
+                        "key_auid", 0, "key_vnum", 0, "flags", 0, "pick_chance", 0);
+                    olc_changeset_add_change(cs, "lock", OLC_FIELD_EMBEDDED, old_val, new_val);
+                    json_decref(old_val);
+                    json_decref(new_val);
+                    notify_field_change(cs, ch, "lock", json_null(), "embedded", true);
+                    send_to_char("{G[STAGED]{x Lock State added.\n\r", ch);
+                    return true;
+                }
+            }
+        }
+
+        /* Non-staged: apply directly */
+        if( pObj->lock )
+        {
+            send_to_char("Object already has a lock state.\n\r", ch);
+            return false;
+        }
+
         pObj->lock = new_lock_state();
         send_to_char("Lock State added.\n\r", ch);
         return true;
@@ -2320,6 +2521,30 @@ OEDIT(oedit_lock)
 
     if( !str_prefix(arg, "remove") )
     {
+        /* Staged mode */
+        {
+            const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+            if (edef && edef->change_mode == OLC_CHANGE_STAGED) {
+                olc_changeset_t *cs = olc_get_active_changeset(ch, edef);
+                if (cs) {
+                    json_t *snapshot = olc_staged_embedded(cs, "lock");
+                    if (!pObj->lock && !snapshot) {
+                        send_to_char("Object does not have a lock state.\n\r", ch);
+                        return false;
+                    }
+                    if (!olc_check_staging_limits(ch, cs)) return false;
+                    json_t *old_val = snapshot ? json_deep_copy(snapshot) : oedit_serialize_lock(pObj, "lock");
+                    olc_changeset_revert_field(cs, "lock");
+                    olc_changeset_add_change(cs, "lock", OLC_FIELD_EMBEDDED, old_val, json_null());
+                    json_decref(old_val);
+                    notify_field_change(cs, ch, "lock", json_null(), "embedded", true);
+                    send_to_char("{G[STAGED]{x Lock State removal staged.\n\r", ch);
+                    return true;
+                }
+            }
+        }
+
+        /* Non-staged: apply directly */
         if( !pObj->lock )
         {
             send_to_char("Object does not have a lock state.\n\r", ch);
@@ -2336,12 +2561,6 @@ OEDIT(oedit_lock)
 
     if( !str_prefix(arg, "key") )
     {
-        if( !pObj->lock )
-        {
-            send_to_char("Object does not have a lock state.\n\r", ch);
-            return false;
-        }
-
         if( argument[0] == '\0' )
         {
             send_to_char("Syntax:  lock key [widevnum]\n\r", ch);
@@ -2351,6 +2570,48 @@ OEDIT(oedit_lock)
 
         if( !str_prefix(argument, "clear") )
         {
+            /* Staged mode */
+            {
+                const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+                if (edef && edef->change_mode == OLC_CHANGE_STAGED) {
+                    olc_changeset_t *cs = olc_get_active_changeset(ch, edef);
+                    if (cs) {
+                        json_t *snapshot = olc_staged_embedded(cs, "lock");
+                        if (!pObj->lock && !snapshot) {
+                            send_to_char("Object does not have a lock state.\n\r", ch);
+                            return false;
+                        }
+                        if (!olc_check_staging_limits(ch, cs)) return false;
+                        if (!snapshot) {
+                            json_t *old_val = oedit_serialize_lock(pObj, "lock");
+                            json_t *new_val = json_deep_copy(old_val);
+                            json_object_set_new(new_val, "key_auid", json_integer(0));
+                            json_object_set_new(new_val, "key_vnum", json_integer(0));
+                            olc_changeset_add_change(cs, "lock", OLC_FIELD_EMBEDDED, old_val, new_val);
+                            json_decref(old_val);
+                            json_decref(new_val);
+                        } else {
+                            json_t *v1 = json_integer(0);
+                            olc_staged_embedded_set(cs, "lock", "key_auid", v1);
+                            json_decref(v1);
+                            json_t *v2 = json_integer(0);
+                            olc_staged_embedded_set(cs, "lock", "key_vnum", v2);
+                            json_decref(v2);
+                        }
+                        notify_field_change(cs, ch, "lock", json_null(), "embedded", true);
+                        send_to_char("{G[STAGED]{x Lock State key cleared.\n\r", ch);
+                        return true;
+                    }
+                }
+            }
+
+            /* Non-staged: apply directly */
+            if( !pObj->lock )
+            {
+                send_to_char("Object does not have a lock state.\n\r", ch);
+                return false;
+            }
+
             memset(&pObj->lock->key_load, 0, sizeof(WNUM_LOAD));
             memset(&pObj->lock->key_wnum, 0, sizeof(WNUM));
             send_to_char("Lock State key cleared.\n\r", ch);
@@ -2377,6 +2638,49 @@ OEDIT(oedit_lock)
             return false;
         }
 
+        /* Staged mode */
+        {
+            const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+            if (edef && edef->change_mode == OLC_CHANGE_STAGED) {
+                olc_changeset_t *cs = olc_get_active_changeset(ch, edef);
+                if (cs) {
+                    json_t *snapshot = olc_staged_embedded(cs, "lock");
+                    bool has_lock = (pObj->lock != NULL) || (snapshot && !json_is_null(snapshot));
+                    if (!has_lock) {
+                        send_to_char("Object does not have a lock state.\n\r", ch);
+                        return false;
+                    }
+                    if (!olc_check_staging_limits(ch, cs)) return false;
+                    if (!snapshot) {
+                        json_t *old_val = oedit_serialize_lock(pObj, "lock");
+                        json_t *new_val = json_deep_copy(old_val);
+                        json_object_set_new(new_val, "key_auid", json_integer(key_wnum.pArea ? key_wnum.pArea->uid : 0));
+                        json_object_set_new(new_val, "key_vnum", json_integer(key_wnum.vnum));
+                        olc_changeset_add_change(cs, "lock", OLC_FIELD_EMBEDDED, old_val, new_val);
+                        json_decref(old_val);
+                        json_decref(new_val);
+                    } else {
+                        json_t *v1 = json_integer(key_wnum.pArea ? key_wnum.pArea->uid : 0);
+                        olc_staged_embedded_set(cs, "lock", "key_auid", v1);
+                        json_decref(v1);
+                        json_t *v2 = json_integer(key_wnum.vnum);
+                        olc_staged_embedded_set(cs, "lock", "key_vnum", v2);
+                        json_decref(v2);
+                    }
+                    notify_field_change(cs, ch, "lock", json_null(), "embedded", true);
+                    send_to_char("{G[STAGED]{x Lock State key set.\n\r", ch);
+                    return true;
+                }
+            }
+        }
+
+        /* Non-staged: apply directly */
+        if( !pObj->lock )
+        {
+            send_to_char("Object does not have a lock state.\n\r", ch);
+            return false;
+        }
+
         pObj->lock->key_load.auid = key_wnum.pArea ? key_wnum.pArea->uid : 0;
         pObj->lock->key_load.vnum = key_wnum.vnum;
         pObj->lock->key_wnum = key_wnum;
@@ -2386,12 +2690,6 @@ OEDIT(oedit_lock)
 
     if( !str_prefix(arg, "flags") )
     {
-        if( !pObj->lock )
-        {
-            send_to_char("Object does not have a lock state.\n\r", ch);
-            return false;
-        }
-
         int value = flag_value(lock_flags, argument);
 
         if( value == NO_FLAG )
@@ -2402,6 +2700,46 @@ OEDIT(oedit_lock)
             return false;
         }
 
+        /* Staged mode */
+        {
+            const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+            if (edef && edef->change_mode == OLC_CHANGE_STAGED) {
+                olc_changeset_t *cs = olc_get_active_changeset(ch, edef);
+                if (cs) {
+                    json_t *snapshot = olc_staged_embedded(cs, "lock");
+                    if (!pObj->lock && !snapshot) {
+                        send_to_char("Object does not have a lock state.\n\r", ch);
+                        return false;
+                    }
+                    if (!olc_check_staging_limits(ch, cs)) return false;
+                    if (!snapshot) {
+                        json_t *old_val = oedit_serialize_lock(pObj, "lock");
+                        json_t *new_val = json_deep_copy(old_val);
+                        int cur = (int)json_integer_value(json_object_get(new_val, "flags"));
+                        json_object_set_new(new_val, "flags", json_integer(cur ^ value));
+                        olc_changeset_add_change(cs, "lock", OLC_FIELD_EMBEDDED, old_val, new_val);
+                        json_decref(old_val);
+                        json_decref(new_val);
+                    } else {
+                        int cur = (int)json_integer_value(json_object_get(snapshot, "flags"));
+                        json_t *v = json_integer(cur ^ value);
+                        olc_staged_embedded_set(cs, "lock", "flags", v);
+                        json_decref(v);
+                    }
+                    notify_field_change(cs, ch, "lock", json_null(), "embedded", true);
+                    send_to_char("{G[STAGED]{x Lock State flags changed.\n\r", ch);
+                    return true;
+                }
+            }
+        }
+
+        /* Non-staged: apply directly */
+        if( !pObj->lock )
+        {
+            send_to_char("Object does not have a lock state.\n\r", ch);
+            return false;
+        }
+
         pObj->lock->flags ^= value;
         send_to_char("Lock State flags changed.\n\r", ch);
         return true;
@@ -2409,12 +2747,6 @@ OEDIT(oedit_lock)
 
     if( !str_prefix(arg, "pick") )
     {
-        if( !pObj->lock )
-        {
-            send_to_char("Object does not have a lock state.\n\r", ch);
-            return false;
-        }
-
         if( !is_number(argument) )
         {
             send_to_char("That is not a number.\n\r", ch);
@@ -2425,6 +2757,44 @@ OEDIT(oedit_lock)
         if( value < 0 || value > 100 )
         {
             send_to_char("Pick chance must be from 0 to 100.\n\r", ch);
+            return false;
+        }
+
+        /* Staged mode */
+        {
+            const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+            if (edef && edef->change_mode == OLC_CHANGE_STAGED) {
+                olc_changeset_t *cs = olc_get_active_changeset(ch, edef);
+                if (cs) {
+                    json_t *snapshot = olc_staged_embedded(cs, "lock");
+                    if (!pObj->lock && !snapshot) {
+                        send_to_char("Object does not have a lock state.\n\r", ch);
+                        return false;
+                    }
+                    if (!olc_check_staging_limits(ch, cs)) return false;
+                    if (!snapshot) {
+                        json_t *old_val = oedit_serialize_lock(pObj, "lock");
+                        json_t *new_val = json_deep_copy(old_val);
+                        json_object_set_new(new_val, "pick_chance", json_integer(value));
+                        olc_changeset_add_change(cs, "lock", OLC_FIELD_EMBEDDED, old_val, new_val);
+                        json_decref(old_val);
+                        json_decref(new_val);
+                    } else {
+                        json_t *v = json_integer(value);
+                        olc_staged_embedded_set(cs, "lock", "pick_chance", v);
+                        json_decref(v);
+                    }
+                    notify_field_change(cs, ch, "lock", json_null(), "embedded", true);
+                    send_to_char("{G[STAGED]{x Lock State pick chance set.\n\r", ch);
+                    return true;
+                }
+            }
+        }
+
+        /* Non-staged: apply directly */
+        if( !pObj->lock )
+        {
+            send_to_char("Object does not have a lock state.\n\r", ch);
             return false;
         }
 
