@@ -18,6 +18,7 @@
 #include "../common/olc_changeset.h"
 #include "../common/olc_commands.h"
 #include "../common/olc_staged.h"
+#include "../common/olc_editor.h"
 #include "../common/olc_field_handlers.h"
 #include <jansson.h>
 
@@ -57,17 +58,45 @@ typedef struct {
 static bool armor_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change) { (void)pObj; (void)field; (void)change; return false; }
 static json_t *armor_serialize(const OBJ_INDEX_DATA *pObj) { (void)pObj; return json_null(); }
 
-static bool bodypart_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change) { (void)pObj; (void)field; (void)change; return false; }
-static json_t *bodypart_serialize(const OBJ_INDEX_DATA *pObj) { (void)pObj; return json_null(); }
+static bool bodypart_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change)
+{
+    if (!IS_BODY_PART(pObj)) return false;
+    if (strcmp(field, "parts") == 0) { BODY_PART(pObj)->parts = (long)json_integer_value(change->new_value); return true; }
+    if (strcmp(field, "race") == 0) { BODY_PART(pObj)->race_uid = (int)json_integer_value(change->new_value); return true; }
+    return false;
+}
+static json_t *bodypart_serialize(const OBJ_INDEX_DATA *pObj)
+{
+    if (!IS_BODY_PART(pObj)) return json_null();
+    return json_pack("{s:I, s:i}", "parts", (json_int_t)BODY_PART(pObj)->parts, "race", BODY_PART(pObj)->race_uid);
+}
 
-static bool book_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change) { (void)pObj; (void)field; (void)change; return false; }
-static json_t *book_serialize(const OBJ_INDEX_DATA *pObj) { (void)pObj; return json_null(); }
+static bool book_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change)
+{
+    if (!IS_BOOK(pObj)) return false;
+    if (strcmp(field, "flags") == 0) { BOOK(pObj)->flags = (int)json_integer_value(change->new_value); return true; }
+    return false;
+}
+static json_t *book_serialize(const OBJ_INDEX_DATA *pObj)
+{
+    if (!IS_BOOK(pObj)) return json_null();
+    return json_pack("{s:i}", "flags", BOOK(pObj)->flags);
+}
 
 static bool cart_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change) { (void)pObj; (void)field; (void)change; return false; }
 static json_t *cart_serialize(const OBJ_INDEX_DATA *pObj) { (void)pObj; return json_null(); }
 
-static bool compass_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change) { (void)pObj; (void)field; (void)change; return false; }
-static json_t *compass_serialize(const OBJ_INDEX_DATA *pObj) { (void)pObj; return json_null(); }
+static bool compass_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change)
+{
+    if (!IS_COMPASS(pObj)) return false;
+    if (strcmp(field, "accuracy") == 0) { COMPASS(pObj)->accuracy = (int)json_integer_value(change->new_value); return true; }
+    return false;
+}
+static json_t *compass_serialize(const OBJ_INDEX_DATA *pObj)
+{
+    if (!IS_COMPASS(pObj)) return json_null();
+    return json_pack("{s:i}", "accuracy", COMPASS(pObj)->accuracy);
+}
 
 static bool container_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change) { (void)pObj; (void)field; (void)change; return false; }
 static json_t *container_serialize(const OBJ_INDEX_DATA *pObj) { (void)pObj; return json_null(); }
@@ -78,8 +107,23 @@ static json_t *corpse_serialize(const OBJ_INDEX_DATA *pObj) { (void)pObj; return
 static bool drink_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change) { (void)pObj; (void)field; (void)change; return false; }
 static json_t *drink_serialize(const OBJ_INDEX_DATA *pObj) { (void)pObj; return json_null(); }
 
-static bool food_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change) { (void)pObj; (void)field; (void)change; return false; }
-static json_t *food_serialize(const OBJ_INDEX_DATA *pObj) { (void)pObj; return json_null(); }
+static bool food_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change)
+{
+    if (!IS_FOOD(pObj)) return false;
+    int val = (int)json_integer_value(change->new_value);
+    if (strcmp(field, "hunger") == 0) { FOOD(pObj)->hunger = val; return true; }
+    if (strcmp(field, "full") == 0) { FOOD(pObj)->full = val; return true; }
+    if (strcmp(field, "poison") == 0) { FOOD(pObj)->poison = val; return true; }
+    if (strcmp(field, "timer") == 0) { FOOD(pObj)->timer = val; return true; }
+    return false;
+}
+static json_t *food_serialize(const OBJ_INDEX_DATA *pObj)
+{
+    if (!IS_FOOD(pObj)) return json_null();
+    return json_pack("{s:i, s:i, s:i, s:i}",
+        "hunger", FOOD(pObj)->hunger, "full", FOOD(pObj)->full,
+        "poison", FOOD(pObj)->poison, "timer", FOOD(pObj)->timer);
+}
 
 static bool furniture_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change) { (void)pObj; (void)field; (void)change; return false; }
 static json_t *furniture_serialize(const OBJ_INDEX_DATA *pObj) { (void)pObj; return json_null(); }
@@ -87,41 +131,149 @@ static json_t *furniture_serialize(const OBJ_INDEX_DATA *pObj) { (void)pObj; ret
 static bool herb_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change) { (void)pObj; (void)field; (void)change; return false; }
 static json_t *herb_serialize(const OBJ_INDEX_DATA *pObj) { (void)pObj; return json_null(); }
 
-static bool ink_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change) { (void)pObj; (void)field; (void)change; return false; }
-static json_t *ink_serialize(const OBJ_INDEX_DATA *pObj) { (void)pObj; return json_null(); }
+static bool ink_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change)
+{
+    if (!IS_INK(pObj)) return false;
+    int val = (int)json_integer_value(change->new_value);
+    if (strcmp(field, "type1") == 0) { INK(pObj)->types[0] = val; return true; }
+    if (strcmp(field, "type2") == 0) { INK(pObj)->types[1] = val; return true; }
+    if (strcmp(field, "type3") == 0) { INK(pObj)->types[2] = val; return true; }
+    return false;
+}
+static json_t *ink_serialize(const OBJ_INDEX_DATA *pObj)
+{
+    if (!IS_INK(pObj)) return json_null();
+    return json_pack("{s:i, s:i, s:i}",
+        "type1", INK(pObj)->types[0], "type2", INK(pObj)->types[1],
+        "type3", INK(pObj)->types[2]);
+}
 
 static bool instrument_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change) { (void)pObj; (void)field; (void)change; return false; }
 static json_t *instrument_serialize(const OBJ_INDEX_DATA *pObj) { (void)pObj; return json_null(); }
 
-static bool jewelry_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change) { (void)pObj; (void)field; (void)change; return false; }
-static json_t *jewelry_serialize(const OBJ_INDEX_DATA *pObj) { (void)pObj; return json_null(); }
+static bool jewelry_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change)
+{
+    if (!IS_JEWELRY(pObj)) return false;
+    if (strcmp(field, "mana") == 0) { JEWELRY(pObj)->max_mana = (int)json_integer_value(change->new_value); return true; }
+    return false;
+}
+static json_t *jewelry_serialize(const OBJ_INDEX_DATA *pObj)
+{
+    if (!IS_JEWELRY(pObj)) return json_null();
+    return json_pack("{s:i}", "mana", JEWELRY(pObj)->max_mana);
+}
 
-static bool light_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change) { (void)pObj; (void)field; (void)change; return false; }
-static json_t *light_serialize(const OBJ_INDEX_DATA *pObj) { (void)pObj; return json_null(); }
+static bool light_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change)
+{
+    if (!IS_LIGHT(pObj)) return false;
+    if (strcmp(field, "duration") == 0) { LIGHT(pObj)->duration = (int)json_integer_value(change->new_value); return true; }
+    if (strcmp(field, "flags") == 0) { LIGHT(pObj)->flags = (long)json_integer_value(change->new_value); return true; }
+    return false;
+}
+static json_t *light_serialize(const OBJ_INDEX_DATA *pObj)
+{
+    if (!IS_LIGHT(pObj)) return json_null();
+    return json_pack("{s:i, s:I}", "duration", LIGHT(pObj)->duration, "flags", (json_int_t)LIGHT(pObj)->flags);
+}
 
-static bool map_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change) { (void)pObj; (void)field; (void)change; return false; }
-static json_t *map_serialize(const OBJ_INDEX_DATA *pObj) { (void)pObj; return json_null(); }
+static bool map_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change)
+{
+    if (!IS_MAP(pObj)) return false;
+    if (strcmp(field, "wuid") == 0) { MAP(pObj)->wuid = (long)json_integer_value(change->new_value); return true; }
+    if (strcmp(field, "x") == 0) { MAP(pObj)->x = (long)json_integer_value(change->new_value); return true; }
+    if (strcmp(field, "y") == 0) { MAP(pObj)->y = (long)json_integer_value(change->new_value); return true; }
+    return false;
+}
+static json_t *map_serialize(const OBJ_INDEX_DATA *pObj)
+{
+    if (!IS_MAP(pObj)) return json_null();
+    return json_pack("{s:I, s:I, s:I}",
+        "wuid", (json_int_t)MAP(pObj)->wuid,
+        "x", (json_int_t)MAP(pObj)->x,
+        "y", (json_int_t)MAP(pObj)->y);
+}
 
-static bool mist_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change) { (void)pObj; (void)field; (void)change; return false; }
-static json_t *mist_serialize(const OBJ_INDEX_DATA *pObj) { (void)pObj; return json_null(); }
+static bool mist_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change)
+{
+    if (!IS_MIST(pObj)) return false;
+    int val = (int)json_integer_value(change->new_value);
+    if (strcmp(field, "objects") == 0) { MIST(pObj)->obscure_objs = val; return true; }
+    if (strcmp(field, "characters") == 0) { MIST(pObj)->obscure_mobs = val; return true; }
+    if (strcmp(field, "room") == 0) { MIST(pObj)->obscure_room = val; return true; }
+    return false;
+}
+static json_t *mist_serialize(const OBJ_INDEX_DATA *pObj)
+{
+    if (!IS_MIST(pObj)) return json_null();
+    return json_pack("{s:i, s:i, s:i}",
+        "objects", MIST(pObj)->obscure_objs,
+        "characters", MIST(pObj)->obscure_mobs,
+        "room", MIST(pObj)->obscure_room);
+}
 
-static bool money_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change) { (void)pObj; (void)field; (void)change; return false; }
-static json_t *money_serialize(const OBJ_INDEX_DATA *pObj) { (void)pObj; return json_null(); }
+static bool money_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change)
+{
+    if (!IS_MONEY(pObj)) return false;
+    int val = (int)json_integer_value(change->new_value);
+    if (strcmp(field, "silver") == 0) { MONEY(pObj)->silver = val; return true; }
+    if (strcmp(field, "gold") == 0) { MONEY(pObj)->gold = val; return true; }
+    return false;
+}
+static json_t *money_serialize(const OBJ_INDEX_DATA *pObj)
+{
+    if (!IS_MONEY(pObj)) return json_null();
+    return json_pack("{s:i, s:i}", "silver", MONEY(pObj)->silver, "gold", MONEY(pObj)->gold);
+}
 
-static bool page_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change) { (void)pObj; (void)field; (void)change; return false; }
-static json_t *page_serialize(const OBJ_INDEX_DATA *pObj) { (void)pObj; return json_null(); }
+static bool page_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change)
+{
+    if (!IS_PAGE(pObj)) return false;
+    if (strcmp(field, "number") == 0) { PAGE(pObj)->page_no = (int)json_integer_value(change->new_value); return true; }
+    if (strcmp(field, "title") == 0) {
+        const char *s = json_string_value(change->new_value);
+        free_string(PAGE(pObj)->title);
+        PAGE(pObj)->title = str_dup(s ? s : "");
+        return true;
+    }
+    return false;
+}
+static json_t *page_serialize(const OBJ_INDEX_DATA *pObj)
+{
+    if (!IS_PAGE(pObj)) return json_null();
+    return json_pack("{s:i, s:s}", "number", PAGE(pObj)->page_no,
+        "title", PAGE(pObj)->title ? PAGE(pObj)->title : "");
+}
 
 static bool portal_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change) { (void)pObj; (void)field; (void)change; return false; }
 static json_t *portal_serialize(const OBJ_INDEX_DATA *pObj) { (void)pObj; return json_null(); }
 
-static bool scroll_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change) { (void)pObj; (void)field; (void)change; return false; }
-static json_t *scroll_serialize(const OBJ_INDEX_DATA *pObj) { (void)pObj; return json_null(); }
+static bool scroll_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change)
+{
+    if (!IS_SCROLL(pObj)) return false;
+    if (strcmp(field, "mana") == 0) { SCROLL(pObj)->max_mana = (int)json_integer_value(change->new_value); return true; }
+    if (strcmp(field, "flags") == 0) { SCROLL(pObj)->flags = (long)json_integer_value(change->new_value); return true; }
+    return false;
+}
+static json_t *scroll_serialize(const OBJ_INDEX_DATA *pObj)
+{
+    if (!IS_SCROLL(pObj)) return json_null();
+    return json_pack("{s:i, s:I}", "mana", SCROLL(pObj)->max_mana, "flags", (json_int_t)SCROLL(pObj)->flags);
+}
 
 static bool seed_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change) { (void)pObj; (void)field; (void)change; return false; }
 static json_t *seed_serialize(const OBJ_INDEX_DATA *pObj) { (void)pObj; return json_null(); }
 
-static bool sextant_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change) { (void)pObj; (void)field; (void)change; return false; }
-static json_t *sextant_serialize(const OBJ_INDEX_DATA *pObj) { (void)pObj; return json_null(); }
+static bool sextant_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change)
+{
+    if (!IS_SEXTANT(pObj)) return false;
+    if (strcmp(field, "accuracy") == 0) { SEXTANT(pObj)->accuracy = (int)json_integer_value(change->new_value); return true; }
+    return false;
+}
+static json_t *sextant_serialize(const OBJ_INDEX_DATA *pObj)
+{
+    if (!IS_SEXTANT(pObj)) return json_null();
+    return json_pack("{s:i}", "accuracy", SEXTANT(pObj)->accuracy);
+}
 
 static bool ship_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change) { (void)pObj; (void)field; (void)change; return false; }
 static json_t *ship_serialize(const OBJ_INDEX_DATA *pObj) { (void)pObj; return json_null(); }
@@ -129,17 +281,52 @@ static json_t *ship_serialize(const OBJ_INDEX_DATA *pObj) { (void)pObj; return j
 static bool shipmodule_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change) { (void)pObj; (void)field; (void)change; return false; }
 static json_t *shipmodule_serialize(const OBJ_INDEX_DATA *pObj) { (void)pObj; return json_null(); }
 
-static bool tattoo_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change) { (void)pObj; (void)field; (void)change; return false; }
-static json_t *tattoo_serialize(const OBJ_INDEX_DATA *pObj) { (void)pObj; return json_null(); }
+static bool tattoo_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change)
+{
+    if (!IS_TATTOO(pObj)) return false;
+    int val = (int)json_integer_value(change->new_value);
+    if (strcmp(field, "touches") == 0) { TATTOO(pObj)->touches = val; return true; }
+    if (strcmp(field, "fading") == 0) { TATTOO(pObj)->fading_chance = val; return true; }
+    if (strcmp(field, "faderate") == 0) { TATTOO(pObj)->fading_rate = val; return true; }
+    return false;
+}
+static json_t *tattoo_serialize(const OBJ_INDEX_DATA *pObj)
+{
+    if (!IS_TATTOO(pObj)) return json_null();
+    return json_pack("{s:i, s:i, s:i}",
+        "touches", TATTOO(pObj)->touches,
+        "fading", TATTOO(pObj)->fading_chance,
+        "faderate", TATTOO(pObj)->fading_rate);
+}
 
 static bool telescope_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change) { (void)pObj; (void)field; (void)change; return false; }
 static json_t *telescope_serialize(const OBJ_INDEX_DATA *pObj) { (void)pObj; return json_null(); }
 
-static bool tool_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change) { (void)pObj; (void)field; (void)change; return false; }
-static json_t *tool_serialize(const OBJ_INDEX_DATA *pObj) { (void)pObj; return json_null(); }
+static bool tool_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change)
+{
+    if (!IS_TOOL(pObj)) return false;
+    int val = (int)json_integer_value(change->new_value);
+    if (strcmp(field, "type") == 0) { TOOL(pObj)->type = val; return true; }
+    if (strcmp(field, "tier") == 0) { TOOL(pObj)->tier = val; return true; }
+    return false;
+}
+static json_t *tool_serialize(const OBJ_INDEX_DATA *pObj)
+{
+    if (!IS_TOOL(pObj)) return json_null();
+    return json_pack("{s:i, s:i}", "type", TOOL(pObj)->type, "tier", TOOL(pObj)->tier);
+}
 
-static bool trade_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change) { (void)pObj; (void)field; (void)change; return false; }
-static json_t *trade_serialize(const OBJ_INDEX_DATA *pObj) { (void)pObj; return json_null(); }
+static bool trade_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change)
+{
+    if (!IS_TRADE(pObj)) return false;
+    if (strcmp(field, "type") == 0) { TRADE(pObj)->trade_type = (int)json_integer_value(change->new_value); return true; }
+    return false;
+}
+static json_t *trade_serialize(const OBJ_INDEX_DATA *pObj)
+{
+    if (!IS_TRADE(pObj)) return json_null();
+    return json_pack("{s:i}", "type", TRADE(pObj)->trade_type);
+}
 
 static bool wand_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change) { (void)pObj; (void)field; (void)change; return false; }
 static json_t *wand_serialize(const OBJ_INDEX_DATA *pObj) { (void)pObj; return json_null(); }
@@ -356,18 +543,46 @@ OEDIT(oedit_bodypart)
 
     argument = one_argument(argument, field);
 
+    const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+    olc_changeset_t *cs = (edef && edef->change_mode == OLC_CHANGE_STAGED)
+        ? olc_get_active_changeset(ch, edef) : NULL;
+
     if (field[0] != '\0') {
         if (!str_prefix(field, "parts")) {
             if (argument[0] == '\0') { send_to_char("Syntax: bodypart parts <flags>\n\r", ch); return false; }
-            long val = flag_value(part_flags, argument);
-            if (val != NO_FLAG) BODY_PART(pObj)->parts ^= val;
-            send_to_char("Body parts toggled.\n\r", ch);
+            long toggle = flag_value(part_flags, argument);
+            if (toggle == NO_FLAG) { send_to_char("Invalid part flag.\n\r", ch); return false; }
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                long current = olc_staged_flags_or(cs, "typedata/bodypart/parts", BODY_PART(pObj)->parts);
+                long result = current ^ toggle;
+                json_t *jold = json_integer((json_int_t)BODY_PART(pObj)->parts);
+                json_t *jnew = json_integer((json_int_t)result);
+                olc_changeset_add_change(cs, "typedata/bodypart/parts", OLC_FIELD_TYPE_DATA, jold, jnew);
+                notify_field_change(cs, ch, "typedata/bodypart/parts", jnew, "type_data", true);
+                json_decref(jold); json_decref(jnew);
+                send_to_char("{G[STAGED]{x Body parts toggled.\n\r", ch);
+            } else {
+                BODY_PART(pObj)->parts ^= toggle;
+                send_to_char("Body parts toggled.\n\r", ch);
+            }
             return true;
         }
         if (!str_prefix(field, "race")) {
             if (argument[0] == '\0') { send_to_char("Syntax: bodypart race <uid>\n\r", ch); return false; }
-            BODY_PART(pObj)->race_uid = atoi(argument);
-            send_to_char("Race UID set.\n\r", ch);
+            int val = atoi(argument);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                json_t *jold = json_integer(BODY_PART(pObj)->race_uid);
+                json_t *jnew = json_integer(val);
+                olc_changeset_add_change(cs, "typedata/bodypart/race", OLC_FIELD_TYPE_DATA, jold, jnew);
+                notify_field_change(cs, ch, "typedata/bodypart/race", jnew, "type_data", true);
+                json_decref(jold); json_decref(jnew);
+                send_to_char("{G[STAGED]{x Race UID set.\n\r", ch);
+            } else {
+                BODY_PART(pObj)->race_uid = val;
+                send_to_char("Race UID set.\n\r", ch);
+            }
             return true;
         }
         send_to_char("Valid fields: parts, race\n\r", ch);
@@ -402,13 +617,29 @@ OEDIT(oedit_book)
 
     argument = one_argument(argument, field);
 
+    const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+    olc_changeset_t *cs = (edef && edef->change_mode == OLC_CHANGE_STAGED)
+        ? olc_get_active_changeset(ch, edef) : NULL;
+
     if (field[0] != '\0') {
         if (!str_prefix(field, "flags")) {
             if (argument[0] == '\0') { send_to_char("Syntax: book flags <flag>\n\r", ch); return false; }
-            int val = flag_value(container_flags, argument);
-            if (val != NO_FLAG) TOGGLE_BIT(BOOK(pObj)->flags, val);
-            else { send_to_char("Invalid flag.\n\r", ch); return false; }
-            send_to_char("Book flags toggled.\n\r", ch);
+            int toggle = flag_value(container_flags, argument);
+            if (toggle == NO_FLAG) { send_to_char("Invalid flag.\n\r", ch); return false; }
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                long current = olc_staged_flags_or(cs, "typedata/book/flags", BOOK(pObj)->flags);
+                long result = current ^ toggle;
+                json_t *jold = json_integer(BOOK(pObj)->flags);
+                json_t *jnew = json_integer(result);
+                olc_changeset_add_change(cs, "typedata/book/flags", OLC_FIELD_TYPE_DATA, jold, jnew);
+                notify_field_change(cs, ch, "typedata/book/flags", jnew, "type_data", true);
+                json_decref(jold); json_decref(jnew);
+                send_to_char("{G[STAGED]{x Book flags toggled.\n\r", ch);
+            } else {
+                TOGGLE_BIT(BOOK(pObj)->flags, toggle);
+                send_to_char("Book flags toggled.\n\r", ch);
+            }
             return true;
         }
         send_to_char("Valid fields: flags\n\r", ch);
@@ -527,11 +758,26 @@ OEDIT(oedit_compass)
 
     argument = one_argument(argument, field);
 
+    const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+    olc_changeset_t *cs = (edef && edef->change_mode == OLC_CHANGE_STAGED)
+        ? olc_get_active_changeset(ch, edef) : NULL;
+
     if (field[0] != '\0') {
         if (!str_prefix(field, "accuracy")) {
             if (argument[0] == '\0') { send_to_char("Syntax: compass accuracy <percent>\n\r", ch); return false; }
-            COMPASS(pObj)->accuracy = atoi(argument);
-            send_to_char("Compass accuracy set.\n\r", ch);
+            int val = atoi(argument);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                json_t *jold = json_integer(COMPASS(pObj)->accuracy);
+                json_t *jnew = json_integer(val);
+                olc_changeset_add_change(cs, "typedata/compass/accuracy", OLC_FIELD_TYPE_DATA, jold, jnew);
+                notify_field_change(cs, ch, "typedata/compass/accuracy", jnew, "type_data", true);
+                json_decref(jold); json_decref(jnew);
+                send_to_char("{G[STAGED]{x Compass accuracy set.\n\r", ch);
+            } else {
+                COMPASS(pObj)->accuracy = val;
+                send_to_char("Compass accuracy set.\n\r", ch);
+            }
             return true;
         }
         send_to_char("Valid fields: accuracy\n\r", ch);
@@ -800,28 +1046,79 @@ OEDIT(oedit_food)
 
     argument = one_argument(argument, field);
 
+    const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+    olc_changeset_t *cs = (edef && edef->change_mode == OLC_CHANGE_STAGED)
+        ? olc_get_active_changeset(ch, edef) : NULL;
+
     if (field[0] != '\0') {
         if (!str_prefix(field, "hunger")) {
             if (argument[0] == '\0') { send_to_char("Syntax: food hunger <hours>\n\r", ch); return false; }
-            FOOD(pObj)->hunger = atoi(argument);
-            send_to_char("Food hunger hours set.\n\r", ch);
+            int val = atoi(argument);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                json_t *jold = json_integer(FOOD(pObj)->hunger);
+                json_t *jnew = json_integer(val);
+                olc_changeset_add_change(cs, "typedata/food/hunger", OLC_FIELD_TYPE_DATA, jold, jnew);
+                notify_field_change(cs, ch, "typedata/food/hunger", jnew, "type_data", true);
+                json_decref(jold); json_decref(jnew);
+                send_to_char("{G[STAGED]{x Food hunger hours set.\n\r", ch);
+            } else {
+                FOOD(pObj)->hunger = val;
+                send_to_char("Food hunger hours set.\n\r", ch);
+            }
             return true;
         }
         if (!str_prefix(field, "full")) {
             if (argument[0] == '\0') { send_to_char("Syntax: food full <hours>\n\r", ch); return false; }
-            FOOD(pObj)->full = atoi(argument);
-            send_to_char("Food full hours set.\n\r", ch);
+            int val = atoi(argument);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                json_t *jold = json_integer(FOOD(pObj)->full);
+                json_t *jnew = json_integer(val);
+                olc_changeset_add_change(cs, "typedata/food/full", OLC_FIELD_TYPE_DATA, jold, jnew);
+                notify_field_change(cs, ch, "typedata/food/full", jnew, "type_data", true);
+                json_decref(jold); json_decref(jnew);
+                send_to_char("{G[STAGED]{x Food full hours set.\n\r", ch);
+            } else {
+                FOOD(pObj)->full = val;
+                send_to_char("Food full hours set.\n\r", ch);
+            }
             return true;
         }
         if (!str_prefix(field, "poison")) {
-            FOOD(pObj)->poison = (FOOD(pObj)->poison == 0) ? 1 : 0;
-            send_to_char("Poison toggled.\n\r", ch);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                int cur = FOOD(pObj)->poison;
+                olc_pending_change_t *existing = olc_changeset_find_change(cs, "typedata/food/poison");
+                if (existing) cur = (int)json_integer_value(existing->new_value);
+                int val = (cur == 0) ? 1 : 0;
+                json_t *jold = json_integer(FOOD(pObj)->poison);
+                json_t *jnew = json_integer(val);
+                olc_changeset_add_change(cs, "typedata/food/poison", OLC_FIELD_TYPE_DATA, jold, jnew);
+                notify_field_change(cs, ch, "typedata/food/poison", jnew, "type_data", true);
+                json_decref(jold); json_decref(jnew);
+                send_to_char("{G[STAGED]{x Poison toggled.\n\r", ch);
+            } else {
+                FOOD(pObj)->poison = (FOOD(pObj)->poison == 0) ? 1 : 0;
+                send_to_char("Poison toggled.\n\r", ch);
+            }
             return true;
         }
         if (!str_prefix(field, "timer")) {
             if (argument[0] == '\0') { send_to_char("Syntax: food timer <ticks>\n\r", ch); return false; }
-            FOOD(pObj)->timer = atoi(argument);
-            send_to_char("Food timer set.\n\r", ch);
+            int val = atoi(argument);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                json_t *jold = json_integer(FOOD(pObj)->timer);
+                json_t *jnew = json_integer(val);
+                olc_changeset_add_change(cs, "typedata/food/timer", OLC_FIELD_TYPE_DATA, jold, jnew);
+                notify_field_change(cs, ch, "typedata/food/timer", jnew, "type_data", true);
+                json_decref(jold); json_decref(jnew);
+                send_to_char("{G[STAGED]{x Food timer set.\n\r", ch);
+            } else {
+                FOOD(pObj)->timer = val;
+                send_to_char("Food timer set.\n\r", ch);
+            }
             return true;
         }
         send_to_char("Valid fields: hunger, full, poison, timer\n\r", ch);
@@ -1053,23 +1350,60 @@ OEDIT(oedit_ink)
 
     argument = one_argument(argument, field);
 
+    const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+    olc_changeset_t *cs = (edef && edef->change_mode == OLC_CHANGE_STAGED)
+        ? olc_get_active_changeset(ch, edef) : NULL;
+
     if (field[0] != '\0') {
         if (!str_prefix(field, "type1")) {
             if (argument[0] == '\0') { send_to_char("Syntax: ink type1 <catalyst_type>\n\r", ch); return false; }
-            INK(pObj)->types[0] = flag_lookup(argument, catalyst_types);
-            send_to_char("Ink type 1 set.\n\r", ch);
+            int val = flag_lookup(argument, catalyst_types);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                json_t *jold = json_integer(INK(pObj)->types[0]);
+                json_t *jnew = json_integer(val);
+                olc_changeset_add_change(cs, "typedata/ink/type1", OLC_FIELD_TYPE_DATA, jold, jnew);
+                notify_field_change(cs, ch, "typedata/ink/type1", jnew, "type_data", true);
+                json_decref(jold); json_decref(jnew);
+                send_to_char("{G[STAGED]{x Ink type 1 set.\n\r", ch);
+            } else {
+                INK(pObj)->types[0] = val;
+                send_to_char("Ink type 1 set.\n\r", ch);
+            }
             return true;
         }
         if (!str_prefix(field, "type2")) {
             if (argument[0] == '\0') { send_to_char("Syntax: ink type2 <catalyst_type>\n\r", ch); return false; }
-            INK(pObj)->types[1] = flag_lookup(argument, catalyst_types);
-            send_to_char("Ink type 2 set.\n\r", ch);
+            int val = flag_lookup(argument, catalyst_types);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                json_t *jold = json_integer(INK(pObj)->types[1]);
+                json_t *jnew = json_integer(val);
+                olc_changeset_add_change(cs, "typedata/ink/type2", OLC_FIELD_TYPE_DATA, jold, jnew);
+                notify_field_change(cs, ch, "typedata/ink/type2", jnew, "type_data", true);
+                json_decref(jold); json_decref(jnew);
+                send_to_char("{G[STAGED]{x Ink type 2 set.\n\r", ch);
+            } else {
+                INK(pObj)->types[1] = val;
+                send_to_char("Ink type 2 set.\n\r", ch);
+            }
             return true;
         }
         if (!str_prefix(field, "type3")) {
             if (argument[0] == '\0') { send_to_char("Syntax: ink type3 <catalyst_type>\n\r", ch); return false; }
-            INK(pObj)->types[2] = flag_lookup(argument, catalyst_types);
-            send_to_char("Ink type 3 set.\n\r", ch);
+            int val = flag_lookup(argument, catalyst_types);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                json_t *jold = json_integer(INK(pObj)->types[2]);
+                json_t *jnew = json_integer(val);
+                olc_changeset_add_change(cs, "typedata/ink/type3", OLC_FIELD_TYPE_DATA, jold, jnew);
+                notify_field_change(cs, ch, "typedata/ink/type3", jnew, "type_data", true);
+                json_decref(jold); json_decref(jnew);
+                send_to_char("{G[STAGED]{x Ink type 3 set.\n\r", ch);
+            } else {
+                INK(pObj)->types[2] = val;
+                send_to_char("Ink type 3 set.\n\r", ch);
+            }
             return true;
         }
         send_to_char("Valid fields: type1, type2, type3\n\r", ch);
@@ -1181,11 +1515,26 @@ OEDIT(oedit_jewelry)
 
     argument = one_argument(argument, field);
 
+    const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+    olc_changeset_t *cs = (edef && edef->change_mode == OLC_CHANGE_STAGED)
+        ? olc_get_active_changeset(ch, edef) : NULL;
+
     if (field[0] != '\0') {
         if (!str_prefix(field, "mana")) {
             if (argument[0] == '\0') { send_to_char("Syntax: jewelry mana <max_mana>\n\r", ch); return false; }
-            JEWELRY(pObj)->max_mana = atoi(argument);
-            send_to_char("Max mana set.\n\r", ch);
+            int val = atoi(argument);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                json_t *jold = json_integer(JEWELRY(pObj)->max_mana);
+                json_t *jnew = json_integer(val);
+                olc_changeset_add_change(cs, "typedata/jewelry/mana", OLC_FIELD_TYPE_DATA, jold, jnew);
+                notify_field_change(cs, ch, "typedata/jewelry/mana", jnew, "type_data", true);
+                json_decref(jold); json_decref(jnew);
+                send_to_char("{G[STAGED]{x Max mana set.\n\r", ch);
+            } else {
+                JEWELRY(pObj)->max_mana = val;
+                send_to_char("Max mana set.\n\r", ch);
+            }
             return true;
         }
         send_to_char("Valid fields: mana\n\r", ch);
@@ -1218,18 +1567,46 @@ OEDIT(oedit_light)
 
     argument = one_argument(argument, field);
 
+    const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+    olc_changeset_t *cs = (edef && edef->change_mode == OLC_CHANGE_STAGED)
+        ? olc_get_active_changeset(ch, edef) : NULL;
+
     if (field[0] != '\0') {
         if (!str_prefix(field, "duration")) {
             if (argument[0] == '\0') { send_to_char("Syntax: light duration <hours|-1 for infinite>\n\r", ch); return false; }
-            LIGHT(pObj)->duration = atoi(argument);
-            send_to_char("Light duration set.\n\r", ch);
+            int val = atoi(argument);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                json_t *jold = json_integer(LIGHT(pObj)->duration);
+                json_t *jnew = json_integer(val);
+                olc_changeset_add_change(cs, "typedata/light/duration", OLC_FIELD_TYPE_DATA, jold, jnew);
+                notify_field_change(cs, ch, "typedata/light/duration", jnew, "type_data", true);
+                json_decref(jold); json_decref(jnew);
+                send_to_char("{G[STAGED]{x Light duration set.\n\r", ch);
+            } else {
+                LIGHT(pObj)->duration = val;
+                send_to_char("Light duration set.\n\r", ch);
+            }
             return true;
         }
         if (!str_prefix(field, "flags")) {
             if (argument[0] == '\0') { send_to_char("Syntax: light flags <flag>\n\r", ch); return false; }
-            long val = flag_value(light_flags, argument);
-            if (val != NO_FLAG) LIGHT(pObj)->flags ^= val;
-            send_to_char("Light flags toggled.\n\r", ch);
+            long toggle = flag_value(light_flags, argument);
+            if (toggle == NO_FLAG) { send_to_char("Invalid light flag.\n\r", ch); return false; }
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                long current = olc_staged_flags_or(cs, "typedata/light/flags", LIGHT(pObj)->flags);
+                long result = current ^ toggle;
+                json_t *jold = json_integer((json_int_t)LIGHT(pObj)->flags);
+                json_t *jnew = json_integer((json_int_t)result);
+                olc_changeset_add_change(cs, "typedata/light/flags", OLC_FIELD_TYPE_DATA, jold, jnew);
+                notify_field_change(cs, ch, "typedata/light/flags", jnew, "type_data", true);
+                json_decref(jold); json_decref(jnew);
+                send_to_char("{G[STAGED]{x Light flags toggled.\n\r", ch);
+            } else {
+                LIGHT(pObj)->flags ^= toggle;
+                send_to_char("Light flags toggled.\n\r", ch);
+            }
             return true;
         }
         send_to_char("Valid fields: duration, flags\n\r", ch);
@@ -1272,23 +1649,60 @@ OEDIT(oedit_map)
 
     argument = one_argument(argument, field);
 
+    const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+    olc_changeset_t *cs = (edef && edef->change_mode == OLC_CHANGE_STAGED)
+        ? olc_get_active_changeset(ch, edef) : NULL;
+
     if (field[0] != '\0') {
         if (!str_prefix(field, "wuid")) {
             if (argument[0] == '\0') { send_to_char("Syntax: map wuid <wilderness_uid>\n\r", ch); return false; }
-            MAP(pObj)->wuid = atol(argument);
-            send_to_char("Map wilderness UID set.\n\r", ch);
+            long val = atol(argument);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                json_t *jold = json_integer((json_int_t)MAP(pObj)->wuid);
+                json_t *jnew = json_integer((json_int_t)val);
+                olc_changeset_add_change(cs, "typedata/map/wuid", OLC_FIELD_TYPE_DATA, jold, jnew);
+                notify_field_change(cs, ch, "typedata/map/wuid", jnew, "type_data", true);
+                json_decref(jold); json_decref(jnew);
+                send_to_char("{G[STAGED]{x Map wilderness UID set.\n\r", ch);
+            } else {
+                MAP(pObj)->wuid = val;
+                send_to_char("Map wilderness UID set.\n\r", ch);
+            }
             return true;
         }
         if (!str_cmp(field, "x")) {
             if (argument[0] == '\0') { send_to_char("Syntax: map x <coordinate>\n\r", ch); return false; }
-            MAP(pObj)->x = atol(argument);
-            send_to_char("Map X coordinate set.\n\r", ch);
+            long val = atol(argument);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                json_t *jold = json_integer((json_int_t)MAP(pObj)->x);
+                json_t *jnew = json_integer((json_int_t)val);
+                olc_changeset_add_change(cs, "typedata/map/x", OLC_FIELD_TYPE_DATA, jold, jnew);
+                notify_field_change(cs, ch, "typedata/map/x", jnew, "type_data", true);
+                json_decref(jold); json_decref(jnew);
+                send_to_char("{G[STAGED]{x Map X coordinate set.\n\r", ch);
+            } else {
+                MAP(pObj)->x = val;
+                send_to_char("Map X coordinate set.\n\r", ch);
+            }
             return true;
         }
         if (!str_cmp(field, "y")) {
             if (argument[0] == '\0') { send_to_char("Syntax: map y <coordinate>\n\r", ch); return false; }
-            MAP(pObj)->y = atol(argument);
-            send_to_char("Map Y coordinate set.\n\r", ch);
+            long val = atol(argument);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                json_t *jold = json_integer((json_int_t)MAP(pObj)->y);
+                json_t *jnew = json_integer((json_int_t)val);
+                olc_changeset_add_change(cs, "typedata/map/y", OLC_FIELD_TYPE_DATA, jold, jnew);
+                notify_field_change(cs, ch, "typedata/map/y", jnew, "type_data", true);
+                json_decref(jold); json_decref(jnew);
+                send_to_char("{G[STAGED]{x Map Y coordinate set.\n\r", ch);
+            } else {
+                MAP(pObj)->y = val;
+                send_to_char("Map Y coordinate set.\n\r", ch);
+            }
             return true;
         }
         send_to_char("Valid fields: wuid, x, y\n\r", ch);
@@ -1325,23 +1739,60 @@ OEDIT(oedit_mist)
 
     argument = one_argument(argument, field);
 
+    const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+    olc_changeset_t *cs = (edef && edef->change_mode == OLC_CHANGE_STAGED)
+        ? olc_get_active_changeset(ch, edef) : NULL;
+
     if (field[0] != '\0') {
         if (!str_prefix(field, "objects")) {
             if (argument[0] == '\0') { send_to_char("Syntax: mist objects <percent>\n\r", ch); return false; }
-            MIST(pObj)->obscure_objs = atoi(argument);
-            send_to_char("Object obscurity set.\n\r", ch);
+            int val = atoi(argument);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                json_t *jold = json_integer(MIST(pObj)->obscure_objs);
+                json_t *jnew = json_integer(val);
+                olc_changeset_add_change(cs, "typedata/mist/objects", OLC_FIELD_TYPE_DATA, jold, jnew);
+                notify_field_change(cs, ch, "typedata/mist/objects", jnew, "type_data", true);
+                json_decref(jold); json_decref(jnew);
+                send_to_char("{G[STAGED]{x Object obscurity set.\n\r", ch);
+            } else {
+                MIST(pObj)->obscure_objs = val;
+                send_to_char("Object obscurity set.\n\r", ch);
+            }
             return true;
         }
         if (!str_prefix(field, "characters")) {
             if (argument[0] == '\0') { send_to_char("Syntax: mist characters <percent>\n\r", ch); return false; }
-            MIST(pObj)->obscure_mobs = atoi(argument);
-            send_to_char("Character obscurity set.\n\r", ch);
+            int val = atoi(argument);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                json_t *jold = json_integer(MIST(pObj)->obscure_mobs);
+                json_t *jnew = json_integer(val);
+                olc_changeset_add_change(cs, "typedata/mist/characters", OLC_FIELD_TYPE_DATA, jold, jnew);
+                notify_field_change(cs, ch, "typedata/mist/characters", jnew, "type_data", true);
+                json_decref(jold); json_decref(jnew);
+                send_to_char("{G[STAGED]{x Character obscurity set.\n\r", ch);
+            } else {
+                MIST(pObj)->obscure_mobs = val;
+                send_to_char("Character obscurity set.\n\r", ch);
+            }
             return true;
         }
         if (!str_prefix(field, "room")) {
             if (argument[0] == '\0') { send_to_char("Syntax: mist room <percent>\n\r", ch); return false; }
-            MIST(pObj)->obscure_room = atoi(argument);
-            send_to_char("Room obscurity set.\n\r", ch);
+            int val = atoi(argument);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                json_t *jold = json_integer(MIST(pObj)->obscure_room);
+                json_t *jnew = json_integer(val);
+                olc_changeset_add_change(cs, "typedata/mist/room", OLC_FIELD_TYPE_DATA, jold, jnew);
+                notify_field_change(cs, ch, "typedata/mist/room", jnew, "type_data", true);
+                json_decref(jold); json_decref(jnew);
+                send_to_char("{G[STAGED]{x Room obscurity set.\n\r", ch);
+            } else {
+                MIST(pObj)->obscure_room = val;
+                send_to_char("Room obscurity set.\n\r", ch);
+            }
             return true;
         }
         send_to_char("Valid fields: objects, characters, room\n\r", ch);
@@ -1378,17 +1829,43 @@ OEDIT(oedit_money)
 
     argument = one_argument(argument, field);
 
+    const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+    olc_changeset_t *cs = (edef && edef->change_mode == OLC_CHANGE_STAGED)
+        ? olc_get_active_changeset(ch, edef) : NULL;
+
     if (field[0] != '\0') {
         if (!str_prefix(field, "silver")) {
             if (argument[0] == '\0') { send_to_char("Syntax: money silver <amount>\n\r", ch); return false; }
-            MONEY(pObj)->silver = atoi(argument);
-            send_to_char("Silver amount set.\n\r", ch);
+            int val = atoi(argument);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                json_t *jold = json_integer(MONEY(pObj)->silver);
+                json_t *jnew = json_integer(val);
+                olc_changeset_add_change(cs, "typedata/money/silver", OLC_FIELD_TYPE_DATA, jold, jnew);
+                notify_field_change(cs, ch, "typedata/money/silver", jnew, "type_data", true);
+                json_decref(jold); json_decref(jnew);
+                send_to_char("{G[STAGED]{x Silver amount set.\n\r", ch);
+            } else {
+                MONEY(pObj)->silver = val;
+                send_to_char("Silver amount set.\n\r", ch);
+            }
             return true;
         }
         if (!str_prefix(field, "gold")) {
             if (argument[0] == '\0') { send_to_char("Syntax: money gold <amount>\n\r", ch); return false; }
-            MONEY(pObj)->gold = atoi(argument);
-            send_to_char("Gold amount set.\n\r", ch);
+            int val = atoi(argument);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                json_t *jold = json_integer(MONEY(pObj)->gold);
+                json_t *jnew = json_integer(val);
+                olc_changeset_add_change(cs, "typedata/money/gold", OLC_FIELD_TYPE_DATA, jold, jnew);
+                notify_field_change(cs, ch, "typedata/money/gold", jnew, "type_data", true);
+                json_decref(jold); json_decref(jnew);
+                send_to_char("{G[STAGED]{x Gold amount set.\n\r", ch);
+            } else {
+                MONEY(pObj)->gold = val;
+                send_to_char("Gold amount set.\n\r", ch);
+            }
             return true;
         }
         send_to_char("Valid fields: silver, gold\n\r", ch);
@@ -1423,18 +1900,43 @@ OEDIT(oedit_page)
 
     argument = one_argument(argument, field);
 
+    const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+    olc_changeset_t *cs = (edef && edef->change_mode == OLC_CHANGE_STAGED)
+        ? olc_get_active_changeset(ch, edef) : NULL;
+
     if (field[0] != '\0') {
         if (!str_prefix(field, "number")) {
             if (argument[0] == '\0') { send_to_char("Syntax: page number <page_no>\n\r", ch); return false; }
-            PAGE(pObj)->page_no = atoi(argument);
-            send_to_char("Page number set.\n\r", ch);
+            int val = atoi(argument);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                json_t *jold = json_integer(PAGE(pObj)->page_no);
+                json_t *jnew = json_integer(val);
+                olc_changeset_add_change(cs, "typedata/page/number", OLC_FIELD_TYPE_DATA, jold, jnew);
+                notify_field_change(cs, ch, "typedata/page/number", jnew, "type_data", true);
+                json_decref(jold); json_decref(jnew);
+                send_to_char("{G[STAGED]{x Page number set.\n\r", ch);
+            } else {
+                PAGE(pObj)->page_no = val;
+                send_to_char("Page number set.\n\r", ch);
+            }
             return true;
         }
         if (!str_prefix(field, "title")) {
             if (argument[0] == '\0') { send_to_char("Syntax: page title <text>\n\r", ch); return false; }
-            free_string(PAGE(pObj)->title);
-            PAGE(pObj)->title = str_dup(argument);
-            send_to_char("Page title set.\n\r", ch);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                json_t *jold = json_string(PAGE(pObj)->title ? PAGE(pObj)->title : "");
+                json_t *jnew = json_string(argument);
+                olc_changeset_add_change(cs, "typedata/page/title", OLC_FIELD_TYPE_DATA, jold, jnew);
+                notify_field_change(cs, ch, "typedata/page/title", jnew, "type_data", true);
+                json_decref(jold); json_decref(jnew);
+                send_to_char("{G[STAGED]{x Page title set.\n\r", ch);
+            } else {
+                free_string(PAGE(pObj)->title);
+                PAGE(pObj)->title = str_dup(argument);
+                send_to_char("Page title set.\n\r", ch);
+            }
             return true;
         }
         send_to_char("Valid fields: number, title\n\r", ch);
@@ -1671,18 +2173,46 @@ OEDIT(oedit_scroll)
 
     argument = one_argument(argument, field);
 
+    const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+    olc_changeset_t *cs = (edef && edef->change_mode == OLC_CHANGE_STAGED)
+        ? olc_get_active_changeset(ch, edef) : NULL;
+
     if (field[0] != '\0') {
         if (!str_prefix(field, "mana")) {
             if (argument[0] == '\0') { send_to_char("Syntax: scroll mana <max_mana>\n\r", ch); return false; }
-            SCROLL(pObj)->max_mana = atoi(argument);
-            send_to_char("Scroll max mana set.\n\r", ch);
+            int val = atoi(argument);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                json_t *jold = json_integer(SCROLL(pObj)->max_mana);
+                json_t *jnew = json_integer(val);
+                olc_changeset_add_change(cs, "typedata/scroll/mana", OLC_FIELD_TYPE_DATA, jold, jnew);
+                notify_field_change(cs, ch, "typedata/scroll/mana", jnew, "type_data", true);
+                json_decref(jold); json_decref(jnew);
+                send_to_char("{G[STAGED]{x Scroll max mana set.\n\r", ch);
+            } else {
+                SCROLL(pObj)->max_mana = val;
+                send_to_char("Scroll max mana set.\n\r", ch);
+            }
             return true;
         }
         if (!str_prefix(field, "flags")) {
             if (argument[0] == '\0') { send_to_char("Syntax: scroll flags <flag>\n\r", ch); return false; }
-            long val = flag_value(scroll_flags, argument);
-            if (val != NO_FLAG) SCROLL(pObj)->flags ^= val;
-            send_to_char("Scroll flags toggled.\n\r", ch);
+            long toggle = flag_value(scroll_flags, argument);
+            if (toggle == NO_FLAG) { send_to_char("Invalid scroll flag.\n\r", ch); return false; }
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                long current = olc_staged_flags_or(cs, "typedata/scroll/flags", SCROLL(pObj)->flags);
+                long result = current ^ toggle;
+                json_t *jold = json_integer((json_int_t)SCROLL(pObj)->flags);
+                json_t *jnew = json_integer((json_int_t)result);
+                olc_changeset_add_change(cs, "typedata/scroll/flags", OLC_FIELD_TYPE_DATA, jold, jnew);
+                notify_field_change(cs, ch, "typedata/scroll/flags", jnew, "type_data", true);
+                json_decref(jold); json_decref(jnew);
+                send_to_char("{G[STAGED]{x Scroll flags toggled.\n\r", ch);
+            } else {
+                SCROLL(pObj)->flags ^= toggle;
+                send_to_char("Scroll flags toggled.\n\r", ch);
+            }
             return true;
         }
         send_to_char("Valid fields: mana, flags\n\r", ch);
@@ -1778,11 +2308,26 @@ OEDIT(oedit_sextant)
 
     argument = one_argument(argument, field);
 
+    const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+    olc_changeset_t *cs = (edef && edef->change_mode == OLC_CHANGE_STAGED)
+        ? olc_get_active_changeset(ch, edef) : NULL;
+
     if (field[0] != '\0') {
         if (!str_prefix(field, "accuracy")) {
             if (argument[0] == '\0') { send_to_char("Syntax: sextant accuracy <percent>\n\r", ch); return false; }
-            SEXTANT(pObj)->accuracy = atoi(argument);
-            send_to_char("Sextant accuracy set.\n\r", ch);
+            int val = atoi(argument);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                json_t *jold = json_integer(SEXTANT(pObj)->accuracy);
+                json_t *jnew = json_integer(val);
+                olc_changeset_add_change(cs, "typedata/sextant/accuracy", OLC_FIELD_TYPE_DATA, jold, jnew);
+                notify_field_change(cs, ch, "typedata/sextant/accuracy", jnew, "type_data", true);
+                json_decref(jold); json_decref(jnew);
+                send_to_char("{G[STAGED]{x Sextant accuracy set.\n\r", ch);
+            } else {
+                SEXTANT(pObj)->accuracy = val;
+                send_to_char("Sextant accuracy set.\n\r", ch);
+            }
             return true;
         }
         send_to_char("Valid fields: accuracy\n\r", ch);
@@ -2199,23 +2744,60 @@ OEDIT(oedit_tattoo)
 
     argument = one_argument(argument, field);
 
+    const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+    olc_changeset_t *cs = (edef && edef->change_mode == OLC_CHANGE_STAGED)
+        ? olc_get_active_changeset(ch, edef) : NULL;
+
     if (field[0] != '\0') {
         if (!str_prefix(field, "touches")) {
             if (argument[0] == '\0') { send_to_char("Syntax: tattoo touches <count>\n\r", ch); return false; }
-            TATTOO(pObj)->touches = atoi(argument);
-            send_to_char("Tattoo touches set.\n\r", ch);
+            int val = atoi(argument);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                json_t *jold = json_integer(TATTOO(pObj)->touches);
+                json_t *jnew = json_integer(val);
+                olc_changeset_add_change(cs, "typedata/tattoo/touches", OLC_FIELD_TYPE_DATA, jold, jnew);
+                notify_field_change(cs, ch, "typedata/tattoo/touches", jnew, "type_data", true);
+                json_decref(jold); json_decref(jnew);
+                send_to_char("{G[STAGED]{x Tattoo touches set.\n\r", ch);
+            } else {
+                TATTOO(pObj)->touches = val;
+                send_to_char("Tattoo touches set.\n\r", ch);
+            }
             return true;
         }
         if (!str_prefix(field, "fading")) {
             if (argument[0] == '\0') { send_to_char("Syntax: tattoo fading <percent>\n\r", ch); return false; }
-            TATTOO(pObj)->fading_chance = atoi(argument);
-            send_to_char("Tattoo fading chance set.\n\r", ch);
+            int val = atoi(argument);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                json_t *jold = json_integer(TATTOO(pObj)->fading_chance);
+                json_t *jnew = json_integer(val);
+                olc_changeset_add_change(cs, "typedata/tattoo/fading", OLC_FIELD_TYPE_DATA, jold, jnew);
+                notify_field_change(cs, ch, "typedata/tattoo/fading", jnew, "type_data", true);
+                json_decref(jold); json_decref(jnew);
+                send_to_char("{G[STAGED]{x Tattoo fading chance set.\n\r", ch);
+            } else {
+                TATTOO(pObj)->fading_chance = val;
+                send_to_char("Tattoo fading chance set.\n\r", ch);
+            }
             return true;
         }
         if (!str_prefix(field, "faderate")) {
             if (argument[0] == '\0') { send_to_char("Syntax: tattoo faderate <rate>\n\r", ch); return false; }
-            TATTOO(pObj)->fading_rate = atoi(argument);
-            send_to_char("Tattoo fading rate set.\n\r", ch);
+            int val = atoi(argument);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                json_t *jold = json_integer(TATTOO(pObj)->fading_rate);
+                json_t *jnew = json_integer(val);
+                olc_changeset_add_change(cs, "typedata/tattoo/faderate", OLC_FIELD_TYPE_DATA, jold, jnew);
+                notify_field_change(cs, ch, "typedata/tattoo/faderate", jnew, "type_data", true);
+                json_decref(jold); json_decref(jnew);
+                send_to_char("{G[STAGED]{x Tattoo fading rate set.\n\r", ch);
+            } else {
+                TATTOO(pObj)->fading_rate = val;
+                send_to_char("Tattoo fading rate set.\n\r", ch);
+            }
             return true;
         }
         send_to_char("Valid fields: touches, fading, faderate\n\r", ch);
@@ -2355,19 +2937,44 @@ OEDIT(oedit_tool)
 
     argument = one_argument(argument, field);
 
+    const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+    olc_changeset_t *cs = (edef && edef->change_mode == OLC_CHANGE_STAGED)
+        ? olc_get_active_changeset(ch, edef) : NULL;
+
     if (field[0] != '\0') {
         if (!str_prefix(field, "type")) {
             if (argument[0] == '\0') { send_to_char("Syntax: tool type <tool_type>\n\r", ch); return false; }
             int val = flag_value(tool_types, argument);
             if (val == NO_FLAG) { send_to_char("Invalid tool type.\n\r", ch); return false; }
-            TOOL(pObj)->type = val;
-            send_to_char("Tool type set.\n\r", ch);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                json_t *jold = json_integer(TOOL(pObj)->type);
+                json_t *jnew = json_integer(val);
+                olc_changeset_add_change(cs, "typedata/tool/type", OLC_FIELD_TYPE_DATA, jold, jnew);
+                notify_field_change(cs, ch, "typedata/tool/type", jnew, "type_data", true);
+                json_decref(jold); json_decref(jnew);
+                send_to_char("{G[STAGED]{x Tool type set.\n\r", ch);
+            } else {
+                TOOL(pObj)->type = val;
+                send_to_char("Tool type set.\n\r", ch);
+            }
             return true;
         }
         if (!str_prefix(field, "tier")) {
             if (argument[0] == '\0') { send_to_char("Syntax: tool tier <level>\n\r", ch); return false; }
-            TOOL(pObj)->tier = atoi(argument);
-            send_to_char("Tool tier set.\n\r", ch);
+            int val = atoi(argument);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                json_t *jold = json_integer(TOOL(pObj)->tier);
+                json_t *jnew = json_integer(val);
+                olc_changeset_add_change(cs, "typedata/tool/tier", OLC_FIELD_TYPE_DATA, jold, jnew);
+                notify_field_change(cs, ch, "typedata/tool/tier", jnew, "type_data", true);
+                json_decref(jold); json_decref(jnew);
+                send_to_char("{G[STAGED]{x Tool tier set.\n\r", ch);
+            } else {
+                TOOL(pObj)->tier = val;
+                send_to_char("Tool tier set.\n\r", ch);
+            }
             return true;
         }
         send_to_char("Valid fields: type, tier\n\r", ch);
@@ -2402,6 +3009,10 @@ OEDIT(oedit_trade)
 
     argument = one_argument(argument, field);
 
+    const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+    olc_changeset_t *cs = (edef && edef->change_mode == OLC_CHANGE_STAGED)
+        ? olc_get_active_changeset(ch, edef) : NULL;
+
     if (field[0] != '\0') {
         if (!str_prefix(field, "type")) {
             if (argument[0] == '\0') {
@@ -2414,13 +3025,23 @@ OEDIT(oedit_trade)
                 }
                 return false;
             }
-            int i = get_trade_item(argument);
-            if (i == 0 && str_cmp(argument, "none")) {
+            int val = get_trade_item(argument);
+            if (val == 0 && str_cmp(argument, "none")) {
                 send_to_char("Invalid trade type. Use 'trade type' to see list.\n\r", ch);
                 return false;
             }
-            TRADE(pObj)->trade_type = i;
-            send_to_char("Trade type set.\n\r", ch);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                json_t *jold = json_integer(TRADE(pObj)->trade_type);
+                json_t *jnew = json_integer(val);
+                olc_changeset_add_change(cs, "typedata/trade/type", OLC_FIELD_TYPE_DATA, jold, jnew);
+                notify_field_change(cs, ch, "typedata/trade/type", jnew, "type_data", true);
+                json_decref(jold); json_decref(jnew);
+                send_to_char("{G[STAGED]{x Trade type set.\n\r", ch);
+            } else {
+                TRADE(pObj)->trade_type = val;
+                send_to_char("Trade type set.\n\r", ch);
+            }
             return true;
         }
         send_to_char("Valid fields: type\n\r", ch);
