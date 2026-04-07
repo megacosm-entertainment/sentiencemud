@@ -755,6 +755,10 @@ static bool oedit_apply_oprog_ops(void *entity, olc_pending_change_t *change)
     return false;
 }
 
+/* Type dispatch — implemented in oedit_types.c */
+extern bool oedit_apply_typedata(void *entity, olc_pending_change_t *change);
+extern json_t *oedit_serialize_typedata(void *entity, const char *field_path);
+
 /*
  * Field Handler Table — maps staged field names to apply functions.
  */
@@ -789,6 +793,7 @@ static const olc_field_handler_t oedit_field_handlers[] = {
     { "oprogs/**",        OLC_FIELD_LIST_ADD,   NULL, oedit_apply_oprog_ops,    NULL },
     { "lock",             OLC_FIELD_EMBEDDED,   oedit_serialize_lock,      oedit_apply_lock,      NULL },
     { "waypoints",        OLC_FIELD_EMBEDDED,   oedit_serialize_waypoints, oedit_apply_waypoints, NULL },
+    { "typedata/**",      OLC_FIELD_TYPE_DATA,  oedit_serialize_typedata,  oedit_apply_typedata,  NULL },
     { NULL, 0, NULL, NULL, NULL }
 };
 
@@ -4052,6 +4057,28 @@ OEDIT(oedit_addtype)
         return false;
     }
 
+    /* Staged mode */
+    {
+        const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+        if (edef && edef->change_mode == OLC_CHANGE_STAGED) {
+            olc_changeset_t *cs = olc_get_active_changeset(ch, edef);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                char path[MIL];
+                snprintf(path, sizeof(path), "typedata/+%s",
+                    flag_string(type_flags, value));
+                json_t *val = json_true();
+                olc_changeset_add_change(cs, path, OLC_FIELD_TYPE_DATA, json_null(), val);
+                notify_field_change(cs, ch, path, val, "type_data", true);
+                json_decref(val);
+                printf_to_char(ch, "{G[STAGED]{x Secondary type '%s' added.\n\r",
+                    flag_string(type_flags, value));
+                return true;
+            }
+        }
+    }
+
+    /* Non-staged: apply directly */
     if (!obj_index_alloc_type_data(pObj, value))
     {
         send_to_char("That type is already present on this object.\n\r", ch);
@@ -4084,6 +4111,28 @@ OEDIT(oedit_removetype)
         return false;
     }
 
+    /* Staged mode */
+    {
+        const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+        if (edef && edef->change_mode == OLC_CHANGE_STAGED) {
+            olc_changeset_t *cs = olc_get_active_changeset(ch, edef);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                char path[MIL];
+                snprintf(path, sizeof(path), "typedata/-%s",
+                    flag_string(type_flags, value));
+                json_t *val = json_true();
+                olc_changeset_add_change(cs, path, OLC_FIELD_TYPE_DATA, json_null(), val);
+                notify_field_change(cs, ch, path, val, "type_data", true);
+                json_decref(val);
+                printf_to_char(ch, "{G[STAGED]{x Secondary type '%s' removal staged.\n\r",
+                    flag_string(type_flags, value));
+                return true;
+            }
+        }
+    }
+
+    /* Non-staged: apply directly */
     if (!obj_index_remove_type(pObj, value))
     {
         send_to_char("Cannot remove that type (either it's the primary type or not present).\n\r", ch);

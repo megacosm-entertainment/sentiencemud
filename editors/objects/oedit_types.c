@@ -14,11 +14,249 @@
 #include "../../recycle.h"
 #include <string.h>
 #include "../../skill_data.h"
+#include "../common.h"
+#include "../common/olc_changeset.h"
+#include "../common/olc_commands.h"
+#include "../common/olc_staged.h"
+#include "../common/olc_field_handlers.h"
+#include <jansson.h>
 
 /* Forward declarations for helpers used by type commands */
 extern void set_weapon_dice(OBJ_INDEX_DATA *objIndex);
 extern void set_armour(OBJ_INDEX_DATA *objIndex);
 extern int  get_armour_strength(char *argument);
+
+/*
+ * Type Dispatch Infrastructure
+ *
+ * Per-type apply/serialize function pairs called from the typedata/**
+ * wildcard handler in oedit.c.
+ */
+
+/**
+ * Per-type field apply function.
+ * Receives the entity, the field name (after the type prefix), and the change.
+ * E.g., for path "typedata/weapon/class", field_name = "class".
+ */
+typedef bool (*oedit_type_apply_fn)(OBJ_INDEX_DATA *pObj,
+    const char *field_name, olc_pending_change_t *change);
+
+/**
+ * Per-type serialization function.
+ * Returns a JSON object with all fields for this type.
+ */
+typedef json_t *(*oedit_type_serialize_fn)(const OBJ_INDEX_DATA *pObj);
+
+typedef struct {
+    const char             *type_name;
+    oedit_type_apply_fn     apply_fn;
+    oedit_type_serialize_fn serialize_fn;
+} oedit_type_dispatch_t;
+
+/* Stubs — implemented in Tasks 8-10 */
+static bool armor_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change) { (void)pObj; (void)field; (void)change; return false; }
+static json_t *armor_serialize(const OBJ_INDEX_DATA *pObj) { (void)pObj; return json_null(); }
+
+static bool bodypart_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change) { (void)pObj; (void)field; (void)change; return false; }
+static json_t *bodypart_serialize(const OBJ_INDEX_DATA *pObj) { (void)pObj; return json_null(); }
+
+static bool book_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change) { (void)pObj; (void)field; (void)change; return false; }
+static json_t *book_serialize(const OBJ_INDEX_DATA *pObj) { (void)pObj; return json_null(); }
+
+static bool cart_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change) { (void)pObj; (void)field; (void)change; return false; }
+static json_t *cart_serialize(const OBJ_INDEX_DATA *pObj) { (void)pObj; return json_null(); }
+
+static bool compass_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change) { (void)pObj; (void)field; (void)change; return false; }
+static json_t *compass_serialize(const OBJ_INDEX_DATA *pObj) { (void)pObj; return json_null(); }
+
+static bool container_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change) { (void)pObj; (void)field; (void)change; return false; }
+static json_t *container_serialize(const OBJ_INDEX_DATA *pObj) { (void)pObj; return json_null(); }
+
+static bool corpse_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change) { (void)pObj; (void)field; (void)change; return false; }
+static json_t *corpse_serialize(const OBJ_INDEX_DATA *pObj) { (void)pObj; return json_null(); }
+
+static bool drink_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change) { (void)pObj; (void)field; (void)change; return false; }
+static json_t *drink_serialize(const OBJ_INDEX_DATA *pObj) { (void)pObj; return json_null(); }
+
+static bool food_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change) { (void)pObj; (void)field; (void)change; return false; }
+static json_t *food_serialize(const OBJ_INDEX_DATA *pObj) { (void)pObj; return json_null(); }
+
+static bool furniture_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change) { (void)pObj; (void)field; (void)change; return false; }
+static json_t *furniture_serialize(const OBJ_INDEX_DATA *pObj) { (void)pObj; return json_null(); }
+
+static bool herb_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change) { (void)pObj; (void)field; (void)change; return false; }
+static json_t *herb_serialize(const OBJ_INDEX_DATA *pObj) { (void)pObj; return json_null(); }
+
+static bool ink_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change) { (void)pObj; (void)field; (void)change; return false; }
+static json_t *ink_serialize(const OBJ_INDEX_DATA *pObj) { (void)pObj; return json_null(); }
+
+static bool instrument_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change) { (void)pObj; (void)field; (void)change; return false; }
+static json_t *instrument_serialize(const OBJ_INDEX_DATA *pObj) { (void)pObj; return json_null(); }
+
+static bool jewelry_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change) { (void)pObj; (void)field; (void)change; return false; }
+static json_t *jewelry_serialize(const OBJ_INDEX_DATA *pObj) { (void)pObj; return json_null(); }
+
+static bool light_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change) { (void)pObj; (void)field; (void)change; return false; }
+static json_t *light_serialize(const OBJ_INDEX_DATA *pObj) { (void)pObj; return json_null(); }
+
+static bool map_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change) { (void)pObj; (void)field; (void)change; return false; }
+static json_t *map_serialize(const OBJ_INDEX_DATA *pObj) { (void)pObj; return json_null(); }
+
+static bool mist_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change) { (void)pObj; (void)field; (void)change; return false; }
+static json_t *mist_serialize(const OBJ_INDEX_DATA *pObj) { (void)pObj; return json_null(); }
+
+static bool money_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change) { (void)pObj; (void)field; (void)change; return false; }
+static json_t *money_serialize(const OBJ_INDEX_DATA *pObj) { (void)pObj; return json_null(); }
+
+static bool page_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change) { (void)pObj; (void)field; (void)change; return false; }
+static json_t *page_serialize(const OBJ_INDEX_DATA *pObj) { (void)pObj; return json_null(); }
+
+static bool portal_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change) { (void)pObj; (void)field; (void)change; return false; }
+static json_t *portal_serialize(const OBJ_INDEX_DATA *pObj) { (void)pObj; return json_null(); }
+
+static bool scroll_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change) { (void)pObj; (void)field; (void)change; return false; }
+static json_t *scroll_serialize(const OBJ_INDEX_DATA *pObj) { (void)pObj; return json_null(); }
+
+static bool seed_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change) { (void)pObj; (void)field; (void)change; return false; }
+static json_t *seed_serialize(const OBJ_INDEX_DATA *pObj) { (void)pObj; return json_null(); }
+
+static bool sextant_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change) { (void)pObj; (void)field; (void)change; return false; }
+static json_t *sextant_serialize(const OBJ_INDEX_DATA *pObj) { (void)pObj; return json_null(); }
+
+static bool ship_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change) { (void)pObj; (void)field; (void)change; return false; }
+static json_t *ship_serialize(const OBJ_INDEX_DATA *pObj) { (void)pObj; return json_null(); }
+
+static bool shipmodule_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change) { (void)pObj; (void)field; (void)change; return false; }
+static json_t *shipmodule_serialize(const OBJ_INDEX_DATA *pObj) { (void)pObj; return json_null(); }
+
+static bool tattoo_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change) { (void)pObj; (void)field; (void)change; return false; }
+static json_t *tattoo_serialize(const OBJ_INDEX_DATA *pObj) { (void)pObj; return json_null(); }
+
+static bool telescope_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change) { (void)pObj; (void)field; (void)change; return false; }
+static json_t *telescope_serialize(const OBJ_INDEX_DATA *pObj) { (void)pObj; return json_null(); }
+
+static bool tool_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change) { (void)pObj; (void)field; (void)change; return false; }
+static json_t *tool_serialize(const OBJ_INDEX_DATA *pObj) { (void)pObj; return json_null(); }
+
+static bool trade_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change) { (void)pObj; (void)field; (void)change; return false; }
+static json_t *trade_serialize(const OBJ_INDEX_DATA *pObj) { (void)pObj; return json_null(); }
+
+static bool wand_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change) { (void)pObj; (void)field; (void)change; return false; }
+static json_t *wand_serialize(const OBJ_INDEX_DATA *pObj) { (void)pObj; return json_null(); }
+
+static bool weapon_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change) { (void)pObj; (void)field; (void)change; return false; }
+static json_t *weapon_serialize(const OBJ_INDEX_DATA *pObj) { (void)pObj; return json_null(); }
+
+static bool weaponcon_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change) { (void)pObj; (void)field; (void)change; return false; }
+static json_t *weaponcon_serialize(const OBJ_INDEX_DATA *pObj) { (void)pObj; return json_null(); }
+
+static const oedit_type_dispatch_t type_dispatch[] = {
+    { "armor",       armor_apply_field,       armor_serialize },
+    { "bodypart",    bodypart_apply_field,    bodypart_serialize },
+    { "book",        book_apply_field,        book_serialize },
+    { "cart",        cart_apply_field,        cart_serialize },
+    { "compass",     compass_apply_field,     compass_serialize },
+    { "container",   container_apply_field,   container_serialize },
+    { "corpse",      corpse_apply_field,      corpse_serialize },
+    { "drink",       drink_apply_field,       drink_serialize },
+    { "food",        food_apply_field,        food_serialize },
+    { "furniture",   furniture_apply_field,   furniture_serialize },
+    { "herb",        herb_apply_field,        herb_serialize },
+    { "ink",         ink_apply_field,         ink_serialize },
+    { "instrument",  instrument_apply_field,  instrument_serialize },
+    { "jewelry",     jewelry_apply_field,     jewelry_serialize },
+    { "light",       light_apply_field,       light_serialize },
+    { "map",         map_apply_field,         map_serialize },
+    { "mist",        mist_apply_field,        mist_serialize },
+    { "money",       money_apply_field,       money_serialize },
+    { "page",        page_apply_field,        page_serialize },
+    { "portal",      portal_apply_field,      portal_serialize },
+    { "scroll",      scroll_apply_field,      scroll_serialize },
+    { "seed",        seed_apply_field,        seed_serialize },
+    { "sextant",     sextant_apply_field,     sextant_serialize },
+    { "ship",        ship_apply_field,        ship_serialize },
+    { "shipmodule",  shipmodule_apply_field,  shipmodule_serialize },
+    { "tattoo",      tattoo_apply_field,      tattoo_serialize },
+    { "telescope",   telescope_apply_field,   telescope_serialize },
+    { "tool",        tool_apply_field,        tool_serialize },
+    { "trade",       trade_apply_field,       trade_serialize },
+    { "wand",        wand_apply_field,        wand_serialize },
+    { "weapon",      weapon_apply_field,      weapon_serialize },
+    { "weaponcon",   weaponcon_apply_field,   weaponcon_serialize },
+    { NULL, NULL, NULL }
+};
+
+bool oedit_apply_typedata(void *entity, olc_pending_change_t *change)
+{
+    OBJ_INDEX_DATA *pObj = (OBJ_INDEX_DATA *)entity;
+    const char *path = change->field_path;
+
+    /* Skip "typedata/" prefix */
+    const char *rest = path + 9; /* strlen("typedata/") */
+
+    /* Check for addtype/removetype: +type or -type */
+    if (rest[0] == '+') {
+        const char *type_name = rest + 1;
+        int type_flag = flag_value(type_flags, type_name);
+        if (type_flag == NO_FLAG) return false;
+        obj_index_alloc_type_data(pObj, type_flag);
+        return true;
+    }
+    if (rest[0] == '-') {
+        const char *type_name = rest + 1;
+        int type_flag = flag_value(type_flags, type_name);
+        if (type_flag == NO_FLAG) return false;
+        obj_index_remove_type(pObj, type_flag);
+        return true;
+    }
+
+    /* Regular type field: rest = "weapon/class" */
+    char type_buf[MIL];
+    const char *slash = strchr(rest, '/');
+    if (!slash) return false;
+
+    size_t tlen = slash - rest;
+    if (tlen >= sizeof(type_buf)) return false;
+    memcpy(type_buf, rest, tlen);
+    type_buf[tlen] = '\0';
+
+    const char *field_name = slash + 1;
+
+    /* Find type handler */
+    for (int i = 0; type_dispatch[i].type_name; i++) {
+        if (strcmp(type_dispatch[i].type_name, type_buf) == 0) {
+            return type_dispatch[i].apply_fn(pObj, field_name, change);
+        }
+    }
+
+    return false;
+}
+
+json_t *oedit_serialize_typedata(void *entity, const char *field_path)
+{
+    OBJ_INDEX_DATA *pObj = (OBJ_INDEX_DATA *)entity;
+    const char *rest = field_path + 9;
+
+    char type_buf[MIL];
+    const char *slash = strchr(rest, '/');
+    if (!slash) {
+        strlcpy(type_buf, rest, sizeof(type_buf));
+    } else {
+        size_t tlen = slash - rest;
+        if (tlen >= sizeof(type_buf)) return json_null();
+        memcpy(type_buf, rest, tlen);
+        type_buf[tlen] = '\0';
+    }
+
+    for (int i = 0; type_dispatch[i].type_name; i++) {
+        if (strcmp(type_dispatch[i].type_name, type_buf) == 0
+            && type_dispatch[i].serialize_fn) {
+            return type_dispatch[i].serialize_fn(pObj);
+        }
+    }
+
+    return json_null();
+}
 
 /* ============================================================================
  *  ARMOR
