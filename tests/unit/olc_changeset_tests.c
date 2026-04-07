@@ -9,6 +9,13 @@
 #include "../../editors/common/olc_field_handlers.h"
 #include "../../editors/common/olc_staged.h"
 #include "../../editors/common/olc_commands.h"
+#include "../../editors/common/olc_editor.h"
+#include "../../item_types.h"
+
+/* Apply functions from oedit.c / oedit_types.c used by integration tests */
+extern bool oedit_apply_affect_ops(void *entity, olc_pending_change_t *change);
+extern bool oedit_apply_lock(void *entity, olc_pending_change_t *change);
+extern bool oedit_apply_typedata(void *entity, olc_pending_change_t *change);
 
 static test_result_t test_olccs_create_destroy(test_case_t *test)
 {
@@ -1376,6 +1383,148 @@ static test_result_t test_olccs_flags_or(test_case_t *test)
     return TEST_SUCCESS;
 }
 
+/**
+ * Test list add/remove apply: stage a REMOVE and ADD on affects, commit, verify.
+ */
+static test_result_t test_olccs_apply_list_ops(test_case_t *test)
+{
+    (void)test;
+
+    olc_field_handler_t handlers[] = {
+        { "affects/**", OLC_FIELD_LIST_ADD, NULL, oedit_apply_affect_ops, NULL },
+        { NULL, 0, NULL, NULL, NULL }
+    };
+
+    OBJ_INDEX_DATA *pObj = new_obj_index();
+
+    /* Add 3 affects: prepend order means list is INT(idx0), DEX(idx1), STR(idx2) */
+    for (int i = 0; i < 3; i++) {
+        AFFECT_DATA *pAf = new_affect();
+        pAf->where    = TO_OBJECT;
+        pAf->location = APPLY_STR + i;  /* STR=1, DEX=2, INT=3 */
+        pAf->modifier = 10 + i;
+        pAf->next     = pObj->affected;
+        pObj->affected = pAf;
+    }
+
+    WNUM_LOAD wnum = { .auid = 1, .vnum = 100 };
+    olc_changeset_t *cs = olc_changeset_create(ED_OBJECT, wnum,
+                                                "Test Object", "TestBuilder");
+
+    /* Stage remove of index 1 (DEX affect in TO_OBJECT subset) */
+    json_t *rm_val = json_pack("{s:i, s:s}", "index", 1, "where_filter", "object");
+    olc_changeset_add_change(cs, "affects/rm:0", OLC_FIELD_LIST_REMOVE,
+                              json_null(), rm_val);
+    json_decref(rm_val);
+
+    /* Stage add of APPLY_CON affect */
+    json_t *add_val = json_pack("{s:s, s:s, s:i, s:i, s:i, s:I, s:i, s:i}",
+        "where", "object", "location", "constitution",
+        "modifier", 5, "type", -1, "duration", -1,
+        "bitvector", (json_int_t)0, "level", 0, "random", 0);
+    olc_changeset_add_change(cs, "affects/add:0", OLC_FIELD_LIST_ADD,
+                              json_null(), add_val);
+    json_decref(add_val);
+
+    const char *error_field = NULL;
+    int result = olc_changeset_commit(cs, pObj, handlers, &error_field);
+    TEST_ASSERT_TRUE(result >= 0);
+
+    /* Was 3 affects, removed 1, added 1 → still 3 */
+    int count = 0;
+    bool found_con = false;
+    bool found_dex = false;
+    for (AFFECT_DATA *pAf = pObj->affected; pAf; pAf = pAf->next) {
+        if (pAf->where != TO_OBJECT) continue;
+        count++;
+        if (pAf->location == APPLY_CON) found_con = true;
+        if (pAf->location == APPLY_DEX) found_dex = true;
+    }
+    TEST_ASSERT_INT_EQ(3, count);
+    TEST_ASSERT_TRUE(found_con);
+    TEST_ASSERT_FALSE(found_dex);
+
+    olc_changeset_destroy(cs);
+    free_obj_index(pObj);
+    return TEST_SUCCESS;
+}
+
+/**
+ * Test embedded snapshot apply: stage a lock, commit, verify fields.
+ */
+static test_result_t test_olccs_apply_embedded(test_case_t *test)
+{
+    (void)test;
+
+    olc_field_handler_t handlers[] = {
+        { "lock", OLC_FIELD_EMBEDDED, NULL, oedit_apply_lock, NULL },
+        { NULL, 0, NULL, NULL, NULL }
+    };
+
+    OBJ_INDEX_DATA *pObj = new_obj_index();
+
+    WNUM_LOAD wnum = { .auid = 1, .vnum = 200 };
+    olc_changeset_t *cs = olc_changeset_create(ED_OBJECT, wnum,
+                                                "Test Object", "TestBuilder");
+
+    /* Stage a lock snapshot */
+    json_t *new_lock = json_pack("{s:I, s:I, s:i, s:i}",
+        "key_auid", (json_int_t)5, "key_vnum", (json_int_t)3001,
+        "flags", 0, "pick_chance", 50);
+    olc_changeset_add_change(cs, "lock", OLC_FIELD_EMBEDDED,
+                              json_null(), new_lock);
+    json_decref(new_lock);
+
+    const char *error_field = NULL;
+    int result = olc_changeset_commit(cs, pObj, handlers, &error_field);
+    TEST_ASSERT_TRUE(result >= 0);
+
+    TEST_ASSERT_NOT_NULL(pObj->lock);
+    TEST_ASSERT_INT_EQ(50, pObj->lock->pick_chance);
+
+    olc_changeset_destroy(cs);
+    free_obj_index(pObj);
+    return TEST_SUCCESS;
+}
+
+/**
+ * Test type dispatch apply: stage weapon class change, commit, verify.
+ */
+static test_result_t test_olccs_apply_typedata(test_case_t *test)
+{
+    (void)test;
+
+    olc_field_handler_t handlers[] = {
+        { "typedata/**", OLC_FIELD_TYPE_DATA, NULL, oedit_apply_typedata, NULL },
+        { NULL, 0, NULL, NULL, NULL }
+    };
+
+    OBJ_INDEX_DATA *pObj = new_obj_index();
+    obj_index_alloc_type_data(pObj, ITEM_WEAPON);
+    TEST_ASSERT_TRUE(IS_WEAPON(pObj));
+
+    WNUM_LOAD wnum = { .auid = 1, .vnum = 300 };
+    olc_changeset_t *cs = olc_changeset_create(ED_OBJECT, wnum,
+                                                "Test Object", "TestBuilder");
+
+    json_t *old_val = json_integer(WEAPON(pObj)->weapon_class);
+    json_t *new_val = json_integer(WEAPON_SWORD);
+    olc_changeset_add_change(cs, "typedata/weapon/class", OLC_FIELD_TYPE_DATA,
+                              old_val, new_val);
+    json_decref(old_val);
+    json_decref(new_val);
+
+    const char *error_field = NULL;
+    int result = olc_changeset_commit(cs, pObj, handlers, &error_field);
+    TEST_ASSERT_TRUE(result >= 0);
+
+    TEST_ASSERT_INT_EQ(WEAPON_SWORD, WEAPON(pObj)->weapon_class);
+
+    olc_changeset_destroy(cs);
+    free_obj_index(pObj);
+    return TEST_SUCCESS;
+}
+
 /*
  * Test dispatcher — routes test_type to specific test functions.
  */
@@ -1467,6 +1616,12 @@ test_result_t run_olc_changeset_test_case(test_case_t *test)
         return test_olccs_embedded_snapshot(test);
     if (strcmp(test->test_type, "olccs_flags_or") == 0)
         return test_olccs_flags_or(test);
+    if (strcmp(test->test_type, "olccs_apply_list") == 0)
+        return test_olccs_apply_list_ops(test);
+    if (strcmp(test->test_type, "olccs_apply_embed") == 0)
+        return test_olccs_apply_embedded(test);
+    if (strcmp(test->test_type, "olccs_apply_typed") == 0)
+        return test_olccs_apply_typedata(test);
 
     log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
                   "Unknown OLC changeset test type: %s", test->test_type);

@@ -340,6 +340,27 @@
       "test_type": "olccs_flags_or",
       "input": {},
       "expected_output": { "success": true }
+    },
+    {
+      "name": "olccs_apply_list",
+      "description": "Test list operation apply (affects add + remove)",
+      "test_type": "olccs_apply_list",
+      "input": {},
+      "expected_output": { "success": true }
+    },
+    {
+      "name": "olccs_apply_embed",
+      "description": "Test embedded snapshot apply (lock)",
+      "test_type": "olccs_apply_embed",
+      "input": {},
+      "expected_output": { "success": true }
+    },
+    {
+      "name": "olccs_apply_typed",
+      "description": "Test type dispatch apply (weapon)",
+      "test_type": "olccs_apply_typed",
+      "input": {},
+      "expected_output": { "success": true }
     }
   ]
 }

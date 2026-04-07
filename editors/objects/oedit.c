@@ -252,7 +252,7 @@ static json_t *oedit_serialize_lock(void *entity, const char *field_path)
         "pick_chance", pObj->lock->pick_chance);
 }
 
-static bool oedit_apply_lock(void *entity, olc_pending_change_t *change)
+bool oedit_apply_lock(void *entity, olc_pending_change_t *change)
 {
     OBJ_INDEX_DATA *pObj = (OBJ_INDEX_DATA *)entity;
     json_t *data = change->new_value;
@@ -411,7 +411,7 @@ static bool oedit_apply_fragility(void *entity, olc_pending_change_t *change) {
  * Apply a staged affect list operation (add or remove).
  * Removes use "where_filter" to target the correct subset of the affects list.
  */
-static bool oedit_apply_affect_ops(void *entity, olc_pending_change_t *change)
+bool oedit_apply_affect_ops(void *entity, olc_pending_change_t *change)
 {
     OBJ_INDEX_DATA *pObj = (OBJ_INDEX_DATA *)entity;
 
