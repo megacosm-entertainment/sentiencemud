@@ -248,8 +248,32 @@ static json_t *furniture_serialize(const OBJ_INDEX_DATA *pObj)
         "move", FURNITURE(pObj)->move_rate);
 }
 
-static bool herb_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change) { (void)pObj; (void)field; (void)change; return false; }
-static json_t *herb_serialize(const OBJ_INDEX_DATA *pObj) { (void)pObj; return json_null(); }
+static bool herb_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change)
+{
+    if (!IS_HERB(pObj)) return false;
+    if (strcmp(field, "type") == 0) { HERB(pObj)->type = (int)json_integer_value(change->new_value); return true; }
+    if (strcmp(field, "healing") == 0) { HERB(pObj)->healing = (int)json_integer_value(change->new_value); return true; }
+    if (strcmp(field, "regen") == 0) { HERB(pObj)->regenerative = (int)json_integer_value(change->new_value); return true; }
+    if (strcmp(field, "refresh") == 0) { HERB(pObj)->refreshing = (int)json_integer_value(change->new_value); return true; }
+    if (strcmp(field, "immunity") == 0) { HERB(pObj)->immunity = (long)json_integer_value(change->new_value); return true; }
+    if (strcmp(field, "resistance") == 0) { HERB(pObj)->resistance = (long)json_integer_value(change->new_value); return true; }
+    if (strcmp(field, "vulnerability") == 0) { HERB(pObj)->vulnerability = (long)json_integer_value(change->new_value); return true; }
+    if (strcmp(field, "spell") == 0) { HERB(pObj)->spell = (int)json_integer_value(change->new_value); return true; }
+    return false;
+}
+static json_t *herb_serialize(const OBJ_INDEX_DATA *pObj)
+{
+    if (!IS_HERB(pObj)) return json_null();
+    return json_pack("{s:i, s:i, s:i, s:i, s:I, s:I, s:I, s:i}",
+        "type", HERB(pObj)->type,
+        "healing", HERB(pObj)->healing,
+        "regen", HERB(pObj)->regenerative,
+        "refresh", HERB(pObj)->refreshing,
+        "immunity", (json_int_t)HERB(pObj)->immunity,
+        "resistance", (json_int_t)HERB(pObj)->resistance,
+        "vulnerability", (json_int_t)HERB(pObj)->vulnerability,
+        "spell", HERB(pObj)->spell);
+}
 
 static bool ink_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change)
 {
@@ -380,8 +404,32 @@ static json_t *page_serialize(const OBJ_INDEX_DATA *pObj)
         "title", PAGE(pObj)->title ? PAGE(pObj)->title : "");
 }
 
-static bool portal_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change) { (void)pObj; (void)field; (void)change; return false; }
-static json_t *portal_serialize(const OBJ_INDEX_DATA *pObj) { (void)pObj; return json_null(); }
+static bool portal_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change)
+{
+    if (!IS_PORTAL(pObj)) return false;
+    if (strcmp(field, "charges") == 0) { PORTAL(pObj)->charges = (int)json_integer_value(change->new_value); return true; }
+    if (strcmp(field, "exit") == 0) { PORTAL(pObj)->exit = (long)json_integer_value(change->new_value); return true; }
+    if (strcmp(field, "flags") == 0) { PORTAL(pObj)->flags = (long)json_integer_value(change->new_value); return true; }
+    if (strcmp(field, "param0") == 0) { PORTAL(pObj)->params[0] = (long)json_integer_value(change->new_value); return true; }
+    if (strcmp(field, "param1") == 0) { PORTAL(pObj)->params[1] = (long)json_integer_value(change->new_value); return true; }
+    if (strcmp(field, "param2") == 0) { PORTAL(pObj)->params[2] = (long)json_integer_value(change->new_value); return true; }
+    if (strcmp(field, "param3") == 0) { PORTAL(pObj)->params[3] = (long)json_integer_value(change->new_value); return true; }
+    if (strcmp(field, "param4") == 0) { PORTAL(pObj)->params[4] = (long)json_integer_value(change->new_value); return true; }
+    return false;
+}
+static json_t *portal_serialize(const OBJ_INDEX_DATA *pObj)
+{
+    if (!IS_PORTAL(pObj)) return json_null();
+    return json_pack("{s:i, s:I, s:I, s:I, s:I, s:I, s:I, s:I}",
+        "charges", PORTAL(pObj)->charges,
+        "exit", (json_int_t)PORTAL(pObj)->exit,
+        "flags", (json_int_t)PORTAL(pObj)->flags,
+        "param0", (json_int_t)PORTAL(pObj)->params[0],
+        "param1", (json_int_t)PORTAL(pObj)->params[1],
+        "param2", (json_int_t)PORTAL(pObj)->params[2],
+        "param3", (json_int_t)PORTAL(pObj)->params[3],
+        "param4", (json_int_t)PORTAL(pObj)->params[4]);
+}
 
 static bool scroll_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change)
 {
@@ -396,8 +444,28 @@ static json_t *scroll_serialize(const OBJ_INDEX_DATA *pObj)
     return json_pack("{s:i, s:I}", "mana", SCROLL(pObj)->max_mana, "flags", (json_int_t)SCROLL(pObj)->flags);
 }
 
-static bool seed_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change) { (void)pObj; (void)field; (void)change; return false; }
-static json_t *seed_serialize(const OBJ_INDEX_DATA *pObj) { (void)pObj; return json_null(); }
+static bool seed_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change)
+{
+    if (!IS_SEED(pObj)) return false;
+    if (strcmp(field, "time") == 0) { SEED(pObj)->growth_time = (int)json_integer_value(change->new_value); return true; }
+    if (strcmp(field, "object") == 0) {
+        long auid = (long)json_integer_value(json_object_get(change->new_value, "auid"));
+        long vnum = (long)json_integer_value(json_object_get(change->new_value, "vnum"));
+        SEED(pObj)->object_vnum = vnum;
+        SEED(pObj)->object_area_uid = auid;
+        return true;
+    }
+    return false;
+}
+static json_t *seed_serialize(const OBJ_INDEX_DATA *pObj)
+{
+    if (!IS_SEED(pObj)) return json_null();
+    return json_pack("{s:i, s:{s:I, s:I}}",
+        "time", SEED(pObj)->growth_time,
+        "object",
+            "auid", (json_int_t)SEED(pObj)->object_area_uid,
+            "vnum", (json_int_t)SEED(pObj)->object_vnum);
+}
 
 static bool sextant_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change)
 {
@@ -411,11 +479,121 @@ static json_t *sextant_serialize(const OBJ_INDEX_DATA *pObj)
     return json_pack("{s:i}", "accuracy", SEXTANT(pObj)->accuracy);
 }
 
-static bool ship_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change) { (void)pObj; (void)field; (void)change; return false; }
-static json_t *ship_serialize(const OBJ_INDEX_DATA *pObj) { (void)pObj; return json_null(); }
+static bool ship_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change)
+{
+    if (!IS_SHIP_TYPE(pObj)) return false;
+    if (strcmp(field, "weight") == 0) { SHIP_TYPE(pObj)->weight = (int)json_integer_value(change->new_value); return true; }
+    if (strcmp(field, "delay") == 0) { SHIP_TYPE(pObj)->move_delay = (int)json_integer_value(change->new_value); return true; }
+    if (strcmp(field, "mincrew") == 0) { SHIP_TYPE(pObj)->min_crew = (int)json_integer_value(change->new_value); return true; }
+    if (strcmp(field, "capacity") == 0) { SHIP_TYPE(pObj)->capacity = (int)json_integer_value(change->new_value); return true; }
+    if (strcmp(field, "maxcrew") == 0) { SHIP_TYPE(pObj)->max_crew = (int)json_integer_value(change->new_value); return true; }
+    if (strcmp(field, "room") == 0) {
+        long auid = (long)json_integer_value(json_object_get(change->new_value, "auid"));
+        long vnum = (long)json_integer_value(json_object_get(change->new_value, "vnum"));
+        SHIP_TYPE(pObj)->first_room = vnum;
+        SHIP_TYPE(pObj)->first_room_area_uid = auid;
+        return true;
+    }
+    if (strcmp(field, "hitpoints") == 0) { SHIP_TYPE(pObj)->hit_points = (int)json_integer_value(change->new_value); return true; }
+    if (strcmp(field, "guns") == 0) { SHIP_TYPE(pObj)->max_guns = (int)json_integer_value(change->new_value); return true; }
+    return false;
+}
+static json_t *ship_serialize(const OBJ_INDEX_DATA *pObj)
+{
+    if (!IS_SHIP_TYPE(pObj)) return json_null();
+    return json_pack("{s:i, s:i, s:i, s:i, s:i, s:{s:I, s:I}, s:i, s:i}",
+        "weight", SHIP_TYPE(pObj)->weight,
+        "delay", SHIP_TYPE(pObj)->move_delay,
+        "mincrew", SHIP_TYPE(pObj)->min_crew,
+        "capacity", SHIP_TYPE(pObj)->capacity,
+        "maxcrew", SHIP_TYPE(pObj)->max_crew,
+        "room",
+            "auid", (json_int_t)SHIP_TYPE(pObj)->first_room_area_uid,
+            "vnum", (json_int_t)SHIP_TYPE(pObj)->first_room,
+        "hitpoints", SHIP_TYPE(pObj)->hit_points,
+        "guns", SHIP_TYPE(pObj)->max_guns);
+}
 
-static bool shipmodule_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change) { (void)pObj; (void)field; (void)change; return false; }
-static json_t *shipmodule_serialize(const OBJ_INDEX_DATA *pObj) { (void)pObj; return json_null(); }
+static bool shipmodule_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change)
+{
+    if (!IS_SHIP_MODULE(pObj)) return false;
+    SHIP_MODULE_DATA *d = SHIP_MODULE_TYPE(pObj);
+    if (strcmp(field, "type") == 0) { d->type = (int)json_integer_value(change->new_value); return true; }
+    if (strcmp(field, "size") == 0) { d->size = (int)json_integer_value(change->new_value); return true; }
+    if (strcmp(field, "weight") == 0) { d->weight = (int)json_integer_value(change->new_value); return true; }
+    if (strcmp(field, "domain") == 0) { d->domain_flags = (long)json_integer_value(change->new_value); return true; }
+    if (strcmp(field, "hitbonus") == 0) { d->hit_bonus = (int)json_integer_value(change->new_value); return true; }
+    if (strcmp(field, "armorbonus") == 0) { d->armor_bonus = (int)json_integer_value(change->new_value); return true; }
+    if (strcmp(field, "speedbonus") == 0) { d->speed_bonus = (int)json_integer_value(change->new_value); return true; }
+    if (strcmp(field, "turningbonus") == 0) { d->turning_bonus = (int)json_integer_value(change->new_value); return true; }
+    if (strcmp(field, "cargoweight") == 0) { d->cargo_weight_bonus = (int)json_integer_value(change->new_value); return true; }
+    if (strcmp(field, "cargocapacity") == 0) { d->cargo_capacity_bonus = (int)json_integer_value(change->new_value); return true; }
+    if (strcmp(field, "crewbonus") == 0) { d->crew_bonus = (int)json_integer_value(change->new_value); return true; }
+    if (strcmp(field, "damage") == 0) { d->damage = (int)json_integer_value(change->new_value); return true; }
+    if (strcmp(field, "range") == 0) { d->range = (int)json_integer_value(change->new_value); return true; }
+    if (strcmp(field, "reload") == 0) { d->reload_time = (int)json_integer_value(change->new_value); return true; }
+    if (strcmp(field, "damagetype") == 0) { d->damage_type = (int)json_integer_value(change->new_value); return true; }
+    if (strcmp(field, "weapflags") == 0) { d->weapon_flags = (long)json_integer_value(change->new_value); return true; }
+    if (strcmp(field, "operators") == 0) { d->operators = (int16_t)json_integer_value(change->new_value); return true; }
+    if (strcmp(field, "gunning") == 0) { d->req_gunning = (int16_t)json_integer_value(change->new_value); return true; }
+    if (strcmp(field, "mechanics") == 0) { d->req_mechanics = (int16_t)json_integer_value(change->new_value); return true; }
+    if (strcmp(field, "scouting") == 0) { d->req_scouting = (int16_t)json_integer_value(change->new_value); return true; }
+    if (strcmp(field, "navigation") == 0) { d->req_navigation = (int16_t)json_integer_value(change->new_value); return true; }
+    if (strcmp(field, "oarring") == 0) { d->req_oarring = (int16_t)json_integer_value(change->new_value); return true; }
+    if (strcmp(field, "leadership") == 0) { d->req_leadership = (int16_t)json_integer_value(change->new_value); return true; }
+    if (strcmp(field, "ammo") == 0) {
+        long auid = (long)json_integer_value(json_object_get(change->new_value, "auid"));
+        long vnum = (long)json_integer_value(json_object_get(change->new_value, "vnum"));
+        d->ammo_ref.load.vnum = vnum;
+        d->ammo_ref.load.auid = auid;
+        if (vnum > 0) {
+            AREA_DATA *area = auid > 0 ? get_area_index(auid) : NULL;
+            d->ammo = area ? get_obj_index(area, vnum) : get_obj_index_global(vnum);
+        } else {
+            d->ammo = NULL;
+        }
+        return true;
+    }
+    if (strcmp(field, "ammoshot") == 0) { d->ammo_per_shot = (int)json_integer_value(change->new_value); return true; }
+    if (strcmp(field, "flags") == 0) { d->flags = (long)json_integer_value(change->new_value); return true; }
+    return false;
+}
+static json_t *shipmodule_serialize(const OBJ_INDEX_DATA *pObj)
+{
+    if (!IS_SHIP_MODULE(pObj)) return json_null();
+    SHIP_MODULE_DATA *d = SHIP_MODULE_TYPE(pObj);
+    return json_pack("{s:i, s:i, s:i, s:I, s:i, s:i, s:i, s:i, s:i, s:i, s:i,"
+                     " s:i, s:i, s:i, s:i, s:I, s:i, s:i, s:i, s:i, s:i, s:i, s:i,"
+                     " s:{s:I, s:I}, s:i, s:I}",
+        "type", d->type,
+        "size", d->size,
+        "weight", d->weight,
+        "domain", (json_int_t)d->domain_flags,
+        "hitbonus", d->hit_bonus,
+        "armorbonus", d->armor_bonus,
+        "speedbonus", d->speed_bonus,
+        "turningbonus", d->turning_bonus,
+        "cargoweight", d->cargo_weight_bonus,
+        "cargocapacity", d->cargo_capacity_bonus,
+        "crewbonus", d->crew_bonus,
+        "damage", d->damage,
+        "range", d->range,
+        "reload", d->reload_time,
+        "damagetype", d->damage_type,
+        "weapflags", (json_int_t)d->weapon_flags,
+        "operators", (int)d->operators,
+        "gunning", (int)d->req_gunning,
+        "mechanics", (int)d->req_mechanics,
+        "scouting", (int)d->req_scouting,
+        "navigation", (int)d->req_navigation,
+        "oarring", (int)d->req_oarring,
+        "leadership", (int)d->req_leadership,
+        "ammo",
+            "auid", (json_int_t)d->ammo_ref.load.auid,
+            "vnum", (json_int_t)d->ammo_ref.load.vnum,
+        "ammoshot", d->ammo_per_shot,
+        "flags", (json_int_t)d->flags);
+}
 
 static bool tattoo_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change)
 {
@@ -435,8 +613,27 @@ static json_t *tattoo_serialize(const OBJ_INDEX_DATA *pObj)
         "faderate", TATTOO(pObj)->fading_rate);
 }
 
-static bool telescope_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change) { (void)pObj; (void)field; (void)change; return false; }
-static json_t *telescope_serialize(const OBJ_INDEX_DATA *pObj) { (void)pObj; return json_null(); }
+static bool telescope_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change)
+{
+    if (!IS_TELESCOPE(pObj)) return false;
+    int val = (int)json_integer_value(change->new_value);
+    if (strcmp(field, "distance") == 0) { TELESCOPE(pObj)->distance = (int16_t)val; return true; }
+    if (strcmp(field, "mindist") == 0) { TELESCOPE(pObj)->min_distance = (int16_t)val; return true; }
+    if (strcmp(field, "maxdist") == 0) { TELESCOPE(pObj)->max_distance = (int16_t)val; return true; }
+    if (strcmp(field, "bonus") == 0) { TELESCOPE(pObj)->bonus_view = (int16_t)val; return true; }
+    if (strcmp(field, "heading") == 0) { TELESCOPE(pObj)->heading = (int16_t)val; return true; }
+    return false;
+}
+static json_t *telescope_serialize(const OBJ_INDEX_DATA *pObj)
+{
+    if (!IS_TELESCOPE(pObj)) return json_null();
+    return json_pack("{s:i, s:i, s:i, s:i, s:i}",
+        "distance", (int)TELESCOPE(pObj)->distance,
+        "mindist", (int)TELESCOPE(pObj)->min_distance,
+        "maxdist", (int)TELESCOPE(pObj)->max_distance,
+        "bonus", (int)TELESCOPE(pObj)->bonus_view,
+        "heading", (int)TELESCOPE(pObj)->heading);
+}
 
 static bool tool_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change)
 {
@@ -1853,6 +2050,10 @@ OEDIT(oedit_herb)
 
     argument = one_argument(argument, field);
 
+    const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+    olc_changeset_t *cs = (edef && edef->change_mode == OLC_CHANGE_STAGED)
+        ? olc_get_active_changeset(ch, edef) : NULL;
+
     if (field[0] != '\0') {
         if (!str_prefix(field, "type")) {
             if (argument[0] == '\0') { send_to_char("Syntax: herb type <herb_name>\n\r", ch); return false; }
@@ -1861,68 +2062,156 @@ OEDIT(oedit_herb)
                 if (!str_prefix(argument, herb_table[i].name))
                     break;
             }
-            if (i < MAX_HERB) {
+            if (i >= MAX_HERB) { send_to_char("Invalid herb type.\n\r", ch); return false; }
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                json_t *jold = json_integer(HERB(pObj)->type);
+                json_t *jnew = json_integer(i);
+                olc_changeset_add_change(cs, "typedata/herb/type", OLC_FIELD_TYPE_DATA, jold, jnew);
+                notify_field_change(cs, ch, "typedata/herb/type", jnew, "type_data", true);
+                json_decref(jold); json_decref(jnew);
+                send_to_char("{G[STAGED]{x Herb type set.\n\r", ch);
+            } else {
                 HERB(pObj)->type = i;
                 send_to_char("Herb type set.\n\r", ch);
-                return true;
             }
-            send_to_char("Invalid herb type.\n\r", ch);
-            return false;
+            return true;
         }
         if (!str_prefix(field, "healing")) {
             if (argument[0] == '\0') { send_to_char("Syntax: herb healing <percent>\n\r", ch); return false; }
-            HERB(pObj)->healing = atoi(argument);
-            send_to_char("Healing rate set.\n\r", ch);
+            int val = atoi(argument);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                json_t *jold = json_integer(HERB(pObj)->healing);
+                json_t *jnew = json_integer(val);
+                olc_changeset_add_change(cs, "typedata/herb/healing", OLC_FIELD_TYPE_DATA, jold, jnew);
+                notify_field_change(cs, ch, "typedata/herb/healing", jnew, "type_data", true);
+                json_decref(jold); json_decref(jnew);
+                send_to_char("{G[STAGED]{x Healing rate set.\n\r", ch);
+            } else {
+                HERB(pObj)->healing = val;
+                send_to_char("Healing rate set.\n\r", ch);
+            }
             return true;
         }
         if (!str_prefix(field, "regen")) {
             if (argument[0] == '\0') { send_to_char("Syntax: herb regen <percent>\n\r", ch); return false; }
-            HERB(pObj)->regenerative = atoi(argument);
-            send_to_char("Regenerative rate set.\n\r", ch);
+            int val = atoi(argument);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                json_t *jold = json_integer(HERB(pObj)->regenerative);
+                json_t *jnew = json_integer(val);
+                olc_changeset_add_change(cs, "typedata/herb/regen", OLC_FIELD_TYPE_DATA, jold, jnew);
+                notify_field_change(cs, ch, "typedata/herb/regen", jnew, "type_data", true);
+                json_decref(jold); json_decref(jnew);
+                send_to_char("{G[STAGED]{x Regenerative rate set.\n\r", ch);
+            } else {
+                HERB(pObj)->regenerative = val;
+                send_to_char("Regenerative rate set.\n\r", ch);
+            }
             return true;
         }
         if (!str_prefix(field, "refresh")) {
             if (argument[0] == '\0') { send_to_char("Syntax: herb refresh <percent>\n\r", ch); return false; }
-            HERB(pObj)->refreshing = atoi(argument);
-            send_to_char("Refreshing rate set.\n\r", ch);
+            int val = atoi(argument);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                json_t *jold = json_integer(HERB(pObj)->refreshing);
+                json_t *jnew = json_integer(val);
+                olc_changeset_add_change(cs, "typedata/herb/refresh", OLC_FIELD_TYPE_DATA, jold, jnew);
+                notify_field_change(cs, ch, "typedata/herb/refresh", jnew, "type_data", true);
+                json_decref(jold); json_decref(jnew);
+                send_to_char("{G[STAGED]{x Refreshing rate set.\n\r", ch);
+            } else {
+                HERB(pObj)->refreshing = val;
+                send_to_char("Refreshing rate set.\n\r", ch);
+            }
             return true;
         }
         if (!str_prefix(field, "immunity")) {
             if (argument[0] == '\0') { send_to_char("Syntax: herb immunity <flags>\n\r", ch); return false; }
-            long val = flag_value(imm_flags, argument);
-            if (val != NO_FLAG) { HERB(pObj)->immunity ^= val; send_to_char("Immunity toggled.\n\r", ch); return true; }
-            send_to_char("Invalid immunity flag.\n\r", ch);
-            return false;
+            long toggle = flag_value(imm_flags, argument);
+            if (toggle == NO_FLAG) { send_to_char("Invalid immunity flag.\n\r", ch); return false; }
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                long current = olc_staged_flags_or(cs, "typedata/herb/immunity", HERB(pObj)->immunity);
+                long result = current ^ toggle;
+                json_t *jold = json_integer((json_int_t)HERB(pObj)->immunity);
+                json_t *jnew = json_integer((json_int_t)result);
+                olc_changeset_add_change(cs, "typedata/herb/immunity", OLC_FIELD_TYPE_DATA, jold, jnew);
+                notify_field_change(cs, ch, "typedata/herb/immunity", jnew, "type_data", true);
+                json_decref(jold); json_decref(jnew);
+                send_to_char("{G[STAGED]{x Immunity toggled.\n\r", ch);
+            } else {
+                HERB(pObj)->immunity ^= toggle;
+                send_to_char("Immunity toggled.\n\r", ch);
+            }
+            return true;
         }
         if (!str_prefix(field, "resistance")) {
             if (argument[0] == '\0') { send_to_char("Syntax: herb resistance <flags>\n\r", ch); return false; }
-            long val = flag_value(res_flags, argument);
-            if (val != NO_FLAG) { HERB(pObj)->resistance ^= val; send_to_char("Resistance toggled.\n\r", ch); return true; }
-            send_to_char("Invalid resistance flag.\n\r", ch);
-            return false;
+            long toggle = flag_value(res_flags, argument);
+            if (toggle == NO_FLAG) { send_to_char("Invalid resistance flag.\n\r", ch); return false; }
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                long current = olc_staged_flags_or(cs, "typedata/herb/resistance", HERB(pObj)->resistance);
+                long result = current ^ toggle;
+                json_t *jold = json_integer((json_int_t)HERB(pObj)->resistance);
+                json_t *jnew = json_integer((json_int_t)result);
+                olc_changeset_add_change(cs, "typedata/herb/resistance", OLC_FIELD_TYPE_DATA, jold, jnew);
+                notify_field_change(cs, ch, "typedata/herb/resistance", jnew, "type_data", true);
+                json_decref(jold); json_decref(jnew);
+                send_to_char("{G[STAGED]{x Resistance toggled.\n\r", ch);
+            } else {
+                HERB(pObj)->resistance ^= toggle;
+                send_to_char("Resistance toggled.\n\r", ch);
+            }
+            return true;
         }
         if (!str_prefix(field, "vulnerability")) {
             if (argument[0] == '\0') { send_to_char("Syntax: herb vulnerability <flags>\n\r", ch); return false; }
-            long val = flag_value(vuln_flags, argument);
-            if (val != NO_FLAG) { HERB(pObj)->vulnerability ^= val; send_to_char("Vulnerability toggled.\n\r", ch); return true; }
-            send_to_char("Invalid vulnerability flag.\n\r", ch);
-            return false;
+            long toggle = flag_value(vuln_flags, argument);
+            if (toggle == NO_FLAG) { send_to_char("Invalid vulnerability flag.\n\r", ch); return false; }
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                long current = olc_staged_flags_or(cs, "typedata/herb/vulnerability", HERB(pObj)->vulnerability);
+                long result = current ^ toggle;
+                json_t *jold = json_integer((json_int_t)HERB(pObj)->vulnerability);
+                json_t *jnew = json_integer((json_int_t)result);
+                olc_changeset_add_change(cs, "typedata/herb/vulnerability", OLC_FIELD_TYPE_DATA, jold, jnew);
+                notify_field_change(cs, ch, "typedata/herb/vulnerability", jnew, "type_data", true);
+                json_decref(jold); json_decref(jnew);
+                send_to_char("{G[STAGED]{x Vulnerability toggled.\n\r", ch);
+            } else {
+                HERB(pObj)->vulnerability ^= toggle;
+                send_to_char("Vulnerability toggled.\n\r", ch);
+            }
+            return true;
         }
         if (!str_prefix(field, "spell")) {
             if (argument[0] == '\0') { send_to_char("Syntax: herb spell <spell_name>\n\r", ch); return false; }
             int sn = skill_lookup(argument);
             SKILL_DATA *spell_ref = skill_find_uid(sn);
+            int new_spell = -1;
             if (sn > 0 && spell_ref && spell_ref->spell_fun != spell_null) {
-                HERB(pObj)->spell = sn;
-                send_to_char("Spell set.\n\r", ch);
-                return true;
+                new_spell = sn;
             } else if (sn == 0 || !str_cmp(argument, "none")) {
-                HERB(pObj)->spell = 0;
-                send_to_char("Spell cleared.\n\r", ch);
-                return true;
+                new_spell = 0;
             }
-            send_to_char("Invalid spell.\n\r", ch);
-            return false;
+            if (new_spell < 0) { send_to_char("Invalid spell.\n\r", ch); return false; }
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                json_t *jold = json_integer(HERB(pObj)->spell);
+                json_t *jnew = json_integer(new_spell);
+                olc_changeset_add_change(cs, "typedata/herb/spell", OLC_FIELD_TYPE_DATA, jold, jnew);
+                notify_field_change(cs, ch, "typedata/herb/spell", jnew, "type_data", true);
+                json_decref(jold); json_decref(jnew);
+                send_to_char(new_spell > 0 ? "{G[STAGED]{x Spell set.\n\r" : "{G[STAGED]{x Spell cleared.\n\r", ch);
+            } else {
+                HERB(pObj)->spell = new_spell;
+                send_to_char(new_spell > 0 ? "Spell set.\n\r" : "Spell cleared.\n\r", ch);
+            }
+            return true;
         }
         send_to_char("Valid fields: type, healing, regen, refresh, immunity, resistance, vulnerability, spell\n\r", ch);
         return false;
@@ -2635,36 +2924,88 @@ OEDIT(oedit_portal)
 
     argument = one_argument(argument, field);
 
+    const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+    olc_changeset_t *cs = (edef && edef->change_mode == OLC_CHANGE_STAGED)
+        ? olc_get_active_changeset(ch, edef) : NULL;
+
     if (field[0] != '\0') {
         if (!str_prefix(field, "charges")) {
             if (argument[0] == '\0') { send_to_char("Syntax: portal charges <num>\n\r", ch); return false; }
-            PORTAL(pObj)->charges = atoi(argument);
-            send_to_char("Portal charges set.\n\r", ch);
+            int val = atoi(argument);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                json_t *jold = json_integer(PORTAL(pObj)->charges);
+                json_t *jnew = json_integer(val);
+                olc_changeset_add_change(cs, "typedata/portal/charges", OLC_FIELD_TYPE_DATA, jold, jnew);
+                notify_field_change(cs, ch, "typedata/portal/charges", jnew, "type_data", true);
+                json_decref(jold); json_decref(jnew);
+                send_to_char("{G[STAGED]{x Portal charges set.\n\r", ch);
+            } else {
+                PORTAL(pObj)->charges = val;
+                send_to_char("Portal charges set.\n\r", ch);
+            }
             return true;
         }
         if (!str_prefix(field, "exit")) {
             if (argument[0] == '\0') { send_to_char("Syntax: portal exit <exit_flags>\n\r", ch); return false; }
-            long val = flag_value(portal_exit_flags, argument);
-            if (val != NO_FLAG) PORTAL(pObj)->exit ^= val;
-            send_to_char("Exit flags toggled.\n\r", ch);
+            long toggle = flag_value(portal_exit_flags, argument);
+            if (toggle == NO_FLAG) { send_to_char("Invalid exit flag.\n\r", ch); return false; }
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                long current = olc_staged_flags_or(cs, "typedata/portal/exit", PORTAL(pObj)->exit);
+                long result = current ^ toggle;
+                json_t *jold = json_integer((json_int_t)PORTAL(pObj)->exit);
+                json_t *jnew = json_integer((json_int_t)result);
+                olc_changeset_add_change(cs, "typedata/portal/exit", OLC_FIELD_TYPE_DATA, jold, jnew);
+                notify_field_change(cs, ch, "typedata/portal/exit", jnew, "type_data", true);
+                json_decref(jold); json_decref(jnew);
+                send_to_char("{G[STAGED]{x Exit flags toggled.\n\r", ch);
+            } else {
+                PORTAL(pObj)->exit ^= toggle;
+                send_to_char("Exit flags toggled.\n\r", ch);
+            }
             return true;
         }
         if (!str_prefix(field, "flags")) {
             if (argument[0] == '\0') { send_to_char("Syntax: portal flags <portal_flags>\n\r", ch); return false; }
-            int flags = flag_value(portal_flags, argument);
-            if (flags != NO_FLAG) {
-                PORTAL(pObj)->flags ^= flags;
+            long toggle = flag_value(portal_flags, argument);
+            if (toggle == NO_FLAG) { send_to_char("Invalid portal flag.\n\r", ch); return false; }
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                long current_flags = olc_staged_flags_or(cs, "typedata/portal/flags", PORTAL(pObj)->flags);
+                long new_flags = current_flags ^ toggle;
+                if (IS_SET(new_flags, GATE_DUNGEON))
+                    REMOVE_BIT(new_flags, GATE_AREARANDOM);
+                json_t *jold_f = json_integer((json_int_t)PORTAL(pObj)->flags);
+                json_t *jnew_f = json_integer((json_int_t)new_flags);
+                olc_changeset_add_change(cs, "typedata/portal/flags", OLC_FIELD_TYPE_DATA, jold_f, jnew_f);
+                notify_field_change(cs, ch, "typedata/portal/flags", jnew_f, "type_data", true);
+                json_decref(jold_f); json_decref(jnew_f);
+                /* If DUNGEON just turned on, clear all params */
+                if (IS_SET(toggle, GATE_DUNGEON) && IS_SET(new_flags, GATE_DUNGEON)) {
+                    for (int pi = 0; pi < MAX_PORTAL_VALUES; pi++) {
+                        char ppath[MSL];
+                        sprintf(ppath, "typedata/portal/param%d", pi);
+                        json_t *jpold = json_integer((json_int_t)PORTAL(pObj)->params[pi]);
+                        json_t *jpnew = json_integer(0);
+                        olc_changeset_add_change(cs, ppath, OLC_FIELD_TYPE_DATA, jpold, jpnew);
+                        json_decref(jpold); json_decref(jpnew);
+                    }
+                }
+                send_to_char("{G[STAGED]{x Portal flags toggled.\n\r", ch);
+            } else {
+                PORTAL(pObj)->flags ^= toggle;
                 if (IS_SET(PORTAL(pObj)->flags, GATE_DUNGEON))
                     REMOVE_BIT(PORTAL(pObj)->flags, GATE_AREARANDOM);
-                if (IS_SET(flags, GATE_DUNGEON) && IS_SET(PORTAL(pObj)->flags, GATE_DUNGEON)) {
+                if (IS_SET(toggle, GATE_DUNGEON) && IS_SET(PORTAL(pObj)->flags, GATE_DUNGEON)) {
                     PORTAL(pObj)->params[0] = 0;
                     PORTAL(pObj)->params[1] = 0;
                     PORTAL(pObj)->params[2] = 0;
                     PORTAL(pObj)->params[3] = 0;
                     PORTAL(pObj)->params[4] = 0;
                 }
+                send_to_char("Portal flags toggled.\n\r", ch);
             }
-            send_to_char("Portal flags toggled.\n\r", ch);
             return true;
         }
         if (!str_prefix(field, "destination")) {
@@ -2684,20 +3025,58 @@ OEDIT(oedit_portal)
                     return false;
                 }
 
-                PORTAL(pObj)->params[0] = dng->vnum;
-                PORTAL(pObj)->params[4] = dng->area ? dng->area->uid : 0;
+                long new_p0 = dng->vnum;
+                long new_p4 = dng->area ? dng->area->uid : 0;
+                long new_p1 = PORTAL(pObj)->params[1] < 1 ? 1 : PORTAL(pObj)->params[1];
 
-                if (PORTAL(pObj)->params[1] < 1)
-                    PORTAL(pObj)->params[1] = 1;
+                if (cs) {
+                    if (!olc_check_staging_limits(ch, cs)) return false;
+                    json_t *jo0 = json_integer((json_int_t)PORTAL(pObj)->params[0]);
+                    json_t *jn0 = json_integer((json_int_t)new_p0);
+                    olc_changeset_add_change(cs, "typedata/portal/param0", OLC_FIELD_TYPE_DATA, jo0, jn0);
+                    json_decref(jo0); json_decref(jn0);
 
-                send_to_char("Dungeon destination set.\n\r", ch);
+                    json_t *jo4 = json_integer((json_int_t)PORTAL(pObj)->params[4]);
+                    json_t *jn4 = json_integer((json_int_t)new_p4);
+                    olc_changeset_add_change(cs, "typedata/portal/param4", OLC_FIELD_TYPE_DATA, jo4, jn4);
+                    json_decref(jo4); json_decref(jn4);
+
+                    json_t *jo1 = json_integer((json_int_t)PORTAL(pObj)->params[1]);
+                    json_t *jn1 = json_integer((json_int_t)new_p1);
+                    olc_changeset_add_change(cs, "typedata/portal/param1", OLC_FIELD_TYPE_DATA, jo1, jn1);
+                    notify_field_change(cs, ch, "typedata/portal/param0", jn0, "type_data", true);
+                    json_decref(jo1); json_decref(jn1);
+
+                    send_to_char("{G[STAGED]{x Dungeon destination set.\n\r", ch);
+                } else {
+                    PORTAL(pObj)->params[0] = new_p0;
+                    PORTAL(pObj)->params[4] = new_p4;
+                    PORTAL(pObj)->params[1] = new_p1;
+                    send_to_char("Dungeon destination set.\n\r", ch);
+                }
                 return true;
             }
 
             if (!str_cmp(argument, "-1")) {
-                PORTAL(pObj)->params[0] = -1;
-                PORTAL(pObj)->params[4] = 0;
-                send_to_char("Destination mode set to area random.\n\r", ch);
+                if (cs) {
+                    if (!olc_check_staging_limits(ch, cs)) return false;
+                    json_t *jo0 = json_integer((json_int_t)PORTAL(pObj)->params[0]);
+                    json_t *jn0 = json_integer((json_int_t)-1);
+                    olc_changeset_add_change(cs, "typedata/portal/param0", OLC_FIELD_TYPE_DATA, jo0, jn0);
+                    json_decref(jo0); json_decref(jn0);
+
+                    json_t *jo4 = json_integer((json_int_t)PORTAL(pObj)->params[4]);
+                    json_t *jn4 = json_integer(0);
+                    olc_changeset_add_change(cs, "typedata/portal/param4", OLC_FIELD_TYPE_DATA, jo4, jn4);
+                    notify_field_change(cs, ch, "typedata/portal/param0", jn0, "type_data", true);
+                    json_decref(jo4); json_decref(jn4);
+
+                    send_to_char("{G[STAGED]{x Destination mode set to area random.\n\r", ch);
+                } else {
+                    PORTAL(pObj)->params[0] = -1;
+                    PORTAL(pObj)->params[4] = 0;
+                    send_to_char("Destination mode set to area random.\n\r", ch);
+                }
                 return true;
             }
 
@@ -2711,31 +3090,81 @@ OEDIT(oedit_portal)
                     return false;
                 }
 
-                PORTAL(pObj)->params[0] = dest_wnum.vnum;
-                PORTAL(pObj)->params[1] = 0;
-                PORTAL(pObj)->params[4] = dest_wnum.pArea->uid;
-            }
+                long new_p0 = dest_wnum.vnum;
+                long new_p4 = dest_wnum.pArea->uid;
 
-            send_to_char("Destination room set.\n\r", ch);
+                if (cs) {
+                    if (!olc_check_staging_limits(ch, cs)) return false;
+                    json_t *jo0 = json_integer((json_int_t)PORTAL(pObj)->params[0]);
+                    json_t *jn0 = json_integer((json_int_t)new_p0);
+                    olc_changeset_add_change(cs, "typedata/portal/param0", OLC_FIELD_TYPE_DATA, jo0, jn0);
+                    json_decref(jo0); json_decref(jn0);
+
+                    json_t *jo1 = json_integer((json_int_t)PORTAL(pObj)->params[1]);
+                    json_t *jn1 = json_integer(0);
+                    olc_changeset_add_change(cs, "typedata/portal/param1", OLC_FIELD_TYPE_DATA, jo1, jn1);
+                    json_decref(jo1); json_decref(jn1);
+
+                    json_t *jo4 = json_integer((json_int_t)PORTAL(pObj)->params[4]);
+                    json_t *jn4 = json_integer((json_int_t)new_p4);
+                    olc_changeset_add_change(cs, "typedata/portal/param4", OLC_FIELD_TYPE_DATA, jo4, jn4);
+                    notify_field_change(cs, ch, "typedata/portal/param0", jn0, "type_data", true);
+                    json_decref(jo4); json_decref(jn4);
+
+                    send_to_char("{G[STAGED]{x Destination room set.\n\r", ch);
+                } else {
+                    PORTAL(pObj)->params[0] = new_p0;
+                    PORTAL(pObj)->params[1] = 0;
+                    PORTAL(pObj)->params[4] = new_p4;
+                    send_to_char("Destination room set.\n\r", ch);
+                }
+            }
             return true;
         }
         if (!str_prefix(field, "param1")) {
             if (argument[0] == '\0') { send_to_char("Syntax: portal param1 <value> (floor/area/map_uid)\n\r", ch); return false; }
-            PORTAL(pObj)->params[1] = atol(argument);
-            if (IS_SET(PORTAL(pObj)->flags, GATE_DUNGEON))
-                send_to_char("Dungeon floor set.\n\r", ch);
-            else if (IS_SET(PORTAL(pObj)->flags, GATE_AREARANDOM) || PORTAL(pObj)->params[0] == -1)
-                send_to_char("Area ID set.\n\r", ch);
-            else
-                send_to_char("Wilderness map UID set.\n\r", ch);
+            long val = atol(argument);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                json_t *jold = json_integer((json_int_t)PORTAL(pObj)->params[1]);
+                json_t *jnew = json_integer((json_int_t)val);
+                olc_changeset_add_change(cs, "typedata/portal/param1", OLC_FIELD_TYPE_DATA, jold, jnew);
+                notify_field_change(cs, ch, "typedata/portal/param1", jnew, "type_data", true);
+                json_decref(jold); json_decref(jnew);
+                if (IS_SET(PORTAL(pObj)->flags, GATE_DUNGEON))
+                    send_to_char("{G[STAGED]{x Dungeon floor set.\n\r", ch);
+                else if (IS_SET(PORTAL(pObj)->flags, GATE_AREARANDOM) || PORTAL(pObj)->params[0] == -1)
+                    send_to_char("{G[STAGED]{x Area ID set.\n\r", ch);
+                else
+                    send_to_char("{G[STAGED]{x Wilderness map UID set.\n\r", ch);
+            } else {
+                PORTAL(pObj)->params[1] = val;
+                if (IS_SET(PORTAL(pObj)->flags, GATE_DUNGEON))
+                    send_to_char("Dungeon floor set.\n\r", ch);
+                else if (IS_SET(PORTAL(pObj)->flags, GATE_AREARANDOM) || PORTAL(pObj)->params[0] == -1)
+                    send_to_char("Area ID set.\n\r", ch);
+                else
+                    send_to_char("Wilderness map UID set.\n\r", ch);
+            }
             return true;
         }
         if (!str_prefix(field, "param2")) {
             if (argument[0] == '\0') { send_to_char("Syntax: portal param2 <value> (map_x)\n\r", ch); return false; }
             if (!IS_SET(PORTAL(pObj)->flags, GATE_DUNGEON) && !IS_SET(PORTAL(pObj)->flags, GATE_AREARANDOM)
                 && PORTAL(pObj)->params[0] <= 0) {
-                PORTAL(pObj)->params[2] = atol(argument);
-                send_to_char("Wilderness map X set.\n\r", ch);
+                long val = atol(argument);
+                if (cs) {
+                    if (!olc_check_staging_limits(ch, cs)) return false;
+                    json_t *jold = json_integer((json_int_t)PORTAL(pObj)->params[2]);
+                    json_t *jnew = json_integer((json_int_t)val);
+                    olc_changeset_add_change(cs, "typedata/portal/param2", OLC_FIELD_TYPE_DATA, jold, jnew);
+                    notify_field_change(cs, ch, "typedata/portal/param2", jnew, "type_data", true);
+                    json_decref(jold); json_decref(jnew);
+                    send_to_char("{G[STAGED]{x Wilderness map X set.\n\r", ch);
+                } else {
+                    PORTAL(pObj)->params[2] = val;
+                    send_to_char("Wilderness map X set.\n\r", ch);
+                }
                 return true;
             }
             send_to_char("This field only applies to wilderness portals.\n\r", ch);
@@ -2745,8 +3174,19 @@ OEDIT(oedit_portal)
             if (argument[0] == '\0') { send_to_char("Syntax: portal param3 <value> (map_y)\n\r", ch); return false; }
             if (!IS_SET(PORTAL(pObj)->flags, GATE_DUNGEON) && !IS_SET(PORTAL(pObj)->flags, GATE_AREARANDOM)
                 && PORTAL(pObj)->params[0] <= 0) {
-                PORTAL(pObj)->params[3] = atol(argument);
-                send_to_char("Wilderness map Y set.\n\r", ch);
+                long val = atol(argument);
+                if (cs) {
+                    if (!olc_check_staging_limits(ch, cs)) return false;
+                    json_t *jold = json_integer((json_int_t)PORTAL(pObj)->params[3]);
+                    json_t *jnew = json_integer((json_int_t)val);
+                    olc_changeset_add_change(cs, "typedata/portal/param3", OLC_FIELD_TYPE_DATA, jold, jnew);
+                    notify_field_change(cs, ch, "typedata/portal/param3", jnew, "type_data", true);
+                    json_decref(jold); json_decref(jnew);
+                    send_to_char("{G[STAGED]{x Wilderness map Y set.\n\r", ch);
+                } else {
+                    PORTAL(pObj)->params[3] = val;
+                    send_to_char("Wilderness map Y set.\n\r", ch);
+                }
                 return true;
             }
             send_to_char("This field only applies to wilderness portals.\n\r", ch);
@@ -2911,15 +3351,32 @@ OEDIT(oedit_seed)
 
     argument = one_argument(argument, field);
 
+    const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+    olc_changeset_t *cs = (edef && edef->change_mode == OLC_CHANGE_STAGED)
+        ? olc_get_active_changeset(ch, edef) : NULL;
+
     if (field[0] != '\0') {
         if (!str_prefix(field, "time")) {
             if (argument[0] == '\0') { send_to_char("Syntax: seed time <growth_time>\n\r", ch); return false; }
-            SEED(pObj)->growth_time = atoi(argument);
-            send_to_char("Growth time set.\n\r", ch);
+            int val = atoi(argument);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                json_t *jold = json_integer(SEED(pObj)->growth_time);
+                json_t *jnew = json_integer(val);
+                olc_changeset_add_change(cs, "typedata/seed/time", OLC_FIELD_TYPE_DATA, jold, jnew);
+                notify_field_change(cs, ch, "typedata/seed/time", jnew, "type_data", true);
+                json_decref(jold); json_decref(jnew);
+                send_to_char("{G[STAGED]{x Growth time set.\n\r", ch);
+            } else {
+                SEED(pObj)->growth_time = val;
+                send_to_char("Growth time set.\n\r", ch);
+            }
             return true;
         }
         if (!str_prefix(field, "object")) {
             if (argument[0] == '\0') { send_to_char("Syntax: seed object <vnum|0>\n\r", ch); return false; }
+            long new_vnum = 0;
+            long new_auid = 0;
             if (atoi(argument) != 0) {
                 WNUM key_wnum = { NULL, 0 };
                 OBJ_INDEX_DATA *key_obj;
@@ -2929,13 +3386,26 @@ OEDIT(oedit_seed)
                     send_to_char("No such object exists.\n\r", ch);
                     return false;
                 }
-                SEED(pObj)->object_vnum = key_wnum.vnum;
-                SEED(pObj)->object_area_uid = key_obj->area ? key_obj->area->uid : 0;
-            } else {
-                SEED(pObj)->object_vnum = 0;
-                SEED(pObj)->object_area_uid = 0;
+                new_vnum = key_wnum.vnum;
+                new_auid = key_obj->area ? key_obj->area->uid : 0;
             }
-            send_to_char("Seed object set.\n\r", ch);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                json_t *jold = json_pack("{s:I, s:I}",
+                    "auid", (json_int_t)SEED(pObj)->object_area_uid,
+                    "vnum", (json_int_t)SEED(pObj)->object_vnum);
+                json_t *jnew = json_pack("{s:I, s:I}",
+                    "auid", (json_int_t)new_auid,
+                    "vnum", (json_int_t)new_vnum);
+                olc_changeset_add_change(cs, "typedata/seed/object", OLC_FIELD_TYPE_DATA, jold, jnew);
+                notify_field_change(cs, ch, "typedata/seed/object", jnew, "type_data", true);
+                json_decref(jold); json_decref(jnew);
+                send_to_char("{G[STAGED]{x Seed object set.\n\r", ch);
+            } else {
+                SEED(pObj)->object_vnum = new_vnum;
+                SEED(pObj)->object_area_uid = new_auid;
+                send_to_char("Seed object set.\n\r", ch);
+            }
             return true;
         }
         send_to_char("Valid fields: time, object\n\r", ch);
@@ -3024,39 +3494,100 @@ OEDIT(oedit_ship)
 
     argument = one_argument(argument, field);
 
+    const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+    olc_changeset_t *cs = (edef && edef->change_mode == OLC_CHANGE_STAGED)
+        ? olc_get_active_changeset(ch, edef) : NULL;
+
     if (field[0] != '\0') {
         if (!str_prefix(field, "weight")) {
             if (argument[0] == '\0') { send_to_char("Syntax: ship weight <kg>\n\r", ch); return false; }
-            SHIP_TYPE(pObj)->weight = atoi(argument);
-            send_to_char("Ship weight set.\n\r", ch);
+            int val = atoi(argument);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                json_t *jold = json_integer(SHIP_TYPE(pObj)->weight);
+                json_t *jnew = json_integer(val);
+                olc_changeset_add_change(cs, "typedata/ship/weight", OLC_FIELD_TYPE_DATA, jold, jnew);
+                notify_field_change(cs, ch, "typedata/ship/weight", jnew, "type_data", true);
+                json_decref(jold); json_decref(jnew);
+                send_to_char("{G[STAGED]{x Ship weight set.\n\r", ch);
+            } else {
+                SHIP_TYPE(pObj)->weight = val;
+                send_to_char("Ship weight set.\n\r", ch);
+            }
             return true;
         }
         if (!str_prefix(field, "delay")) {
             if (argument[0] == '\0') { send_to_char("Syntax: ship delay <ticks>\n\r", ch); return false; }
-            SHIP_TYPE(pObj)->move_delay = atoi(argument);
-            send_to_char("Ship move delay set.\n\r", ch);
+            int val = atoi(argument);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                json_t *jold = json_integer(SHIP_TYPE(pObj)->move_delay);
+                json_t *jnew = json_integer(val);
+                olc_changeset_add_change(cs, "typedata/ship/delay", OLC_FIELD_TYPE_DATA, jold, jnew);
+                notify_field_change(cs, ch, "typedata/ship/delay", jnew, "type_data", true);
+                json_decref(jold); json_decref(jnew);
+                send_to_char("{G[STAGED]{x Ship move delay set.\n\r", ch);
+            } else {
+                SHIP_TYPE(pObj)->move_delay = val;
+                send_to_char("Ship move delay set.\n\r", ch);
+            }
             return true;
         }
         if (!str_prefix(field, "mincrew")) {
             if (argument[0] == '\0') { send_to_char("Syntax: ship mincrew <count>\n\r", ch); return false; }
-            SHIP_TYPE(pObj)->min_crew = atoi(argument);
-            send_to_char("Ship min crew set.\n\r", ch);
+            int val = atoi(argument);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                json_t *jold = json_integer(SHIP_TYPE(pObj)->min_crew);
+                json_t *jnew = json_integer(val);
+                olc_changeset_add_change(cs, "typedata/ship/mincrew", OLC_FIELD_TYPE_DATA, jold, jnew);
+                notify_field_change(cs, ch, "typedata/ship/mincrew", jnew, "type_data", true);
+                json_decref(jold); json_decref(jnew);
+                send_to_char("{G[STAGED]{x Ship min crew set.\n\r", ch);
+            } else {
+                SHIP_TYPE(pObj)->min_crew = val;
+                send_to_char("Ship min crew set.\n\r", ch);
+            }
             return true;
         }
         if (!str_prefix(field, "capacity")) {
             if (argument[0] == '\0') { send_to_char("Syntax: ship capacity <value>\n\r", ch); return false; }
-            SHIP_TYPE(pObj)->capacity = atoi(argument);
-            send_to_char("Ship capacity set.\n\r", ch);
+            int val = atoi(argument);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                json_t *jold = json_integer(SHIP_TYPE(pObj)->capacity);
+                json_t *jnew = json_integer(val);
+                olc_changeset_add_change(cs, "typedata/ship/capacity", OLC_FIELD_TYPE_DATA, jold, jnew);
+                notify_field_change(cs, ch, "typedata/ship/capacity", jnew, "type_data", true);
+                json_decref(jold); json_decref(jnew);
+                send_to_char("{G[STAGED]{x Ship capacity set.\n\r", ch);
+            } else {
+                SHIP_TYPE(pObj)->capacity = val;
+                send_to_char("Ship capacity set.\n\r", ch);
+            }
             return true;
         }
         if (!str_prefix(field, "maxcrew")) {
             if (argument[0] == '\0') { send_to_char("Syntax: ship maxcrew <count>\n\r", ch); return false; }
-            SHIP_TYPE(pObj)->max_crew = atoi(argument);
-            send_to_char("Ship max crew set.\n\r", ch);
+            int val = atoi(argument);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                json_t *jold = json_integer(SHIP_TYPE(pObj)->max_crew);
+                json_t *jnew = json_integer(val);
+                olc_changeset_add_change(cs, "typedata/ship/maxcrew", OLC_FIELD_TYPE_DATA, jold, jnew);
+                notify_field_change(cs, ch, "typedata/ship/maxcrew", jnew, "type_data", true);
+                json_decref(jold); json_decref(jnew);
+                send_to_char("{G[STAGED]{x Ship max crew set.\n\r", ch);
+            } else {
+                SHIP_TYPE(pObj)->max_crew = val;
+                send_to_char("Ship max crew set.\n\r", ch);
+            }
             return true;
         }
         if (!str_prefix(field, "room")) {
             if (argument[0] == '\0') { send_to_char("Syntax: ship room <room_vnum|0>\n\r", ch); return false; }
+            long new_vnum = 0;
+            long new_auid = 0;
             if (atol(argument) != 0) {
                 WNUM key_wnum = { NULL, 0 };
                 ROOM_INDEX_DATA *key_room;
@@ -3066,25 +3597,60 @@ OEDIT(oedit_ship)
                     send_to_char("No such room exists.\n\r", ch);
                     return false;
                 }
-                SHIP_TYPE(pObj)->first_room = key_wnum.vnum;
-                SHIP_TYPE(pObj)->first_room_area_uid = key_room->area ? key_room->area->uid : 0;
-            } else {
-                SHIP_TYPE(pObj)->first_room = 0;
-                SHIP_TYPE(pObj)->first_room_area_uid = 0;
+                new_vnum = key_wnum.vnum;
+                new_auid = key_room->area ? key_room->area->uid : 0;
             }
-            send_to_char("Ship first room set.\n\r", ch);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                json_t *jold = json_pack("{s:I, s:I}",
+                    "auid", (json_int_t)SHIP_TYPE(pObj)->first_room_area_uid,
+                    "vnum", (json_int_t)SHIP_TYPE(pObj)->first_room);
+                json_t *jnew = json_pack("{s:I, s:I}",
+                    "auid", (json_int_t)new_auid,
+                    "vnum", (json_int_t)new_vnum);
+                olc_changeset_add_change(cs, "typedata/ship/room", OLC_FIELD_TYPE_DATA, jold, jnew);
+                notify_field_change(cs, ch, "typedata/ship/room", jnew, "type_data", true);
+                json_decref(jold); json_decref(jnew);
+                send_to_char("{G[STAGED]{x Ship first room set.\n\r", ch);
+            } else {
+                SHIP_TYPE(pObj)->first_room = new_vnum;
+                SHIP_TYPE(pObj)->first_room_area_uid = new_auid;
+                send_to_char("Ship first room set.\n\r", ch);
+            }
             return true;
         }
         if (!str_prefix(field, "hitpoints")) {
             if (argument[0] == '\0') { send_to_char("Syntax: ship hitpoints <hp>\n\r", ch); return false; }
-            SHIP_TYPE(pObj)->hit_points = atoi(argument);
-            send_to_char("Ship hit points set.\n\r", ch);
+            int val = atoi(argument);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                json_t *jold = json_integer(SHIP_TYPE(pObj)->hit_points);
+                json_t *jnew = json_integer(val);
+                olc_changeset_add_change(cs, "typedata/ship/hitpoints", OLC_FIELD_TYPE_DATA, jold, jnew);
+                notify_field_change(cs, ch, "typedata/ship/hitpoints", jnew, "type_data", true);
+                json_decref(jold); json_decref(jnew);
+                send_to_char("{G[STAGED]{x Ship hit points set.\n\r", ch);
+            } else {
+                SHIP_TYPE(pObj)->hit_points = val;
+                send_to_char("Ship hit points set.\n\r", ch);
+            }
             return true;
         }
         if (!str_prefix(field, "guns")) {
             if (argument[0] == '\0') { send_to_char("Syntax: ship guns <max>\n\r", ch); return false; }
-            SHIP_TYPE(pObj)->max_guns = atoi(argument);
-            send_to_char("Ship max guns set.\n\r", ch);
+            int val = atoi(argument);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                json_t *jold = json_integer(SHIP_TYPE(pObj)->max_guns);
+                json_t *jnew = json_integer(val);
+                olc_changeset_add_change(cs, "typedata/ship/guns", OLC_FIELD_TYPE_DATA, jold, jnew);
+                notify_field_change(cs, ch, "typedata/ship/guns", jnew, "type_data", true);
+                json_decref(jold); json_decref(jnew);
+                send_to_char("{G[STAGED]{x Ship max guns set.\n\r", ch);
+            } else {
+                SHIP_TYPE(pObj)->max_guns = val;
+                send_to_char("Ship max guns set.\n\r", ch);
+            }
             return true;
         }
         send_to_char("Valid fields: weight, delay, mincrew, capacity, maxcrew, room, hitpoints, guns\n\r", ch);
@@ -3135,162 +3701,179 @@ OEDIT(oedit_shipmodule)
 
     argument = one_argument(argument, field);
 
+    const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+    olc_changeset_t *cs = (edef && edef->change_mode == OLC_CHANGE_STAGED)
+        ? olc_get_active_changeset(ch, edef) : NULL;
+
     if (field[0] != '\0') {
         if (!str_prefix(field, "type")) {
             if (argument[0] == '\0') { send_to_char("Syntax: shipmodule type <weapon|defense|utility|propulsion>\n\r", ch); return false; }
             int val = flag_value(hardpoint_types, argument);
             if (val == NO_FLAG) { send_to_char("Invalid hardpoint type.\n\r", ch); return false; }
-            d->type = val;
-            send_to_char("Module type set.\n\r", ch);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                json_t *jold = json_integer(d->type);
+                json_t *jnew = json_integer(val);
+                olc_changeset_add_change(cs, "typedata/shipmodule/type", OLC_FIELD_TYPE_DATA, jold, jnew);
+                notify_field_change(cs, ch, "typedata/shipmodule/type", jnew, "type_data", true);
+                json_decref(jold); json_decref(jnew);
+                send_to_char("{G[STAGED]{x Module type set.\n\r", ch);
+            } else {
+                d->type = val;
+                send_to_char("Module type set.\n\r", ch);
+            }
             return true;
         }
         if (!str_prefix(field, "size")) {
             if (argument[0] == '\0') { send_to_char("Syntax: shipmodule size <small|medium|large>\n\r", ch); return false; }
             int val = flag_value(hardpoint_sizes, argument);
             if (val == NO_FLAG) { send_to_char("Invalid hardpoint size.\n\r", ch); return false; }
-            d->size = val;
-            send_to_char("Module size set.\n\r", ch);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                json_t *jold = json_integer(d->size);
+                json_t *jnew = json_integer(val);
+                olc_changeset_add_change(cs, "typedata/shipmodule/size", OLC_FIELD_TYPE_DATA, jold, jnew);
+                notify_field_change(cs, ch, "typedata/shipmodule/size", jnew, "type_data", true);
+                json_decref(jold); json_decref(jnew);
+                send_to_char("{G[STAGED]{x Module size set.\n\r", ch);
+            } else {
+                d->size = val;
+                send_to_char("Module size set.\n\r", ch);
+            }
             return true;
         }
-        if (!str_prefix(field, "weight")) {
-            if (argument[0] == '\0') { send_to_char("Syntax: shipmodule weight <value>\n\r", ch); return false; }
-            d->weight = atoi(argument);
-            send_to_char("Module weight set.\n\r", ch);
-            return true;
+
+/* Macro for simple int fields on shipmodule */
+#define SM_INT_FIELD(prefix, member, label) \
+        if (!str_prefix(field, prefix)) { \
+            if (argument[0] == '\0') { send_to_char("Syntax: shipmodule " prefix " <value>\n\r", ch); return false; } \
+            int val = atoi(argument); \
+            if (cs) { \
+                if (!olc_check_staging_limits(ch, cs)) return false; \
+                json_t *jold = json_integer(d->member); \
+                json_t *jnew = json_integer(val); \
+                olc_changeset_add_change(cs, "typedata/shipmodule/" prefix, OLC_FIELD_TYPE_DATA, jold, jnew); \
+                notify_field_change(cs, ch, "typedata/shipmodule/" prefix, jnew, "type_data", true); \
+                json_decref(jold); json_decref(jnew); \
+                send_to_char("{G[STAGED]{x " label " set.\n\r", ch); \
+            } else { \
+                d->member = val; \
+                send_to_char(label " set.\n\r", ch); \
+            } \
+            return true; \
         }
+
+        SM_INT_FIELD("weight",        weight,              "Module weight")
+        SM_INT_FIELD("hitbonus",      hit_bonus,           "Hit bonus")
+        SM_INT_FIELD("armorbonus",    armor_bonus,         "Armor bonus")
+        SM_INT_FIELD("speedbonus",    speed_bonus,         "Speed bonus")
+        SM_INT_FIELD("turningbonus",  turning_bonus,       "Turning bonus")
+        SM_INT_FIELD("cargoweight",   cargo_weight_bonus,  "Cargo weight bonus")
+        SM_INT_FIELD("cargocapacity", cargo_capacity_bonus,"Cargo capacity bonus")
+        SM_INT_FIELD("crewbonus",     crew_bonus,          "Crew bonus")
+        SM_INT_FIELD("damage",        damage,              "Damage")
+        SM_INT_FIELD("range",         range,               "Range")
+        SM_INT_FIELD("reload",        reload_time,         "Reload time")
+        SM_INT_FIELD("damagetype",    damage_type,         "Damage type")
+        SM_INT_FIELD("ammoshot",      ammo_per_shot,       "Ammo per shot")
+
+/* Macro for int16_t fields on shipmodule */
+#define SM_I16_FIELD(prefix, member, label) \
+        if (!str_prefix(field, prefix)) { \
+            if (argument[0] == '\0') { send_to_char("Syntax: shipmodule " prefix " <value>\n\r", ch); return false; } \
+            int val = atoi(argument); \
+            if (cs) { \
+                if (!olc_check_staging_limits(ch, cs)) return false; \
+                json_t *jold = json_integer((int)d->member); \
+                json_t *jnew = json_integer(val); \
+                olc_changeset_add_change(cs, "typedata/shipmodule/" prefix, OLC_FIELD_TYPE_DATA, jold, jnew); \
+                notify_field_change(cs, ch, "typedata/shipmodule/" prefix, jnew, "type_data", true); \
+                json_decref(jold); json_decref(jnew); \
+                send_to_char("{G[STAGED]{x " label " set.\n\r", ch); \
+            } else { \
+                d->member = (int16_t)val; \
+                send_to_char(label " set.\n\r", ch); \
+            } \
+            return true; \
+        }
+
+        SM_I16_FIELD("operators",  operators,      "Operators")
+        SM_I16_FIELD("gunning",    req_gunning,    "Required gunning")
+        SM_I16_FIELD("mechanics",  req_mechanics,  "Required mechanics")
+        SM_I16_FIELD("scouting",   req_scouting,   "Required scouting")
+        SM_I16_FIELD("navigation", req_navigation, "Required navigation")
+        SM_I16_FIELD("oarring",    req_oarring,    "Required oarring")
+        SM_I16_FIELD("leadership", req_leadership, "Required leadership")
+
+#undef SM_INT_FIELD
+#undef SM_I16_FIELD
+
         if (!str_prefix(field, "domain")) {
             if (argument[0] == '\0') { send_to_char("Syntax: shipmodule domain <aquatic|aerial|terrestrial>\n\r", ch); return false; }
-            int val = flag_value(domain_flags, argument);
-            if (val != NO_FLAG) TOGGLE_BIT(d->domain_flags, val);
-            else { send_to_char("Invalid domain flag.\n\r", ch); return false; }
-            send_to_char("Module domain flags toggled.\n\r", ch);
-            return true;
-        }
-        if (!str_prefix(field, "hitbonus")) {
-            if (argument[0] == '\0') { send_to_char("Syntax: shipmodule hitbonus <value>\n\r", ch); return false; }
-            d->hit_bonus = atoi(argument);
-            send_to_char("Hit bonus set.\n\r", ch);
-            return true;
-        }
-        if (!str_prefix(field, "armorbonus")) {
-            if (argument[0] == '\0') { send_to_char("Syntax: shipmodule armorbonus <value>\n\r", ch); return false; }
-            d->armor_bonus = atoi(argument);
-            send_to_char("Armor bonus set.\n\r", ch);
-            return true;
-        }
-        if (!str_prefix(field, "speedbonus")) {
-            if (argument[0] == '\0') { send_to_char("Syntax: shipmodule speedbonus <percent>\n\r", ch); return false; }
-            d->speed_bonus = atoi(argument);
-            send_to_char("Speed bonus set.\n\r", ch);
-            return true;
-        }
-        if (!str_prefix(field, "turningbonus")) {
-            if (argument[0] == '\0') { send_to_char("Syntax: shipmodule turningbonus <degrees>\n\r", ch); return false; }
-            d->turning_bonus = atoi(argument);
-            send_to_char("Turning bonus set.\n\r", ch);
-            return true;
-        }
-        if (!str_prefix(field, "cargoweight")) {
-            if (argument[0] == '\0') { send_to_char("Syntax: shipmodule cargoweight <value>\n\r", ch); return false; }
-            d->cargo_weight_bonus = atoi(argument);
-            send_to_char("Cargo weight bonus set.\n\r", ch);
-            return true;
-        }
-        if (!str_prefix(field, "cargocapacity")) {
-            if (argument[0] == '\0') { send_to_char("Syntax: shipmodule cargocapacity <value>\n\r", ch); return false; }
-            d->cargo_capacity_bonus = atoi(argument);
-            send_to_char("Cargo capacity bonus set.\n\r", ch);
-            return true;
-        }
-        if (!str_prefix(field, "crewbonus")) {
-            if (argument[0] == '\0') { send_to_char("Syntax: shipmodule crewbonus <value>\n\r", ch); return false; }
-            d->crew_bonus = atoi(argument);
-            send_to_char("Crew bonus set.\n\r", ch);
-            return true;
-        }
-        if (!str_prefix(field, "damage")) {
-            if (argument[0] == '\0') { send_to_char("Syntax: shipmodule damage <value>\n\r", ch); return false; }
-            d->damage = atoi(argument);
-            send_to_char("Damage set.\n\r", ch);
-            return true;
-        }
-        if (!str_prefix(field, "range")) {
-            if (argument[0] == '\0') { send_to_char("Syntax: shipmodule range <tiles>\n\r", ch); return false; }
-            d->range = atoi(argument);
-            send_to_char("Range set.\n\r", ch);
-            return true;
-        }
-        if (!str_prefix(field, "reload")) {
-            if (argument[0] == '\0') { send_to_char("Syntax: shipmodule reload <ticks>\n\r", ch); return false; }
-            d->reload_time = atoi(argument);
-            send_to_char("Reload time set.\n\r", ch);
-            return true;
-        }
-        if (!str_prefix(field, "damagetype")) {
-            if (argument[0] == '\0') { send_to_char("Syntax: shipmodule damagetype <0=grind|1=fire>\n\r", ch); return false; }
-            d->damage_type = atoi(argument);
-            send_to_char("Damage type set.\n\r", ch);
+            int toggle = flag_value(domain_flags, argument);
+            if (toggle == NO_FLAG) { send_to_char("Invalid domain flag.\n\r", ch); return false; }
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                long current = olc_staged_flags_or(cs, "typedata/shipmodule/domain", d->domain_flags);
+                long result = current ^ toggle;
+                json_t *jold = json_integer((json_int_t)d->domain_flags);
+                json_t *jnew = json_integer((json_int_t)result);
+                olc_changeset_add_change(cs, "typedata/shipmodule/domain", OLC_FIELD_TYPE_DATA, jold, jnew);
+                notify_field_change(cs, ch, "typedata/shipmodule/domain", jnew, "type_data", true);
+                json_decref(jold); json_decref(jnew);
+                send_to_char("{G[STAGED]{x Module domain flags toggled.\n\r", ch);
+            } else {
+                TOGGLE_BIT(d->domain_flags, toggle);
+                send_to_char("Module domain flags toggled.\n\r", ch);
+            }
             return true;
         }
         if (!str_prefix(field, "weapflags")) {
             if (argument[0] == '\0') { send_to_char("Syntax: shipmodule weapflags <flag>\n\r", ch); return false; }
-            int val = flag_value(weapon_module_flags, argument);
-            if (val != NO_FLAG) TOGGLE_BIT(d->weapon_flags, val);
-            else { send_to_char("Invalid weapon module flag.\n\r", ch); return false; }
-            send_to_char("Weapon flags toggled.\n\r", ch);
+            int toggle = flag_value(weapon_module_flags, argument);
+            if (toggle == NO_FLAG) { send_to_char("Invalid weapon module flag.\n\r", ch); return false; }
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                long current = olc_staged_flags_or(cs, "typedata/shipmodule/weapflags", d->weapon_flags);
+                long result = current ^ toggle;
+                json_t *jold = json_integer((json_int_t)d->weapon_flags);
+                json_t *jnew = json_integer((json_int_t)result);
+                olc_changeset_add_change(cs, "typedata/shipmodule/weapflags", OLC_FIELD_TYPE_DATA, jold, jnew);
+                notify_field_change(cs, ch, "typedata/shipmodule/weapflags", jnew, "type_data", true);
+                json_decref(jold); json_decref(jnew);
+                send_to_char("{G[STAGED]{x Weapon flags toggled.\n\r", ch);
+            } else {
+                TOGGLE_BIT(d->weapon_flags, toggle);
+                send_to_char("Weapon flags toggled.\n\r", ch);
+            }
             return true;
         }
-        if (!str_prefix(field, "operators")) {
-            if (argument[0] == '\0') { send_to_char("Syntax: shipmodule operators <count>\n\r", ch); return false; }
-            d->operators = (int16_t)atoi(argument);
-            send_to_char("Operators set.\n\r", ch);
-            return true;
-        }
-        if (!str_prefix(field, "gunning")) {
-            if (argument[0] == '\0') { send_to_char("Syntax: shipmodule gunning <min_skill>\n\r", ch); return false; }
-            d->req_gunning = (int16_t)atoi(argument);
-            send_to_char("Required gunning set.\n\r", ch);
-            return true;
-        }
-        if (!str_prefix(field, "mechanics")) {
-            if (argument[0] == '\0') { send_to_char("Syntax: shipmodule mechanics <min_skill>\n\r", ch); return false; }
-            d->req_mechanics = (int16_t)atoi(argument);
-            send_to_char("Required mechanics set.\n\r", ch);
-            return true;
-        }
-        if (!str_prefix(field, "scouting")) {
-            if (argument[0] == '\0') { send_to_char("Syntax: shipmodule scouting <min_skill>\n\r", ch); return false; }
-            d->req_scouting = (int16_t)atoi(argument);
-            send_to_char("Required scouting set.\n\r", ch);
-            return true;
-        }
-        if (!str_prefix(field, "navigation")) {
-            if (argument[0] == '\0') { send_to_char("Syntax: shipmodule navigation <min_skill>\n\r", ch); return false; }
-            d->req_navigation = (int16_t)atoi(argument);
-            send_to_char("Required navigation set.\n\r", ch);
-            return true;
-        }
-        if (!str_prefix(field, "oarring")) {
-            if (argument[0] == '\0') { send_to_char("Syntax: shipmodule oarring <min_skill>\n\r", ch); return false; }
-            d->req_oarring = (int16_t)atoi(argument);
-            send_to_char("Required oarring set.\n\r", ch);
-            return true;
-        }
-        if (!str_prefix(field, "leadership")) {
-            if (argument[0] == '\0') { send_to_char("Syntax: shipmodule leadership <min_skill>\n\r", ch); return false; }
-            d->req_leadership = (int16_t)atoi(argument);
-            send_to_char("Required leadership set.\n\r", ch);
+        if (!str_prefix(field, "flags")) {
+            if (argument[0] == '\0') { send_to_char("Syntax: shipmodule flags <flag>\n\r", ch); return false; }
+            int toggle = flag_value(module_flags, argument);
+            if (toggle == NO_FLAG) { send_to_char("Invalid module flag.\n\r", ch); return false; }
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                long current = olc_staged_flags_or(cs, "typedata/shipmodule/flags", d->flags);
+                long result = current ^ toggle;
+                json_t *jold = json_integer((json_int_t)d->flags);
+                json_t *jnew = json_integer((json_int_t)result);
+                olc_changeset_add_change(cs, "typedata/shipmodule/flags", OLC_FIELD_TYPE_DATA, jold, jnew);
+                notify_field_change(cs, ch, "typedata/shipmodule/flags", jnew, "type_data", true);
+                json_decref(jold); json_decref(jnew);
+                send_to_char("{G[STAGED]{x Module flags toggled.\n\r", ch);
+            } else {
+                TOGGLE_BIT(d->flags, toggle);
+                send_to_char("Module flags toggled.\n\r", ch);
+            }
             return true;
         }
         if (!str_prefix(field, "ammo")) {
             if (argument[0] == '\0') { send_to_char("Syntax: shipmodule ammo <obj_vnum|0 for none>\n\r", ch); return false; }
+            long new_vnum = 0;
+            long new_auid = 0;
             long vnum = atol(argument);
-            if (vnum == 0) {
-                d->ammo_ref.load.vnum = 0;
-                d->ammo_ref.load.auid = 0;
-                d->ammo = NULL;
-                send_to_char("Ammo cleared.\n\r", ch);
-            } else {
+            if (vnum != 0) {
                 WNUM key_wnum = { NULL, 0 };
                 parse_widevnum(argument, pObj->area, &key_wnum);
                 OBJ_INDEX_DATA *ammo_obj = key_wnum.pArea
@@ -3300,25 +3883,34 @@ OEDIT(oedit_shipmodule)
                     send_to_char("No such object exists.\n\r", ch);
                     return false;
                 }
-                d->ammo_ref.load.vnum = key_wnum.vnum;
-                d->ammo_ref.load.auid = key_wnum.pArea ? key_wnum.pArea->uid : 0;
-                d->ammo = ammo_obj;
-                send_to_char("Ammo object set.\n\r", ch);
+                new_vnum = key_wnum.vnum;
+                new_auid = key_wnum.pArea ? key_wnum.pArea->uid : 0;
             }
-            return true;
-        }
-        if (!str_prefix(field, "ammoshot")) {
-            if (argument[0] == '\0') { send_to_char("Syntax: shipmodule ammoshot <count>\n\r", ch); return false; }
-            d->ammo_per_shot = atoi(argument);
-            send_to_char("Ammo per shot set.\n\r", ch);
-            return true;
-        }
-        if (!str_prefix(field, "flags")) {
-            if (argument[0] == '\0') { send_to_char("Syntax: shipmodule flags <flag>\n\r", ch); return false; }
-            int val = flag_value(module_flags, argument);
-            if (val != NO_FLAG) TOGGLE_BIT(d->flags, val);
-            else { send_to_char("Invalid module flag.\n\r", ch); return false; }
-            send_to_char("Module flags toggled.\n\r", ch);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                json_t *jold = json_pack("{s:I, s:I}",
+                    "auid", (json_int_t)d->ammo_ref.load.auid,
+                    "vnum", (json_int_t)d->ammo_ref.load.vnum);
+                json_t *jnew = json_pack("{s:I, s:I}",
+                    "auid", (json_int_t)new_auid,
+                    "vnum", (json_int_t)new_vnum);
+                olc_changeset_add_change(cs, "typedata/shipmodule/ammo", OLC_FIELD_TYPE_DATA, jold, jnew);
+                notify_field_change(cs, ch, "typedata/shipmodule/ammo", jnew, "type_data", true);
+                json_decref(jold); json_decref(jnew);
+                send_to_char(new_vnum > 0 ? "{G[STAGED]{x Ammo object set.\n\r" : "{G[STAGED]{x Ammo cleared.\n\r", ch);
+            } else {
+                if (new_vnum > 0) {
+                    d->ammo_ref.load.vnum = new_vnum;
+                    d->ammo_ref.load.auid = new_auid;
+                    AREA_DATA *area = new_auid > 0 ? get_area_index(new_auid) : NULL;
+                    d->ammo = area ? get_obj_index(area, new_vnum) : get_obj_index_global(new_vnum);
+                } else {
+                    d->ammo_ref.load.vnum = 0;
+                    d->ammo_ref.load.auid = 0;
+                    d->ammo = NULL;
+                }
+                send_to_char(new_vnum > 0 ? "Ammo object set.\n\r" : "Ammo cleared.\n\r", ch);
+            }
             return true;
         }
         send_to_char(
@@ -3498,6 +4090,10 @@ OEDIT(oedit_telescope)
 
     argument = one_argument(argument, field);
 
+    const OLC_EDITOR_DEF *edef = olc_find_editor_by_type(ch->desc->editor);
+    olc_changeset_t *cs = (edef && edef->change_mode == OLC_CHANGE_STAGED)
+        ? olc_get_active_changeset(ch, edef) : NULL;
+
     if (field[0] != '\0') {
         if (!str_prefix(field, "distance")) {
             if (argument[0] == '\0') { send_to_char("Syntax: telescope distance <val>\n\r", ch); return false; }
@@ -3509,8 +4105,18 @@ OEDIT(oedit_telescope)
                 send_to_char(msg, ch);
                 return false;
             }
-            TELESCOPE(pObj)->distance = val;
-            send_to_char("Telescope distance set.\n\r", ch);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                json_t *jold = json_integer((int)TELESCOPE(pObj)->distance);
+                json_t *jnew = json_integer(val);
+                olc_changeset_add_change(cs, "typedata/telescope/distance", OLC_FIELD_TYPE_DATA, jold, jnew);
+                notify_field_change(cs, ch, "typedata/telescope/distance", jnew, "type_data", true);
+                json_decref(jold); json_decref(jnew);
+                send_to_char("{G[STAGED]{x Telescope distance set.\n\r", ch);
+            } else {
+                TELESCOPE(pObj)->distance = val;
+                send_to_char("Telescope distance set.\n\r", ch);
+            }
             return true;
         }
         if (!str_prefix(field, "mindist")) {
@@ -3521,8 +4127,18 @@ OEDIT(oedit_telescope)
                 send_to_char("Must be less than or equal to max distance.\n\r", ch);
                 return false;
             }
-            TELESCOPE(pObj)->min_distance = val;
-            send_to_char("Telescope min distance set.\n\r", ch);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                json_t *jold = json_integer((int)TELESCOPE(pObj)->min_distance);
+                json_t *jnew = json_integer(val);
+                olc_changeset_add_change(cs, "typedata/telescope/mindist", OLC_FIELD_TYPE_DATA, jold, jnew);
+                notify_field_change(cs, ch, "typedata/telescope/mindist", jnew, "type_data", true);
+                json_decref(jold); json_decref(jnew);
+                send_to_char("{G[STAGED]{x Telescope min distance set.\n\r", ch);
+            } else {
+                TELESCOPE(pObj)->min_distance = val;
+                send_to_char("Telescope min distance set.\n\r", ch);
+            }
             return true;
         }
         if (!str_prefix(field, "maxdist")) {
@@ -3533,20 +4149,52 @@ OEDIT(oedit_telescope)
                 send_to_char("Must be greater than or equal to min distance.\n\r", ch);
                 return false;
             }
-            TELESCOPE(pObj)->max_distance = val;
-            send_to_char("Telescope max distance set.\n\r", ch);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                json_t *jold = json_integer((int)TELESCOPE(pObj)->max_distance);
+                json_t *jnew = json_integer(val);
+                olc_changeset_add_change(cs, "typedata/telescope/maxdist", OLC_FIELD_TYPE_DATA, jold, jnew);
+                notify_field_change(cs, ch, "typedata/telescope/maxdist", jnew, "type_data", true);
+                json_decref(jold); json_decref(jnew);
+                send_to_char("{G[STAGED]{x Telescope max distance set.\n\r", ch);
+            } else {
+                TELESCOPE(pObj)->max_distance = val;
+                send_to_char("Telescope max distance set.\n\r", ch);
+            }
             return true;
         }
         if (!str_prefix(field, "bonus")) {
             if (argument[0] == '\0') { send_to_char("Syntax: telescope bonus <view_size>\n\r", ch); return false; }
-            TELESCOPE(pObj)->bonus_view = atoi(argument);
-            send_to_char("Telescope bonus view set.\n\r", ch);
+            int val = atoi(argument);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                json_t *jold = json_integer((int)TELESCOPE(pObj)->bonus_view);
+                json_t *jnew = json_integer(val);
+                olc_changeset_add_change(cs, "typedata/telescope/bonus", OLC_FIELD_TYPE_DATA, jold, jnew);
+                notify_field_change(cs, ch, "typedata/telescope/bonus", jnew, "type_data", true);
+                json_decref(jold); json_decref(jnew);
+                send_to_char("{G[STAGED]{x Telescope bonus view set.\n\r", ch);
+            } else {
+                TELESCOPE(pObj)->bonus_view = val;
+                send_to_char("Telescope bonus view set.\n\r", ch);
+            }
             return true;
         }
         if (!str_prefix(field, "heading")) {
             if (argument[0] == '\0') { send_to_char("Syntax: telescope heading <dir|-1 for none>\n\r", ch); return false; }
-            TELESCOPE(pObj)->heading = atoi(argument);
-            send_to_char("Telescope heading set.\n\r", ch);
+            int val = atoi(argument);
+            if (cs) {
+                if (!olc_check_staging_limits(ch, cs)) return false;
+                json_t *jold = json_integer((int)TELESCOPE(pObj)->heading);
+                json_t *jnew = json_integer(val);
+                olc_changeset_add_change(cs, "typedata/telescope/heading", OLC_FIELD_TYPE_DATA, jold, jnew);
+                notify_field_change(cs, ch, "typedata/telescope/heading", jnew, "type_data", true);
+                json_decref(jold); json_decref(jnew);
+                send_to_char("{G[STAGED]{x Telescope heading set.\n\r", ch);
+            } else {
+                TELESCOPE(pObj)->heading = val;
+                send_to_char("Telescope heading set.\n\r", ch);
+            }
             return true;
         }
         send_to_char("Valid fields: distance, mindist, maxdist, bonus, heading\n\r", ch);
