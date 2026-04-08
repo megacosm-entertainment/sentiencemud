@@ -1388,33 +1388,68 @@ static void oedit_show_scripts_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEd
     olc_display_vars(ctx, theme, pObj->index_vars, "varset", "varclear");
 
     if (pObj->quests_v2) {
-        QUEST_V2_LIST *qv2;
-        int qidx = 1;
-        char wstr[MIL];
+        if (ctx && ctx->capture_mode && ctx->captured_fields) {
+            json_t *items = json_array();
+            int qidx = 0;
+            for (QUEST_V2_LIST *qv2 = pObj->quests_v2; qv2; qv2 = qv2->next, qidx++) {
+                QUEST_INDEX_V2_DATA *qi = get_quest_index_v2_wnum(qv2->wnum);
+                const char *qname = qi ? (qi->name && qi->name[0] ? qi->name : "(unnamed)") : "(invalid)";
+                char wstr[MIL];
+                if (qv2->wnum.pArea)
+                    strlcpy(wstr, widevnum_string(qv2->wnum.pArea, qv2->wnum.vnum, pObj->area), sizeof(wstr));
+                else
+                    snprintf(wstr, sizeof(wstr), "%ld#%ld", qv2->load.auid, qv2->load.vnum);
 
-        olc_display_section(ctx, theme, "Available Quests (V2)");
-        add_buf(ctx->buffer, formatf("  %s%-3s %-35s  %s{x\n\r",
-            theme->label, "#", "Quest Name", "Widevnum"));
-        add_buf(ctx->buffer, formatf("  %s--- ----------------------------------- --------{x\n\r",
-            theme->label));
+                json_t *item = json_pack("{s:i, s:s, s:s, s:b}",
+                    "index", qidx,
+                    "name", qname,
+                    "vnum", wstr,
+                    "enabled", (bool)(qi && qi->enabled));
+                json_array_append_new(items, item);
+            }
 
-        for (qv2 = pObj->quests_v2; qv2; qv2 = qv2->next, qidx++) {
-            QUEST_INDEX_V2_DATA *qi = get_quest_index_v2_wnum(qv2->wnum);
-            const char *qname = qi ? (qi->name && qi->name[0] ? qi->name : "(unnamed)") : "(invalid)";
+            json_t *schema = json_array();
+            json_array_append_new(schema, json_pack("{s:s, s:s}", "field", "vnum", "type", "widevnum"));
 
-            if (qv2->wnum.pArea)
-                strncpy(wstr, widevnum_string(qv2->wnum.pArea, qv2->wnum.vnum, pObj->area), sizeof(wstr) - 1);
-            else
-                snprintf(wstr, sizeof(wstr), "%ld#%ld", qv2->load.auid, qv2->load.vnum);
-            wstr[sizeof(wstr) - 1] = '\0';
+            json_t *list = json_pack("{s:s, s:s, s:s, s:s, s:o, s:s, s:s, s:o}",
+                "label", "Available Quests (V2)",
+                "command", "quests",
+                "type", "list",
+                "item_type", "quest",
+                "items", items,
+                "add_command", "addquest",
+                "del_command", "delquest",
+                "item_schema", schema);
+            json_array_append_new(ctx->captured_fields, list);
+        } else {
+            QUEST_V2_LIST *qv2;
+            int qidx = 1;
+            char wstr[MIL];
 
-            add_buf(ctx->buffer, formatf("  %-3d %-35.35s  %s%s\n\r",
-                qidx, qname, wstr,
-                qi && !qi->enabled ? " {D[disabled]{x" : ""));
+            olc_display_section(ctx, theme, "Available Quests (V2)");
+            add_buf(ctx->buffer, formatf("  %s%-3s %-35s  %s{x\n\r",
+                theme->label, "#", "Quest Name", "Widevnum"));
+            add_buf(ctx->buffer, formatf("  %s--- ----------------------------------- --------{x\n\r",
+                theme->label));
+
+            for (qv2 = pObj->quests_v2; qv2; qv2 = qv2->next, qidx++) {
+                QUEST_INDEX_V2_DATA *qi = get_quest_index_v2_wnum(qv2->wnum);
+                const char *qname = qi ? (qi->name && qi->name[0] ? qi->name : "(unnamed)") : "(invalid)";
+
+                if (qv2->wnum.pArea)
+                    strncpy(wstr, widevnum_string(qv2->wnum.pArea, qv2->wnum.vnum, pObj->area), sizeof(wstr) - 1);
+                else
+                    snprintf(wstr, sizeof(wstr), "%ld#%ld", qv2->load.auid, qv2->load.vnum);
+                wstr[sizeof(wstr) - 1] = '\0';
+
+                add_buf(ctx->buffer, formatf("  %-3d %-35.35s  %s%s\n\r",
+                    qidx, qname, wstr,
+                    qi && !qi->enabled ? " {D[disabled]{x" : ""));
+            }
+
+            olc_display_string(ctx, theme, "Add:",    NULL, "addquest <widevnum>");
+            olc_display_string(ctx, theme, "Delete:", NULL, "delquest <index>");
         }
-
-        olc_display_string(ctx, theme, "Add:",    NULL, "addquest <widevnum>");
-        olc_display_string(ctx, theme, "Delete:", NULL, "delquest <index>");
     }
 }
 

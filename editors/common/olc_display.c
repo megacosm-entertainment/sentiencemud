@@ -864,6 +864,36 @@ void olc_display_scripts(OLC_LAYOUT_CTX *ctx, const OLC_EDITOR_THEME *theme,
     if (!theme) theme = &olc_theme_default;
     if (!progs) return;
 
+    if (ctx->capture_mode && ctx->captured_fields) {
+        json_t *items = json_array();
+
+        PROG_GROUP groups[MAX_PROG_GROUPS];
+        int group_count = prog_build_groups(progs, groups, MAX_PROG_GROUPS, type);
+        for (int i = 0; i < group_count; i++) {
+            SCRIPT_DATA *prog = groups[i].script;
+            json_t *item = json_pack("{s:i, s:s, s:s}",
+                "index", i,
+                "vnum", prog ? widevnum_string_script(prog, NULL) : formatf("%ld", groups[i].vnum),
+                "name", prog ? prog->name : "Unknown");
+            json_array_append_new(items, item);
+        }
+
+        json_t *schema = json_array();
+        json_array_append_new(schema, json_pack("{s:s, s:s}", "field", "vnum", "type", "widevnum"));
+
+        json_t *list = json_pack("{s:s, s:s, s:s, s:s, s:o, s:s, s:s, s:o}",
+            "label", title ? title : "Scripts",
+            "command", add_cmd ? add_cmd : "scripts",
+            "type", "list",
+            "item_type", "script",
+            "items", items,
+            "add_command", add_cmd ? add_cmd : "",
+            "del_command", del_cmd ? del_cmd : "",
+            "item_schema", schema);
+        json_array_append_new(ctx->captured_fields, list);
+        return;
+    }
+
     /* Use the existing grouped display function which writes to a buffer */
     olc_show_progs_grouped(ctx->buffer, progs, type, title);
 
@@ -891,6 +921,59 @@ void olc_display_vars(OLC_LAYOUT_CTX *ctx, const OLC_EDITOR_THEME *theme,
 
     if (!ctx || !ctx->buffer) return;
     if (!theme) theme = &olc_theme_default;
+
+    if (ctx->capture_mode && ctx->captured_fields) {
+        json_t *items = json_array();
+        int cnt = 0;
+
+        for (pVARIABLE var = var_list; var; var = var->next) {
+            const char *type_name;
+            const char *val_str;
+            char val_buf[MIL];
+
+            switch (var->type) {
+            case VAR_INTEGER:
+                type_name = "number";
+                snprintf(val_buf, sizeof(val_buf), "%d", var->_.i);
+                val_str = val_buf;
+                break;
+            case VAR_STRING:
+            case VAR_STRING_S:
+                type_name = "string";
+                val_str = var->_.s ? var->_.s : "";
+                break;
+            default:
+                type_name = "other";
+                val_str = "";
+                break;
+            }
+
+            json_t *item = json_pack("{s:i, s:s, s:s, s:s, s:b}",
+                "index", cnt,
+                "name", var->name ? var->name : "",
+                "type", type_name,
+                "value", val_str,
+                "saved", var->save);
+            json_array_append_new(items, item);
+            cnt++;
+        }
+
+        json_t *schema = json_array();
+        json_array_append_new(schema, json_pack("{s:s, s:s}", "field", "name", "type", "string"));
+        json_array_append_new(schema, json_pack("{s:s, s:s}", "field", "value", "type", "string"));
+
+        json_t *list = json_pack("{s:s, s:s, s:s, s:s, s:o, s:s, s:s, s:o}",
+            "label", "Variables",
+            "command", "vars",
+            "type", "list",
+            "item_type", "variable",
+            "items", items,
+            "add_command", set_cmd ? set_cmd : "",
+            "del_command", clear_cmd ? clear_cmd : "",
+            "item_schema", schema);
+        json_array_append_new(ctx->captured_fields, list);
+        return;
+    }
 
     olc_display_section(ctx, theme, "Variables");
 
