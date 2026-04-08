@@ -47,6 +47,7 @@
 #include "../../skill_data.h"
 
 extern void oedit_show_type_data(OBJ_INDEX_DATA *pObj, BUFFER *buffer);
+extern json_t *oedit_type_schema(const OBJ_INDEX_DATA *pObj);
 bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *argument);
 
 /* Forward declarations for tab show functions */
@@ -1220,6 +1221,17 @@ static void oedit_show_scripts_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEd
 static void oedit_show_type_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit)
 {
     OBJ_INDEX_DATA *pObj = (OBJ_INDEX_DATA *)pEdit;
+
+    if (ctx && ctx->capture_mode && ctx->captured_fields) {
+        json_t *type_fields = oedit_type_schema(pObj);
+        if (type_fields && !json_is_null(type_fields)) {
+            for (size_t i = 0; i < json_array_size(type_fields); i++) {
+                json_array_append(ctx->captured_fields, json_array_get(type_fields, i));
+            }
+            json_decref(type_fields);
+        }
+        return;
+    }
 
     oedit_show_type_data(pObj, ctx->buffer);
 }

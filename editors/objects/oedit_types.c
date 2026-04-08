@@ -1727,6 +1727,37 @@ json_t *oedit_serialize_typedata(void *entity, const char *field_path)
     return json_null();
 }
 
+json_t *oedit_type_schema(const OBJ_INDEX_DATA *pObj)
+{
+    json_t *fields = json_array();
+    if (!pObj) return fields;
+
+    for (int i = 0; type_dispatch[i].type_name; i++) {
+        if (!type_dispatch[i].schema_fn) continue;
+        json_t *type_fields = type_dispatch[i].schema_fn(pObj);
+        if (!type_fields || json_is_null(type_fields)) {
+            json_decref(type_fields);
+            continue;
+        }
+        if (json_array_size(type_fields) == 0) {
+            json_decref(type_fields);
+            continue;
+        }
+        /* Add section marker before this type's fields */
+        json_t *section = json_pack("{s:s, s:s}",
+            "type", "section",
+            "label", type_dispatch[i].type_name);
+        json_array_append_new(fields, section);
+        /* Append all field descriptors from this type */
+        for (size_t j = 0; j < json_array_size(type_fields); j++) {
+            json_array_append(fields, json_array_get(type_fields, j));
+        }
+        json_decref(type_fields);
+    }
+
+    return fields;
+}
+
 /* ============================================================================
  *  ARMOR
  * ============================================================================ */
