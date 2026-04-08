@@ -368,6 +368,13 @@
       "test_type": "olccs_schema_update_build",
       "input": {},
       "expected_output": { "success": true }
+    },
+    {
+      "name": "olccs_type_schema_integ",
+      "description": "Integration test: type schema for weapon+armor produces sections, fields, options",
+      "test_type": "olccs_type_schema_integ",
+      "input": {},
+      "expected_output": { "success": true }
     }
   ]
 }

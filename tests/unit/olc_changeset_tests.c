@@ -17,6 +17,7 @@
 extern bool oedit_apply_affect_ops(void *entity, olc_pending_change_t *change);
 extern bool oedit_apply_lock(void *entity, olc_pending_change_t *change);
 extern bool oedit_apply_typedata(void *entity, olc_pending_change_t *change);
+extern json_t *oedit_type_schema(const OBJ_INDEX_DATA *pObj);
 
 static test_result_t test_olccs_create_destroy(test_case_t *test)
 {
@@ -1554,6 +1555,91 @@ static test_result_t test_schema_update_build(test_case_t *test)
     return TEST_SUCCESS;
 }
 
+static test_result_t test_type_schema_integration(test_case_t *test)
+{
+    (void)test;
+
+    /* Create a test object with weapon + armor types */
+    OBJ_INDEX_DATA *pObj = new_obj_index();
+    obj_index_alloc_type_data(pObj, ITEM_WEAPON);
+    obj_index_alloc_type_data(pObj, ITEM_ARMOUR);
+    TEST_ASSERT_TRUE(IS_WEAPON(pObj));
+    TEST_ASSERT_TRUE(IS_ARMOR(pObj));
+
+    /* Get the type schema */
+    json_t *schema = oedit_type_schema(pObj);
+    TEST_ASSERT_NOT_NULL(schema);
+    TEST_ASSERT_TRUE(json_is_array(schema));
+    TEST_ASSERT_TRUE(json_array_size(schema) > 0);
+
+    /* Verify we have section markers for both types */
+    bool found_weapon_section = false;
+    bool found_armor_section = false;
+    for (size_t i = 0; i < json_array_size(schema); i++) {
+        json_t *entry = json_array_get(schema, i);
+        const char *type = json_string_value(json_object_get(entry, "type"));
+        const char *label = json_string_value(json_object_get(entry, "label"));
+        if (type && strcmp(type, "section") == 0) {
+            if (label && strcmp(label, "weapon") == 0) found_weapon_section = true;
+            if (label && strcmp(label, "armor") == 0) found_armor_section = true;
+        }
+    }
+    TEST_ASSERT_TRUE(found_weapon_section);
+    TEST_ASSERT_TRUE(found_armor_section);
+
+    /* Verify weapon fields have correct command path prefix */
+    bool found_weapon_class = false;
+    bool found_weapon_dice = false;
+    bool found_weapon_flags = false;
+    for (size_t i = 0; i < json_array_size(schema); i++) {
+        json_t *entry = json_array_get(schema, i);
+        const char *cmd = json_string_value(json_object_get(entry, "command"));
+        if (!cmd) continue;
+        if (strcmp(cmd, "typedata/weapon/class") == 0) {
+            /* Verify it's an enum with options */
+            TEST_ASSERT_STR_EQ("enum", json_string_value(json_object_get(entry, "type")));
+            TEST_ASSERT_NOT_NULL(json_object_get(entry, "options"));
+            TEST_ASSERT_TRUE(json_is_array(json_object_get(entry, "options")));
+            found_weapon_class = true;
+        }
+        if (strcmp(cmd, "typedata/weapon/dice") == 0) {
+            TEST_ASSERT_STR_EQ("dice", json_string_value(json_object_get(entry, "type")));
+            found_weapon_dice = true;
+        }
+        if (strcmp(cmd, "typedata/weapon/flags") == 0) {
+            TEST_ASSERT_STR_EQ("flags", json_string_value(json_object_get(entry, "type")));
+            TEST_ASSERT_NOT_NULL(json_object_get(entry, "options"));
+            found_weapon_flags = true;
+        }
+    }
+    TEST_ASSERT_TRUE(found_weapon_class);
+    TEST_ASSERT_TRUE(found_weapon_dice);
+    TEST_ASSERT_TRUE(found_weapon_flags);
+
+    /* Verify armor fields have correct command path prefix */
+    bool found_armor_type = false;
+    bool found_armor_pierce = false;
+    for (size_t i = 0; i < json_array_size(schema); i++) {
+        json_t *entry = json_array_get(schema, i);
+        const char *cmd = json_string_value(json_object_get(entry, "command"));
+        if (!cmd) continue;
+        if (strcmp(cmd, "typedata/armor/type") == 0) {
+            TEST_ASSERT_STR_EQ("enum", json_string_value(json_object_get(entry, "type")));
+            found_armor_type = true;
+        }
+        if (strcmp(cmd, "typedata/armor/pierce") == 0) {
+            TEST_ASSERT_STR_EQ("int", json_string_value(json_object_get(entry, "type")));
+            found_armor_pierce = true;
+        }
+    }
+    TEST_ASSERT_TRUE(found_armor_type);
+    TEST_ASSERT_TRUE(found_armor_pierce);
+
+    json_decref(schema);
+    free_obj_index(pObj);
+    return TEST_SUCCESS;
+}
+
 /*
  * Test dispatcher — routes test_type to specific test functions.
  */
@@ -1653,6 +1739,8 @@ test_result_t run_olc_changeset_test_case(test_case_t *test)
         return test_olccs_apply_typedata(test);
     if (strcmp(test->test_type, "olccs_schema_update_build") == 0)
         return test_schema_update_build(test);
+    if (strcmp(test->test_type, "olccs_type_schema_integ") == 0)
+        return test_type_schema_integration(test);
 
     log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
                   "Unknown OLC changeset test type: %s", test->test_type);
