@@ -446,8 +446,8 @@ static void redit_show_general_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEd
             pRoom->x, pRoom->y, pRoom->wilds->uid, pRoom->wilds->name);
     } else {
         olc_display_string(ctx, theme, "Vnum:", NULL, widevnum_string_room(pRoom, pRoom->area));
-        olc_display_string(ctx, theme, "Sector:", "sector",
-            sector_name(room_rs_sector_type(pRoom)));
+        olc_display_type(ctx, theme, "Sector:", "sector",
+            sector_flags, room_rs_sector_type(pRoom));
         if (pRoom->viewwilds)
             olc_display_infof(ctx, theme,
                 "Map Coord at ({W%ld{x, {W%ld{x, {W%ld{x), wilds uid ({W%ld{x) '{W%s{x'",
