@@ -20,6 +20,7 @@
 #include "../common/olc_staged.h"
 #include "../common/olc_editor.h"
 #include "../common/olc_field_handlers.h"
+#include "../common/olc_display.h"
 #include <jansson.h>
 
 /* Forward declarations for helpers used by type commands */
@@ -48,10 +49,17 @@ typedef bool (*oedit_type_apply_fn)(OBJ_INDEX_DATA *pObj,
  */
 typedef json_t *(*oedit_type_serialize_fn)(const OBJ_INDEX_DATA *pObj);
 
+/**
+ * Per-type schema function.
+ * Returns a JSON array of field descriptors for this type.
+ */
+typedef json_t *(*oedit_type_schema_fn)(const OBJ_INDEX_DATA *pObj);
+
 typedef struct {
     const char             *type_name;
     oedit_type_apply_fn     apply_fn;
     oedit_type_serialize_fn serialize_fn;
+    oedit_type_schema_fn    schema_fn;
 } oedit_type_dispatch_t;
 
 /* Stubs — implemented in Tasks 8-10 */
@@ -78,6 +86,40 @@ static json_t *armor_serialize(const OBJ_INDEX_DATA *pObj)
         "type", (int)ARMOR(pObj)->armor_type);
 }
 
+static json_t *armor_schema(const OBJ_INDEX_DATA *pObj)
+{
+    if (!IS_ARMOR(pObj)) return json_array();
+    json_t *arr = json_array();
+    json_t *f;
+    f = json_pack("{s:s, s:s, s:s, s:s, s:o}",
+        "label", "Type:", "command", "typedata/armor/type",
+        "type", "enum", "value", flag_string(armor_types, ARMOR(pObj)->armor_type),
+        "options", olc_flag_options_json(armor_types));
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:s, s:o}",
+        "label", "Strength:", "command", "typedata/armor/strength",
+        "type", "enum", "value", flag_string(armour_strength_table, ARMOR(pObj)->armor_strength),
+        "options", olc_flag_options_json(armour_strength_table));
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Pierce:", "command", "typedata/armor/pierce",
+        "type", "int", "value", (int)ARMOR(pObj)->protection[0]);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Bash:", "command", "typedata/armor/bash",
+        "type", "int", "value", (int)ARMOR(pObj)->protection[1]);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Slash:", "command", "typedata/armor/slash",
+        "type", "int", "value", (int)ARMOR(pObj)->protection[2]);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Exotic:", "command", "typedata/armor/exotic",
+        "type", "int", "value", (int)ARMOR(pObj)->protection[3]);
+    json_array_append_new(arr, f);
+    return arr;
+}
+
 static bool bodypart_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change)
 {
     if (!IS_BODY_PART(pObj)) return false;
@@ -91,6 +133,23 @@ static json_t *bodypart_serialize(const OBJ_INDEX_DATA *pObj)
     return json_pack("{s:I, s:i}", "parts", (json_int_t)BODY_PART(pObj)->parts, "race", BODY_PART(pObj)->race_uid);
 }
 
+static json_t *bodypart_schema(const OBJ_INDEX_DATA *pObj)
+{
+    if (!IS_BODY_PART(pObj)) return json_array();
+    json_t *arr = json_array();
+    json_t *f;
+    f = json_pack("{s:s, s:s, s:s, s:s, s:o}",
+        "label", "Parts:", "command", "typedata/bodypart/parts",
+        "type", "flags", "value", flag_string(part_flags, BODY_PART(pObj)->parts),
+        "options", olc_flag_options_json(part_flags));
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Race:", "command", "typedata/bodypart/race",
+        "type", "int", "value", BODY_PART(pObj)->race_uid);
+    json_array_append_new(arr, f);
+    return arr;
+}
+
 static bool book_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change)
 {
     if (!IS_BOOK(pObj)) return false;
@@ -101,6 +160,18 @@ static json_t *book_serialize(const OBJ_INDEX_DATA *pObj)
 {
     if (!IS_BOOK(pObj)) return json_null();
     return json_pack("{s:i}", "flags", BOOK(pObj)->flags);
+}
+
+static json_t *book_schema(const OBJ_INDEX_DATA *pObj)
+{
+    if (!IS_BOOK(pObj)) return json_array();
+    json_t *arr = json_array();
+    json_t *f = json_pack("{s:s, s:s, s:s, s:s, s:o}",
+        "label", "Flags:", "command", "typedata/book/flags",
+        "type", "flags", "value", flag_string(container_flags, BOOK(pObj)->flags),
+        "options", olc_flag_options_json(container_flags));
+    json_array_append_new(arr, f);
+    return arr;
 }
 
 static bool cart_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change)
@@ -128,6 +199,43 @@ static json_t *cart_serialize(const OBJ_INDEX_DATA *pObj)
         "vanish", CART(pObj)->vanish_time);
 }
 
+static json_t *cart_schema(const OBJ_INDEX_DATA *pObj)
+{
+    if (!IS_CART(pObj)) return json_array();
+    json_t *arr = json_array();
+    json_t *f;
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Capacity:", "command", "typedata/cart/capacity",
+        "type", "int", "value", CART(pObj)->capacity);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Delay:", "command", "typedata/cart/delay",
+        "type", "int", "value", (int)CART(pObj)->move_delay);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Strength:", "command", "typedata/cart/strength",
+        "type", "int", "value", (int)CART(pObj)->min_strength);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Items:", "command", "typedata/cart/items",
+        "type", "int", "value", CART(pObj)->max_items);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Weight Mult:", "command", "typedata/cart/weightmult",
+        "type", "int", "value", CART(pObj)->weight_multiplier);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:s, s:o}",
+        "label", "Flags:", "command", "typedata/cart/flags",
+        "type", "flags", "value", flag_string(cart_flags, (long)CART(pObj)->flags),
+        "options", olc_flag_options_json(cart_flags));
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Vanish:", "command", "typedata/cart/vanish",
+        "type", "int", "value", CART(pObj)->vanish_time);
+    json_array_append_new(arr, f);
+    return arr;
+}
+
 static bool compass_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change)
 {
     if (!IS_COMPASS(pObj)) return false;
@@ -138,6 +246,17 @@ static json_t *compass_serialize(const OBJ_INDEX_DATA *pObj)
 {
     if (!IS_COMPASS(pObj)) return json_null();
     return json_pack("{s:i}", "accuracy", COMPASS(pObj)->accuracy);
+}
+
+static json_t *compass_schema(const OBJ_INDEX_DATA *pObj)
+{
+    if (!IS_COMPASS(pObj)) return json_array();
+    json_t *arr = json_array();
+    json_t *f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Accuracy:", "command", "typedata/compass/accuracy",
+        "type", "int", "value", COMPASS(pObj)->accuracy);
+    json_array_append_new(arr, f);
+    return arr;
 }
 
 static bool container_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change)
@@ -157,6 +276,31 @@ static json_t *container_serialize(const OBJ_INDEX_DATA *pObj)
         "flags", (json_int_t)CONTAINER(pObj)->flags,
         "items", CONTAINER(pObj)->max_items,
         "weightmult", CONTAINER(pObj)->weight_multiplier);
+}
+
+static json_t *container_schema(const OBJ_INDEX_DATA *pObj)
+{
+    if (!IS_CONTAINER(pObj)) return json_array();
+    json_t *arr = json_array();
+    json_t *f;
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Weight:", "command", "typedata/container/weight",
+        "type", "int", "value", CONTAINER(pObj)->max_weight);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:s, s:o}",
+        "label", "Flags:", "command", "typedata/container/flags",
+        "type", "flags", "value", flag_string(container_flags, (long)CONTAINER(pObj)->flags),
+        "options", olc_flag_options_json(container_flags));
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Items:", "command", "typedata/container/items",
+        "type", "int", "value", CONTAINER(pObj)->max_items);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Weight Mult:", "command", "typedata/container/weightmult",
+        "type", "int", "value", CONTAINER(pObj)->weight_multiplier);
+    json_array_append_new(arr, f);
+    return arr;
 }
 
 static bool corpse_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change)
@@ -186,6 +330,39 @@ static json_t *corpse_serialize(const OBJ_INDEX_DATA *pObj)
             "mobile_vnum", (json_int_t)CORPSE(pObj)->mobile_vnum);
 }
 
+static json_t *corpse_schema(const OBJ_INDEX_DATA *pObj)
+{
+    if (!IS_CORPSE(pObj)) return json_array();
+    json_t *arr = json_array();
+    json_t *f;
+    f = json_pack("{s:s, s:s, s:s, s:s, s:o}",
+        "label", "Type:", "command", "typedata/corpse/type",
+        "type", "enum", "value", flag_string(corpse_types, CORPSE(pObj)->corpse_type),
+        "options", olc_flag_options_json(corpse_types));
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Resurrection:", "command", "typedata/corpse/resurrection",
+        "type", "int", "value", CORPSE(pObj)->resurrection);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Animation:", "command", "typedata/corpse/animation",
+        "type", "int", "value", CORPSE(pObj)->animation);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:s, s:o}",
+        "label", "Parts:", "command", "typedata/corpse/parts",
+        "type", "flags", "value", flag_string(part_flags, (long)CORPSE(pObj)->body_parts),
+        "options", olc_flag_options_json(part_flags));
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:s}",
+        "label", "Mobile:", "command", "typedata/corpse/mobile",
+        "type", "widevnum",
+        "value", widevnum_string(
+            CORPSE(pObj)->mobile_area_uid > 0 ? get_area_index(CORPSE(pObj)->mobile_area_uid) : NULL,
+            CORPSE(pObj)->mobile_vnum, pObj->area));
+    json_array_append_new(arr, f);
+    return arr;
+}
+
 static bool drink_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change)
 {
     if (!IS_FLUID_CON(pObj)) return false;
@@ -207,6 +384,34 @@ static json_t *drink_serialize(const OBJ_INDEX_DATA *pObj)
         "refill", (int)FLUID_CON(pObj)->refill_rate);
 }
 
+static json_t *drink_schema(const OBJ_INDEX_DATA *pObj)
+{
+    if (!IS_FLUID_CON(pObj)) return json_array();
+    json_t *arr = json_array();
+    json_t *f;
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Capacity:", "command", "typedata/drink/capacity",
+        "type", "int", "value", (int)FLUID_CON(pObj)->capacity);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Amount:", "command", "typedata/drink/amount",
+        "type", "int", "value", (int)FLUID_CON(pObj)->amount);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Liquid:", "command", "typedata/drink/liquid",
+        "type", "int", "value", FLUID_CON(pObj)->liquid);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Poison:", "command", "typedata/drink/poison",
+        "type", "int", "value", (int)FLUID_CON(pObj)->poison);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Refill:", "command", "typedata/drink/refill",
+        "type", "int", "value", (int)FLUID_CON(pObj)->refill_rate);
+    json_array_append_new(arr, f);
+    return arr;
+}
+
 static bool food_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change)
 {
     if (!IS_FOOD(pObj)) return false;
@@ -223,6 +428,30 @@ static json_t *food_serialize(const OBJ_INDEX_DATA *pObj)
     return json_pack("{s:i, s:i, s:i, s:i}",
         "hunger", FOOD(pObj)->hunger, "full", FOOD(pObj)->full,
         "poison", FOOD(pObj)->poison, "timer", FOOD(pObj)->timer);
+}
+
+static json_t *food_schema(const OBJ_INDEX_DATA *pObj)
+{
+    if (!IS_FOOD(pObj)) return json_array();
+    json_t *arr = json_array();
+    json_t *f;
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Hunger:", "command", "typedata/food/hunger",
+        "type", "int", "value", FOOD(pObj)->hunger);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Full:", "command", "typedata/food/full",
+        "type", "int", "value", FOOD(pObj)->full);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Poison:", "command", "typedata/food/poison",
+        "type", "int", "value", FOOD(pObj)->poison);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Timer:", "command", "typedata/food/timer",
+        "type", "int", "value", FOOD(pObj)->timer);
+    json_array_append_new(arr, f);
+    return arr;
 }
 
 static bool furniture_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change)
@@ -246,6 +475,39 @@ static json_t *furniture_serialize(const OBJ_INDEX_DATA *pObj)
         "heal", FURNITURE(pObj)->heal_rate,
         "mana", FURNITURE(pObj)->mana_rate,
         "move", FURNITURE(pObj)->move_rate);
+}
+
+static json_t *furniture_schema(const OBJ_INDEX_DATA *pObj)
+{
+    if (!IS_FURNITURE(pObj)) return json_array();
+    json_t *arr = json_array();
+    json_t *f;
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "People:", "command", "typedata/furniture/people",
+        "type", "int", "value", FURNITURE(pObj)->max_people);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Weight:", "command", "typedata/furniture/weight",
+        "type", "int", "value", FURNITURE(pObj)->max_weight);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:s, s:o}",
+        "label", "Flags:", "command", "typedata/furniture/flags",
+        "type", "flags", "value", flag_string(furniture_flags, (long)FURNITURE(pObj)->flags),
+        "options", olc_flag_options_json(furniture_flags));
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Heal:", "command", "typedata/furniture/heal",
+        "type", "int", "value", FURNITURE(pObj)->heal_rate);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Mana:", "command", "typedata/furniture/mana",
+        "type", "int", "value", FURNITURE(pObj)->mana_rate);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Move:", "command", "typedata/furniture/move",
+        "type", "int", "value", FURNITURE(pObj)->move_rate);
+    json_array_append_new(arr, f);
+    return arr;
 }
 
 static bool herb_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change)
@@ -275,6 +537,49 @@ static json_t *herb_serialize(const OBJ_INDEX_DATA *pObj)
         "spell", HERB(pObj)->spell);
 }
 
+static json_t *herb_schema(const OBJ_INDEX_DATA *pObj)
+{
+    if (!IS_HERB(pObj)) return json_array();
+    json_t *arr = json_array();
+    json_t *f;
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Type:", "command", "typedata/herb/type",
+        "type", "int", "value", HERB(pObj)->type);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Healing:", "command", "typedata/herb/healing",
+        "type", "int", "value", HERB(pObj)->healing);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Regen:", "command", "typedata/herb/regen",
+        "type", "int", "value", HERB(pObj)->regenerative);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Refresh:", "command", "typedata/herb/refresh",
+        "type", "int", "value", HERB(pObj)->refreshing);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:s, s:o}",
+        "label", "Immunity:", "command", "typedata/herb/immunity",
+        "type", "flags", "value", flag_string(imm_flags, (long)HERB(pObj)->immunity),
+        "options", olc_flag_options_json(imm_flags));
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:s, s:o}",
+        "label", "Resistance:", "command", "typedata/herb/resistance",
+        "type", "flags", "value", flag_string(imm_flags, (long)HERB(pObj)->resistance),
+        "options", olc_flag_options_json(imm_flags));
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:s, s:o}",
+        "label", "Vulnerability:", "command", "typedata/herb/vulnerability",
+        "type", "flags", "value", flag_string(imm_flags, (long)HERB(pObj)->vulnerability),
+        "options", olc_flag_options_json(imm_flags));
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Spell:", "command", "typedata/herb/spell",
+        "type", "int", "value", HERB(pObj)->spell);
+    json_array_append_new(arr, f);
+    return arr;
+}
+
 static bool ink_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change)
 {
     if (!IS_INK(pObj)) return false;
@@ -290,6 +595,26 @@ static json_t *ink_serialize(const OBJ_INDEX_DATA *pObj)
     return json_pack("{s:i, s:i, s:i}",
         "type1", INK(pObj)->types[0], "type2", INK(pObj)->types[1],
         "type3", INK(pObj)->types[2]);
+}
+
+static json_t *ink_schema(const OBJ_INDEX_DATA *pObj)
+{
+    if (!IS_INK(pObj)) return json_array();
+    json_t *arr = json_array();
+    json_t *f;
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Type1:", "command", "typedata/ink/type1",
+        "type", "int", "value", INK(pObj)->types[0]);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Type2:", "command", "typedata/ink/type2",
+        "type", "int", "value", INK(pObj)->types[1]);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Type3:", "command", "typedata/ink/type3",
+        "type", "int", "value", INK(pObj)->types[2]);
+    json_array_append_new(arr, f);
+    return arr;
 }
 
 static bool instrument_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change)
@@ -311,6 +636,31 @@ static json_t *instrument_serialize(const OBJ_INDEX_DATA *pObj)
         "beatsmax", INSTRUMENT(pObj)->beats_max);
 }
 
+static json_t *instrument_schema(const OBJ_INDEX_DATA *pObj)
+{
+    if (!IS_INSTRUMENT(pObj)) return json_array();
+    json_t *arr = json_array();
+    json_t *f;
+    f = json_pack("{s:s, s:s, s:s, s:s, s:o}",
+        "label", "Type:", "command", "typedata/instrument/type",
+        "type", "enum", "value", flag_string(instrument_types, INSTRUMENT(pObj)->type),
+        "options", olc_flag_options_json(instrument_types));
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Flags:", "command", "typedata/instrument/flags",
+        "type", "int", "value", (int)(long)INSTRUMENT(pObj)->flags);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Beats Min:", "command", "typedata/instrument/beatsmin",
+        "type", "int", "value", INSTRUMENT(pObj)->beats_min);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Beats Max:", "command", "typedata/instrument/beatsmax",
+        "type", "int", "value", INSTRUMENT(pObj)->beats_max);
+    json_array_append_new(arr, f);
+    return arr;
+}
+
 static bool jewelry_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change)
 {
     if (!IS_JEWELRY(pObj)) return false;
@@ -321,6 +671,17 @@ static json_t *jewelry_serialize(const OBJ_INDEX_DATA *pObj)
 {
     if (!IS_JEWELRY(pObj)) return json_null();
     return json_pack("{s:i}", "mana", JEWELRY(pObj)->max_mana);
+}
+
+static json_t *jewelry_schema(const OBJ_INDEX_DATA *pObj)
+{
+    if (!IS_JEWELRY(pObj)) return json_array();
+    json_t *arr = json_array();
+    json_t *f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Mana:", "command", "typedata/jewelry/mana",
+        "type", "int", "value", JEWELRY(pObj)->max_mana);
+    json_array_append_new(arr, f);
+    return arr;
 }
 
 static bool light_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change)
@@ -334,6 +695,23 @@ static json_t *light_serialize(const OBJ_INDEX_DATA *pObj)
 {
     if (!IS_LIGHT(pObj)) return json_null();
     return json_pack("{s:i, s:I}", "duration", LIGHT(pObj)->duration, "flags", (json_int_t)LIGHT(pObj)->flags);
+}
+
+static json_t *light_schema(const OBJ_INDEX_DATA *pObj)
+{
+    if (!IS_LIGHT(pObj)) return json_array();
+    json_t *arr = json_array();
+    json_t *f;
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Duration:", "command", "typedata/light/duration",
+        "type", "int", "value", LIGHT(pObj)->duration);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:s, s:o}",
+        "label", "Flags:", "command", "typedata/light/flags",
+        "type", "flags", "value", flag_string(light_flags, (long)LIGHT(pObj)->flags),
+        "options", olc_flag_options_json(light_flags));
+    json_array_append_new(arr, f);
+    return arr;
 }
 
 static bool map_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change)
@@ -351,6 +729,26 @@ static json_t *map_serialize(const OBJ_INDEX_DATA *pObj)
         "wuid", (json_int_t)MAP(pObj)->wuid,
         "x", (json_int_t)MAP(pObj)->x,
         "y", (json_int_t)MAP(pObj)->y);
+}
+
+static json_t *map_schema(const OBJ_INDEX_DATA *pObj)
+{
+    if (!IS_MAP(pObj)) return json_array();
+    json_t *arr = json_array();
+    json_t *f;
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "WUID:", "command", "typedata/map/wuid",
+        "type", "int", "value", (int)(long)MAP(pObj)->wuid);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "X:", "command", "typedata/map/x",
+        "type", "int", "value", (int)(long)MAP(pObj)->x);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Y:", "command", "typedata/map/y",
+        "type", "int", "value", (int)(long)MAP(pObj)->y);
+    json_array_append_new(arr, f);
+    return arr;
 }
 
 static bool mist_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change)
@@ -371,6 +769,26 @@ static json_t *mist_serialize(const OBJ_INDEX_DATA *pObj)
         "room", MIST(pObj)->obscure_room);
 }
 
+static json_t *mist_schema(const OBJ_INDEX_DATA *pObj)
+{
+    if (!IS_MIST(pObj)) return json_array();
+    json_t *arr = json_array();
+    json_t *f;
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Objects:", "command", "typedata/mist/objects",
+        "type", "int", "value", MIST(pObj)->obscure_objs);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Characters:", "command", "typedata/mist/characters",
+        "type", "int", "value", MIST(pObj)->obscure_mobs);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Room:", "command", "typedata/mist/room",
+        "type", "int", "value", MIST(pObj)->obscure_room);
+    json_array_append_new(arr, f);
+    return arr;
+}
+
 static bool money_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change)
 {
     if (!IS_MONEY(pObj)) return false;
@@ -383,6 +801,22 @@ static json_t *money_serialize(const OBJ_INDEX_DATA *pObj)
 {
     if (!IS_MONEY(pObj)) return json_null();
     return json_pack("{s:i, s:i}", "silver", MONEY(pObj)->silver, "gold", MONEY(pObj)->gold);
+}
+
+static json_t *money_schema(const OBJ_INDEX_DATA *pObj)
+{
+    if (!IS_MONEY(pObj)) return json_array();
+    json_t *arr = json_array();
+    json_t *f;
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Silver:", "command", "typedata/money/silver",
+        "type", "int", "value", MONEY(pObj)->silver);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Gold:", "command", "typedata/money/gold",
+        "type", "int", "value", MONEY(pObj)->gold);
+    json_array_append_new(arr, f);
+    return arr;
 }
 
 static bool page_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change)
@@ -402,6 +836,22 @@ static json_t *page_serialize(const OBJ_INDEX_DATA *pObj)
     if (!IS_PAGE(pObj)) return json_null();
     return json_pack("{s:i, s:s}", "number", PAGE(pObj)->page_no,
         "title", PAGE(pObj)->title ? PAGE(pObj)->title : "");
+}
+
+static json_t *page_schema(const OBJ_INDEX_DATA *pObj)
+{
+    if (!IS_PAGE(pObj)) return json_array();
+    json_t *arr = json_array();
+    json_t *f;
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Number:", "command", "typedata/page/number",
+        "type", "int", "value", PAGE(pObj)->page_no);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:s}",
+        "label", "Title:", "command", "typedata/page/title",
+        "type", "string", "value", PAGE(pObj)->title ? PAGE(pObj)->title : "");
+    json_array_append_new(arr, f);
+    return arr;
 }
 
 static bool portal_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change)
@@ -431,6 +881,48 @@ static json_t *portal_serialize(const OBJ_INDEX_DATA *pObj)
         "param4", (json_int_t)PORTAL(pObj)->params[4]);
 }
 
+static json_t *portal_schema(const OBJ_INDEX_DATA *pObj)
+{
+    if (!IS_PORTAL(pObj)) return json_array();
+    json_t *arr = json_array();
+    json_t *f;
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Charges:", "command", "typedata/portal/charges",
+        "type", "int", "value", PORTAL(pObj)->charges);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:s, s:o}",
+        "label", "Exit:", "command", "typedata/portal/exit",
+        "type", "flags", "value", flag_string(portal_exit_flags, (long)PORTAL(pObj)->exit),
+        "options", olc_flag_options_json(portal_exit_flags));
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:s, s:o}",
+        "label", "Flags:", "command", "typedata/portal/flags",
+        "type", "flags", "value", flag_string(portal_flags, (long)PORTAL(pObj)->flags),
+        "options", olc_flag_options_json(portal_flags));
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Param0:", "command", "typedata/portal/param0",
+        "type", "int", "value", (int)PORTAL(pObj)->params[0]);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Param1:", "command", "typedata/portal/param1",
+        "type", "int", "value", (int)PORTAL(pObj)->params[1]);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Param2:", "command", "typedata/portal/param2",
+        "type", "int", "value", (int)PORTAL(pObj)->params[2]);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Param3:", "command", "typedata/portal/param3",
+        "type", "int", "value", (int)PORTAL(pObj)->params[3]);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Param4:", "command", "typedata/portal/param4",
+        "type", "int", "value", (int)PORTAL(pObj)->params[4]);
+    json_array_append_new(arr, f);
+    return arr;
+}
+
 static bool scroll_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change)
 {
     if (!IS_SCROLL(pObj)) return false;
@@ -442,6 +934,22 @@ static json_t *scroll_serialize(const OBJ_INDEX_DATA *pObj)
 {
     if (!IS_SCROLL(pObj)) return json_null();
     return json_pack("{s:i, s:I}", "mana", SCROLL(pObj)->max_mana, "flags", (json_int_t)SCROLL(pObj)->flags);
+}
+
+static json_t *scroll_schema(const OBJ_INDEX_DATA *pObj)
+{
+    if (!IS_SCROLL(pObj)) return json_array();
+    json_t *arr = json_array();
+    json_t *f;
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Mana:", "command", "typedata/scroll/mana",
+        "type", "int", "value", SCROLL(pObj)->max_mana);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Flags:", "command", "typedata/scroll/flags",
+        "type", "int", "value", (int)(long)SCROLL(pObj)->flags);
+    json_array_append_new(arr, f);
+    return arr;
 }
 
 static bool seed_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change)
@@ -467,6 +975,25 @@ static json_t *seed_serialize(const OBJ_INDEX_DATA *pObj)
             "vnum", (json_int_t)SEED(pObj)->object_vnum);
 }
 
+static json_t *seed_schema(const OBJ_INDEX_DATA *pObj)
+{
+    if (!IS_SEED(pObj)) return json_array();
+    json_t *arr = json_array();
+    json_t *f;
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Time:", "command", "typedata/seed/time",
+        "type", "int", "value", SEED(pObj)->growth_time);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:s}",
+        "label", "Object:", "command", "typedata/seed/object",
+        "type", "widevnum",
+        "value", widevnum_string(
+            SEED(pObj)->object_area_uid > 0 ? get_area_index(SEED(pObj)->object_area_uid) : NULL,
+            SEED(pObj)->object_vnum, pObj->area));
+    json_array_append_new(arr, f);
+    return arr;
+}
+
 static bool sextant_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change)
 {
     if (!IS_SEXTANT(pObj)) return false;
@@ -477,6 +1004,17 @@ static json_t *sextant_serialize(const OBJ_INDEX_DATA *pObj)
 {
     if (!IS_SEXTANT(pObj)) return json_null();
     return json_pack("{s:i}", "accuracy", SEXTANT(pObj)->accuracy);
+}
+
+static json_t *sextant_schema(const OBJ_INDEX_DATA *pObj)
+{
+    if (!IS_SEXTANT(pObj)) return json_array();
+    json_t *arr = json_array();
+    json_t *f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Accuracy:", "command", "typedata/sextant/accuracy",
+        "type", "int", "value", SEXTANT(pObj)->accuracy);
+    json_array_append_new(arr, f);
+    return arr;
 }
 
 static bool ship_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change)
@@ -512,6 +1050,49 @@ static json_t *ship_serialize(const OBJ_INDEX_DATA *pObj)
             "vnum", (json_int_t)SHIP_TYPE(pObj)->first_room,
         "hitpoints", SHIP_TYPE(pObj)->hit_points,
         "guns", SHIP_TYPE(pObj)->max_guns);
+}
+
+static json_t *ship_schema(const OBJ_INDEX_DATA *pObj)
+{
+    if (!IS_SHIP_TYPE(pObj)) return json_array();
+    json_t *arr = json_array();
+    json_t *f;
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Weight:", "command", "typedata/ship/weight",
+        "type", "int", "value", SHIP_TYPE(pObj)->weight);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Delay:", "command", "typedata/ship/delay",
+        "type", "int", "value", SHIP_TYPE(pObj)->move_delay);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Min Crew:", "command", "typedata/ship/mincrew",
+        "type", "int", "value", SHIP_TYPE(pObj)->min_crew);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Capacity:", "command", "typedata/ship/capacity",
+        "type", "int", "value", SHIP_TYPE(pObj)->capacity);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Max Crew:", "command", "typedata/ship/maxcrew",
+        "type", "int", "value", SHIP_TYPE(pObj)->max_crew);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:s}",
+        "label", "Room:", "command", "typedata/ship/room",
+        "type", "widevnum",
+        "value", widevnum_string(
+            SHIP_TYPE(pObj)->first_room_area_uid > 0 ? get_area_index(SHIP_TYPE(pObj)->first_room_area_uid) : NULL,
+            SHIP_TYPE(pObj)->first_room, pObj->area));
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Hit Points:", "command", "typedata/ship/hitpoints",
+        "type", "int", "value", SHIP_TYPE(pObj)->hit_points);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Guns:", "command", "typedata/ship/guns",
+        "type", "int", "value", SHIP_TYPE(pObj)->max_guns);
+    json_array_append_new(arr, f);
+    return arr;
 }
 
 static bool shipmodule_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change)
@@ -595,6 +1176,122 @@ static json_t *shipmodule_serialize(const OBJ_INDEX_DATA *pObj)
         "flags", (json_int_t)d->flags);
 }
 
+static json_t *shipmodule_schema(const OBJ_INDEX_DATA *pObj)
+{
+    if (!IS_SHIP_MODULE(pObj)) return json_array();
+    SHIP_MODULE_DATA *d = SHIP_MODULE_TYPE(pObj);
+    json_t *arr = json_array();
+    json_t *f;
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Type:", "command", "typedata/shipmodule/type",
+        "type", "int", "value", d->type);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Size:", "command", "typedata/shipmodule/size",
+        "type", "int", "value", d->size);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Weight:", "command", "typedata/shipmodule/weight",
+        "type", "int", "value", d->weight);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Domain:", "command", "typedata/shipmodule/domain",
+        "type", "int", "value", (int)(long)d->domain_flags);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Hit Bonus:", "command", "typedata/shipmodule/hitbonus",
+        "type", "int", "value", d->hit_bonus);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Armor Bonus:", "command", "typedata/shipmodule/armorbonus",
+        "type", "int", "value", d->armor_bonus);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Speed Bonus:", "command", "typedata/shipmodule/speedbonus",
+        "type", "int", "value", d->speed_bonus);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Turning Bonus:", "command", "typedata/shipmodule/turningbonus",
+        "type", "int", "value", d->turning_bonus);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Cargo Weight:", "command", "typedata/shipmodule/cargoweight",
+        "type", "int", "value", d->cargo_weight_bonus);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Cargo Capacity:", "command", "typedata/shipmodule/cargocapacity",
+        "type", "int", "value", d->cargo_capacity_bonus);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Crew Bonus:", "command", "typedata/shipmodule/crewbonus",
+        "type", "int", "value", d->crew_bonus);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Damage:", "command", "typedata/shipmodule/damage",
+        "type", "int", "value", d->damage);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Range:", "command", "typedata/shipmodule/range",
+        "type", "int", "value", d->range);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Reload:", "command", "typedata/shipmodule/reload",
+        "type", "int", "value", d->reload_time);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Damage Type:", "command", "typedata/shipmodule/damagetype",
+        "type", "int", "value", d->damage_type);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Weap Flags:", "command", "typedata/shipmodule/weapflags",
+        "type", "int", "value", (int)(long)d->weapon_flags);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Operators:", "command", "typedata/shipmodule/operators",
+        "type", "int", "value", (int)d->operators);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Gunning:", "command", "typedata/shipmodule/gunning",
+        "type", "int", "value", (int)d->req_gunning);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Mechanics:", "command", "typedata/shipmodule/mechanics",
+        "type", "int", "value", (int)d->req_mechanics);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Scouting:", "command", "typedata/shipmodule/scouting",
+        "type", "int", "value", (int)d->req_scouting);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Navigation:", "command", "typedata/shipmodule/navigation",
+        "type", "int", "value", (int)d->req_navigation);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Oarring:", "command", "typedata/shipmodule/oarring",
+        "type", "int", "value", (int)d->req_oarring);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Leadership:", "command", "typedata/shipmodule/leadership",
+        "type", "int", "value", (int)d->req_leadership);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:s}",
+        "label", "Ammo:", "command", "typedata/shipmodule/ammo",
+        "type", "widevnum",
+        "value", widevnum_string(
+            d->ammo_ref.load.auid > 0 ? get_area_index(d->ammo_ref.load.auid) : NULL,
+            d->ammo_ref.load.vnum, pObj->area));
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Ammo/Shot:", "command", "typedata/shipmodule/ammoshot",
+        "type", "int", "value", d->ammo_per_shot);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Flags:", "command", "typedata/shipmodule/flags",
+        "type", "int", "value", (int)(long)d->flags);
+    json_array_append_new(arr, f);
+    return arr;
+}
+
 static bool tattoo_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change)
 {
     if (!IS_TATTOO(pObj)) return false;
@@ -611,6 +1308,26 @@ static json_t *tattoo_serialize(const OBJ_INDEX_DATA *pObj)
         "touches", TATTOO(pObj)->touches,
         "fading", TATTOO(pObj)->fading_chance,
         "faderate", TATTOO(pObj)->fading_rate);
+}
+
+static json_t *tattoo_schema(const OBJ_INDEX_DATA *pObj)
+{
+    if (!IS_TATTOO(pObj)) return json_array();
+    json_t *arr = json_array();
+    json_t *f;
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Touches:", "command", "typedata/tattoo/touches",
+        "type", "int", "value", TATTOO(pObj)->touches);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Fading:", "command", "typedata/tattoo/fading",
+        "type", "int", "value", TATTOO(pObj)->fading_chance);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Fade Rate:", "command", "typedata/tattoo/faderate",
+        "type", "int", "value", TATTOO(pObj)->fading_rate);
+    json_array_append_new(arr, f);
+    return arr;
 }
 
 static bool telescope_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change)
@@ -635,6 +1352,34 @@ static json_t *telescope_serialize(const OBJ_INDEX_DATA *pObj)
         "heading", (int)TELESCOPE(pObj)->heading);
 }
 
+static json_t *telescope_schema(const OBJ_INDEX_DATA *pObj)
+{
+    if (!IS_TELESCOPE(pObj)) return json_array();
+    json_t *arr = json_array();
+    json_t *f;
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Distance:", "command", "typedata/telescope/distance",
+        "type", "int", "value", (int)TELESCOPE(pObj)->distance);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Min Dist:", "command", "typedata/telescope/mindist",
+        "type", "int", "value", (int)TELESCOPE(pObj)->min_distance);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Max Dist:", "command", "typedata/telescope/maxdist",
+        "type", "int", "value", (int)TELESCOPE(pObj)->max_distance);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Bonus:", "command", "typedata/telescope/bonus",
+        "type", "int", "value", (int)TELESCOPE(pObj)->bonus_view);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Heading:", "command", "typedata/telescope/heading",
+        "type", "int", "value", (int)TELESCOPE(pObj)->heading);
+    json_array_append_new(arr, f);
+    return arr;
+}
+
 static bool tool_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change)
 {
     if (!IS_TOOL(pObj)) return false;
@@ -649,6 +1394,23 @@ static json_t *tool_serialize(const OBJ_INDEX_DATA *pObj)
     return json_pack("{s:i, s:i}", "type", TOOL(pObj)->type, "tier", TOOL(pObj)->tier);
 }
 
+static json_t *tool_schema(const OBJ_INDEX_DATA *pObj)
+{
+    if (!IS_TOOL(pObj)) return json_array();
+    json_t *arr = json_array();
+    json_t *f;
+    f = json_pack("{s:s, s:s, s:s, s:s, s:o}",
+        "label", "Type:", "command", "typedata/tool/type",
+        "type", "enum", "value", flag_string(tool_types, TOOL(pObj)->type),
+        "options", olc_flag_options_json(tool_types));
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Tier:", "command", "typedata/tool/tier",
+        "type", "int", "value", TOOL(pObj)->tier);
+    json_array_append_new(arr, f);
+    return arr;
+}
+
 static bool trade_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change)
 {
     if (!IS_TRADE(pObj)) return false;
@@ -659,6 +1421,17 @@ static json_t *trade_serialize(const OBJ_INDEX_DATA *pObj)
 {
     if (!IS_TRADE(pObj)) return json_null();
     return json_pack("{s:i}", "type", TRADE(pObj)->trade_type);
+}
+
+static json_t *trade_schema(const OBJ_INDEX_DATA *pObj)
+{
+    if (!IS_TRADE(pObj)) return json_array();
+    json_t *arr = json_array();
+    json_t *f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Type:", "command", "typedata/trade/type",
+        "type", "int", "value", TRADE(pObj)->trade_type);
+    json_array_append_new(arr, f);
+    return arr;
 }
 
 static bool wand_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change)
@@ -680,6 +1453,34 @@ static json_t *wand_serialize(const OBJ_INDEX_DATA *pObj)
         "maxcharges", WAND(pObj)->max_charges,
         "cooldown", WAND(pObj)->cooldown,
         "recharge", WAND(pObj)->recharge_time);
+}
+
+static json_t *wand_schema(const OBJ_INDEX_DATA *pObj)
+{
+    if (!IS_WAND(pObj)) return json_array();
+    json_t *arr = json_array();
+    json_t *f;
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Mana:", "command", "typedata/wand/mana",
+        "type", "int", "value", WAND(pObj)->max_mana);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Charges:", "command", "typedata/wand/charges",
+        "type", "int", "value", WAND(pObj)->charges);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Max Charges:", "command", "typedata/wand/maxcharges",
+        "type", "int", "value", WAND(pObj)->max_charges);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Cooldown:", "command", "typedata/wand/cooldown",
+        "type", "int", "value", WAND(pObj)->cooldown);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Recharge:", "command", "typedata/wand/recharge",
+        "type", "int", "value", WAND(pObj)->recharge_time);
+    json_array_append_new(arr, f);
+    return arr;
 }
 
 static bool weapon_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change)
@@ -722,6 +1523,58 @@ static json_t *weapon_serialize(const OBJ_INDEX_DATA *pObj)
         "recharge", WEAPON(pObj)->recharge_time);
 }
 
+static json_t *weapon_schema(const OBJ_INDEX_DATA *pObj)
+{
+    if (!IS_WEAPON(pObj)) return json_array();
+    json_t *arr = json_array();
+    json_t *f;
+    f = json_pack("{s:s, s:s, s:s, s:s, s:o}",
+        "label", "Class:", "command", "typedata/weapon/class",
+        "type", "enum", "value", flag_string(weapon_class, WEAPON(pObj)->weapon_class),
+        "options", olc_flag_options_json(weapon_class));
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:s}",
+        "label", "Dice:", "command", "typedata/weapon/dice",
+        "type", "dice",
+        "value", formatf("%dd%d+%d", WEAPON(pObj)->damage.number,
+            WEAPON(pObj)->damage.size, WEAPON(pObj)->damage.bonus));
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Dam Type:", "command", "typedata/weapon/damtype",
+        "type", "int", "value", WEAPON(pObj)->damage_type);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:s, s:o}",
+        "label", "Flags:", "command", "typedata/weapon/flags",
+        "type", "flags", "value", flag_string(weapon_type2, (long)WEAPON(pObj)->flags),
+        "options", olc_flag_options_json(weapon_type2));
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Range:", "command", "typedata/weapon/range",
+        "type", "int", "value", WEAPON(pObj)->range);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Mana:", "command", "typedata/weapon/mana",
+        "type", "int", "value", WEAPON(pObj)->max_mana);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Charges:", "command", "typedata/weapon/charges",
+        "type", "int", "value", WEAPON(pObj)->charges);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Max Charges:", "command", "typedata/weapon/maxcharges",
+        "type", "int", "value", WEAPON(pObj)->max_charges);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Cooldown:", "command", "typedata/weapon/cooldown",
+        "type", "int", "value", WEAPON(pObj)->cooldown);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Recharge:", "command", "typedata/weapon/recharge",
+        "type", "int", "value", WEAPON(pObj)->recharge_time);
+    json_array_append_new(arr, f);
+    return arr;
+}
+
 static bool weaponcon_apply_field(OBJ_INDEX_DATA *pObj, const char *field, olc_pending_change_t *change)
 {
     if (!IS_WEAPON_CON(pObj)) return false;
@@ -741,40 +1594,65 @@ static json_t *weaponcon_serialize(const OBJ_INDEX_DATA *pObj)
         "weightmult", WEAPON_CON(pObj)->weight_multiplier);
 }
 
+static json_t *weaponcon_schema(const OBJ_INDEX_DATA *pObj)
+{
+    if (!IS_WEAPON_CON(pObj)) return json_array();
+    json_t *arr = json_array();
+    json_t *f;
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Weight:", "command", "typedata/weaponcon/weight",
+        "type", "int", "value", WEAPON_CON(pObj)->max_weight);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:s, s:o}",
+        "label", "Weapon Type:", "command", "typedata/weaponcon/weapontype",
+        "type", "enum", "value", flag_string(weapon_class, WEAPON_CON(pObj)->weapon_type),
+        "options", olc_flag_options_json(weapon_class));
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Items:", "command", "typedata/weaponcon/items",
+        "type", "int", "value", WEAPON_CON(pObj)->max_items);
+    json_array_append_new(arr, f);
+    f = json_pack("{s:s, s:s, s:s, s:i}",
+        "label", "Weight Mult:", "command", "typedata/weaponcon/weightmult",
+        "type", "int", "value", WEAPON_CON(pObj)->weight_multiplier);
+    json_array_append_new(arr, f);
+    return arr;
+}
+
 static const oedit_type_dispatch_t type_dispatch[] = {
-    { "armor",       armor_apply_field,       armor_serialize },
-    { "bodypart",    bodypart_apply_field,    bodypart_serialize },
-    { "book",        book_apply_field,        book_serialize },
-    { "cart",        cart_apply_field,        cart_serialize },
-    { "compass",     compass_apply_field,     compass_serialize },
-    { "container",   container_apply_field,   container_serialize },
-    { "corpse",      corpse_apply_field,      corpse_serialize },
-    { "drink",       drink_apply_field,       drink_serialize },
-    { "food",        food_apply_field,        food_serialize },
-    { "furniture",   furniture_apply_field,   furniture_serialize },
-    { "herb",        herb_apply_field,        herb_serialize },
-    { "ink",         ink_apply_field,         ink_serialize },
-    { "instrument",  instrument_apply_field,  instrument_serialize },
-    { "jewelry",     jewelry_apply_field,     jewelry_serialize },
-    { "light",       light_apply_field,       light_serialize },
-    { "map",         map_apply_field,         map_serialize },
-    { "mist",        mist_apply_field,        mist_serialize },
-    { "money",       money_apply_field,       money_serialize },
-    { "page",        page_apply_field,        page_serialize },
-    { "portal",      portal_apply_field,      portal_serialize },
-    { "scroll",      scroll_apply_field,      scroll_serialize },
-    { "seed",        seed_apply_field,        seed_serialize },
-    { "sextant",     sextant_apply_field,     sextant_serialize },
-    { "ship",        ship_apply_field,        ship_serialize },
-    { "shipmodule",  shipmodule_apply_field,  shipmodule_serialize },
-    { "tattoo",      tattoo_apply_field,      tattoo_serialize },
-    { "telescope",   telescope_apply_field,   telescope_serialize },
-    { "tool",        tool_apply_field,        tool_serialize },
-    { "trade",       trade_apply_field,       trade_serialize },
-    { "wand",        wand_apply_field,        wand_serialize },
-    { "weapon",      weapon_apply_field,      weapon_serialize },
-    { "weaponcon",   weaponcon_apply_field,   weaponcon_serialize },
-    { NULL, NULL, NULL }
+    { "armor",       armor_apply_field,       armor_serialize,       armor_schema },
+    { "bodypart",    bodypart_apply_field,    bodypart_serialize,    bodypart_schema },
+    { "book",        book_apply_field,        book_serialize,        book_schema },
+    { "cart",        cart_apply_field,        cart_serialize,        cart_schema },
+    { "compass",     compass_apply_field,     compass_serialize,     compass_schema },
+    { "container",   container_apply_field,   container_serialize,   container_schema },
+    { "corpse",      corpse_apply_field,      corpse_serialize,      corpse_schema },
+    { "drink",       drink_apply_field,       drink_serialize,       drink_schema },
+    { "food",        food_apply_field,        food_serialize,        food_schema },
+    { "furniture",   furniture_apply_field,   furniture_serialize,   furniture_schema },
+    { "herb",        herb_apply_field,        herb_serialize,        herb_schema },
+    { "ink",         ink_apply_field,         ink_serialize,         ink_schema },
+    { "instrument",  instrument_apply_field,  instrument_serialize,  instrument_schema },
+    { "jewelry",     jewelry_apply_field,     jewelry_serialize,     jewelry_schema },
+    { "light",       light_apply_field,       light_serialize,       light_schema },
+    { "map",         map_apply_field,         map_serialize,         map_schema },
+    { "mist",        mist_apply_field,        mist_serialize,        mist_schema },
+    { "money",       money_apply_field,       money_serialize,       money_schema },
+    { "page",        page_apply_field,        page_serialize,        page_schema },
+    { "portal",      portal_apply_field,      portal_serialize,      portal_schema },
+    { "scroll",      scroll_apply_field,      scroll_serialize,      scroll_schema },
+    { "seed",        seed_apply_field,        seed_serialize,        seed_schema },
+    { "sextant",     sextant_apply_field,     sextant_serialize,     sextant_schema },
+    { "ship",        ship_apply_field,        ship_serialize,        ship_schema },
+    { "shipmodule",  shipmodule_apply_field,  shipmodule_serialize,  shipmodule_schema },
+    { "tattoo",      tattoo_apply_field,      tattoo_serialize,      tattoo_schema },
+    { "telescope",   telescope_apply_field,   telescope_serialize,   telescope_schema },
+    { "tool",        tool_apply_field,        tool_serialize,        tool_schema },
+    { "trade",       trade_apply_field,       trade_serialize,       trade_schema },
+    { "wand",        wand_apply_field,        wand_serialize,        wand_schema },
+    { "weapon",      weapon_apply_field,      weapon_serialize,      weapon_schema },
+    { "weaponcon",   weaponcon_apply_field,   weaponcon_serialize,   weaponcon_schema },
+    { NULL, NULL, NULL, NULL }
 };
 
 bool oedit_apply_typedata(void *entity, olc_pending_change_t *change)
