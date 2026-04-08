@@ -657,6 +657,24 @@ static void handle_editor_commit(descriptor_t *d, json_t *payload)
     }
 
     gmcp_editor_send_commit_result(d, entity_id, "success", applied);
+
+    /* After commit: resend full tab schemas for oedit.
+     * Schema may have changed if types were added/removed. */
+    if (applied > 0 && def->editor_type == ED_OBJECT) {
+        json_t *tabs = olc_schema_capture(d->character, def, d->pEdit, cs);
+        if (tabs) {
+            for (size_t t = 0; t < json_array_size(tabs); t++) {
+                json_t *tab = json_array_get(tabs, t);
+                const char *tname = json_string_value(
+                    json_object_get(tab, "name"));
+                json_t *flds = json_object_get(tab, "fields");
+                if (tname && flds)
+                    gmcp_editor_send_schema_update(d, entity_id, tname,
+                        json_incref(flds));
+            }
+            json_decref(tabs);
+        }
+    }
 }
 
 /**
@@ -689,6 +707,28 @@ static void handle_editor_revert(descriptor_t *d, json_t *payload)
             return;
         }
         olc_changeset_revert(cs);
+    }
+
+    /* After typedata revert, refresh Type tab schema */
+    if (field && strncmp(field, "typedata", 8) == 0) {
+        const OLC_EDITOR_DEF *def = olc_find_editor_by_type(cs->editor_type);
+        if (def && def->editor_type == ED_OBJECT) {
+            json_t *tabs = olc_schema_capture(d->character, def, d->pEdit, cs);
+            if (tabs) {
+                for (size_t t = 0; t < json_array_size(tabs); t++) {
+                    json_t *tab = json_array_get(tabs, t);
+                    const char *tname = json_string_value(
+                        json_object_get(tab, "name"));
+                    if (tname && strcmp(tname, "Type") == 0) {
+                        json_t *flds = json_object_get(tab, "fields");
+                        if (flds)
+                            gmcp_editor_send_schema_update(d, entity_id, tname,
+                                json_incref(flds));
+                    }
+                }
+                json_decref(tabs);
+            }
+        }
     }
 
     /* Send updated state */
