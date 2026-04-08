@@ -40,6 +40,7 @@
    - [Sentience.Editor.Revert](#sentienceeditorrevert)
    - [Sentience.Editor.Request](#sentienceeditorrequest)
    - [Sentience.Editor.CommitResult](#sentienceeditorcommitresult)
+   - [Sentience.Editor.Schema.Update](#sentienceeditorschemaupdate)
    - [Sentience.Editor.StringEdit.Open](#sentienceeditorstringeditopen)
    - [Sentience.Editor.StringEdit.Save](#sentienceeditorstringeditsave)
    - [Sentience.Editor.StringEdit.Cancel](#sentienceeditorstringeditcancel)
@@ -1837,6 +1838,7 @@ extend the changeset field types used in `Editor.State` and `Editor.Field`.
 | `"vnum"` | string | Virtual number reference | Vnum picker |
 | `"widevnum"` | string | Wide virtual number | Wide vnum picker |
 | `"percent"` | string | Percentage value | Slider or percent input |
+| `"list"` | object | List of items with add/remove operations | Expandable list / table |
 | `"_section"` | — | Section separator (has `title`) | Section header / divider |
 | `"_info"` | — | Info marker (has `text`) | Static info text |
 
@@ -1880,6 +1882,79 @@ of flag name strings.
 The client sends the complete array of desired active flags. The server replaces
 all flag banks atomically. Toggling a single flag means sending the full list
 with the flag added or removed.
+
+#### List Fields (`list`)
+
+The `list` type represents a collection of items that can be added to and
+removed from. Each list descriptor includes the item schema, current items,
+and the MUD commands for add/remove operations.
+
+**List descriptor example (in `Editor.Open`):**
+```json
+{
+  "label": "TO_OBJECT Affects",
+  "command": "affects",
+  "type": "list",
+  "item_type": "affect",
+  "items": [
+    {"index": 0, "where": "object", "location": "hitroll", "modifier": 3, "random": 0}
+  ],
+  "add_command": "addaffect",
+  "del_command": "delaffect",
+  "item_schema": [
+    {"field": "where", "type": "enum", "options": ["object"]},
+    {"field": "location", "type": "enum", "options": ["none", "strength", "hitroll", ...]},
+    {"field": "modifier", "type": "int"},
+    {"field": "random", "type": "int", "min": 0, "max": 100}
+  ]
+}
+```
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `label` | string | Display label for the list section |
+| `command` | string | Base command for the list (used in command paths) |
+| `type` | string | Always `"list"` |
+| `item_type` | string | Identifies the kind of item (e.g., `"affect"`, `"script"`, `"variable"`) |
+| `items` | array | Current items in the list, each with an `index` field |
+| `add_command` | string | MUD command to add an item (e.g., `"addaffect"`) |
+| `del_command` | string | MUD command to remove an item (e.g., `"delaffect"`) |
+| `item_schema` | array | Schema describing the fields of each item |
+
+List items are managed via MUD commands (add/remove), not `Editor.Set`.
+The client should render add/remove buttons and use `item_schema` to show
+item structure. After add/remove, the server sends a `Schema.Update` to
+refresh the affected tab's schema.
+
+#### Type Data Fields (`section` markers + `typedata/` paths)
+
+Object editors include type-specific fields in the **Type** tab. These fields
+are grouped by object type using `section` markers:
+
+```json
+[
+  {"type": "section", "label": "weapon"},
+  {"label": "Class:", "command": "typedata/weapon/class", "type": "enum",
+   "value": "sword", "options": ["exotic", "sword", "dagger", ...]},
+  {"label": "Flags:", "command": "typedata/weapon/flags", "type": "flags",
+   "value": "flaming", "options": ["flaming", "frost", "vampiric", ...]},
+  {"label": "Dice:", "command": "typedata/weapon/dice", "type": "dice",
+   "value": "3d6+2"},
+  {"type": "section", "label": "armor"},
+  {"label": "Type:", "command": "typedata/armor/type", "type": "enum",
+   "value": "plate", "options": ["soft_leather", "hard_leather", "plate", ...]},
+  {"label": "Pierce:", "command": "typedata/armor/pierce", "type": "int", "value": 10}
+]
+```
+
+The `command` path format is `typedata/{type_name}/{field_name}`. Objects can
+have multiple types simultaneously (e.g., weapon + armor), each with its own
+section. Section markers have `"type": "section"` and a `"label"` matching
+the type name.
+
+When types are added or removed (via `addtype`/`removetype` commands followed
+by `Commit`), the server sends a `Schema.Update` for the Type tab with the
+updated field list.
 
 #### Constraint Annotations
 
@@ -2173,6 +2248,62 @@ When group commit is implemented, the response will use this format:
 
 ---
 
+### Sentience.Editor.Schema.Update
+
+**Direction:** Server → Client
+**When:** After a commit or revert that changes the structure of the editor
+schema (e.g., adding/removing object types, committing list changes).
+
+This message provides targeted tab schema refreshes so the web client can
+update its form without requiring a full `Editor.Open` re-send.
+
+```json
+{
+  "entity_id": "obj:5#3010",
+  "updates": [
+    {
+      "tab": "Type",
+      "action": "replace",
+      "fields": [
+        {"type": "section", "label": "weapon"},
+        {"label": "Class:", "command": "typedata/weapon/class", "type": "enum",
+         "value": "sword", "options": ["exotic", "sword", "dagger", "spear", "mace", "axe", "flail", "whip", "polearm"]},
+        {"label": "Flags:", "command": "typedata/weapon/flags", "type": "flags",
+         "value": "", "options": ["flaming", "frost", "vampiric", "sharp", "vorpal"]},
+        {"label": "Dice:", "command": "typedata/weapon/dice", "type": "dice",
+         "value": "2d6+0"}
+      ]
+    }
+  ],
+  "_v": 1
+}
+```
+
+| Field | Type | Always | Description |
+|-------|------|--------|-------------|
+| `entity_id` | string | ✓ | Entity being edited |
+| `updates` | array | ✓ | Array of tab update objects |
+| `_v` | int | ✓ | Message version (always `1`) |
+
+**Tab update object:**
+
+| Field | Type | Always | Description |
+|-------|------|--------|-------------|
+| `tab` | string | ✓ | Tab name to update (e.g., `"Type"`, `"Affects"`) |
+| `action` | string | ✓ | Always `"replace"` — full tab schema replacement |
+| `fields` | array | ✓ | Complete field descriptor array for the tab |
+
+**Trigger conditions:**
+- After `Commit` on an object editor — all tabs are refreshed (type data
+  may have changed if `addtype`/`removetype` was committed)
+- After `Revert` of a `typedata/*` field — the Type tab is refreshed
+
+The client should replace the specified tab's field list entirely when
+receiving this message. The `fields` array uses the same format as in
+`Editor.Open`.
+
+---
+
 ### Sentience.Editor.StringEdit.Open
 
 **Direction:** Server → Client
@@ -2342,6 +2473,8 @@ GMCP package.
 
 3. **Builder commits** (via `Editor.Commit`):
    - Server applies all changes atomically and sends `Editor.CommitResult`
+   - If structural changes occurred (e.g., type add/remove), server sends
+     `Editor.Schema.Update` for affected tabs
    - The editor remains open with a clean changeset — builder can continue editing
 
 4. **Builder exits** (via `done` command):
@@ -2826,6 +2959,7 @@ function parseWnum(wnum) {
 | Editor.Revert | C→S | On discard | Revert one or all fields |
 | Editor.Request | C→S | On reconnect | Request current state |
 | Editor.CommitResult | S→C | After commit | Changes applied count |
+| Editor.Schema.Update | S→C | After structural commit/revert | Tab schema refresh |
 | Editor.StringEdit.Open | S→C | On multiline edit | Non-blocking text editor (WS) |
 | Editor.StringEdit.Save | C→S | On text submit | Save edited text |
 | Editor.StringEdit.Cancel | C→S | On text cancel | Discard text edits |
