@@ -11,6 +11,7 @@
 #include "../../editors/common/olc_commands.h"
 #include "../../editors/common/olc_editor.h"
 #include "../../item_types.h"
+#include "../../gmcp_editor.h"
 
 /* Apply functions from oedit.c / oedit_types.c used by integration tests */
 extern bool oedit_apply_affect_ops(void *entity, olc_pending_change_t *change);
@@ -1525,6 +1526,34 @@ static test_result_t test_olccs_apply_typedata(test_case_t *test)
     return TEST_SUCCESS;
 }
 
+static test_result_t test_schema_update_build(test_case_t *test)
+{
+    json_t *fields = json_array();
+    json_t *f = json_pack("{s:s, s:s, s:s, s:s}",
+        "label", "Class:", "command", "typedata/weapon/class",
+        "type", "enum", "value", "sword");
+    json_array_append_new(fields, f);
+
+    json_t *msg = gmcp_editor_build_schema_update("obj:5#3010", "Type", fields);
+    TEST_ASSERT_NOT_NULL(msg);
+    TEST_ASSERT_STR_EQ("obj:5#3010", json_string_value(json_object_get(msg, "entity_id")));
+
+    json_t *updates = json_object_get(msg, "updates");
+    TEST_ASSERT_TRUE(json_is_array(updates) && json_array_size(updates) == 1);
+
+    json_t *upd = json_array_get(updates, 0);
+    TEST_ASSERT_STR_EQ("Type", json_string_value(json_object_get(upd, "tab")));
+    TEST_ASSERT_STR_EQ("replace", json_string_value(json_object_get(upd, "action")));
+
+    json_t *flds = json_object_get(upd, "fields");
+    TEST_ASSERT_TRUE(json_is_array(flds) && json_array_size(flds) == 1);
+
+    TEST_ASSERT_TRUE(json_integer_value(json_object_get(msg, "_v")) == 1);
+
+    json_decref(msg);
+    return TEST_SUCCESS;
+}
+
 /*
  * Test dispatcher — routes test_type to specific test functions.
  */
@@ -1622,6 +1651,8 @@ test_result_t run_olc_changeset_test_case(test_case_t *test)
         return test_olccs_apply_embedded(test);
     if (strcmp(test->test_type, "olccs_apply_typed") == 0)
         return test_olccs_apply_typedata(test);
+    if (strcmp(test->test_type, "olccs_schema_update_build") == 0)
+        return test_schema_update_build(test);
 
     log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
                   "Unknown OLC changeset test type: %s", test->test_type);

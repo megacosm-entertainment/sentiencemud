@@ -361,6 +361,13 @@
       "test_type": "olccs_apply_typed",
       "input": {},
       "expected_output": { "success": true }
+    },
+    {
+      "name": "olccs_schema_update_build",
+      "description": "Test gmcp_editor_build_schema_update produces correct JSON structure",
+      "test_type": "olccs_schema_update_build",
+      "input": {},
+      "expected_output": { "success": true }
     }
   ]
 }

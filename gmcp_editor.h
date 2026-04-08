@@ -81,6 +81,14 @@ void gmcp_editor_send_error(descriptor_t *d, const char *entity_id,
 void gmcp_editor_send_commit_result(descriptor_t *d, const char *entity_id,
     const char *status, int changes_applied);
 
+/* Schema.Update — targeted tab schema refresh */
+json_t *gmcp_editor_build_schema_update(const char *entity_id,
+    const char *tab_name, json_t *fields);
+
+void gmcp_editor_send_schema_update(descriptor_t *d,
+    const char *entity_id, const char *tab_name,
+    json_t *fields);
+
 /** Send Editor.Open to descriptor with full schema capture. */
 void gmcp_editor_send_open(descriptor_t *d, const OLC_EDITOR_DEF *def,
     void *entity, const char *entity_id, olc_changeset_t *cs,

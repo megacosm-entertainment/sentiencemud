@@ -340,6 +340,33 @@ void gmcp_editor_send_close(descriptor_t *d, const char *entity_id,
         sentience_send_package(d, "Sentience.Editor.Close", msg);
 }
 
+json_t *gmcp_editor_build_schema_update(const char *entity_id,
+    const char *tab_name, json_t *fields)
+{
+    json_t *update = json_pack("{s:s, s:s, s:o}",
+        "tab", tab_name,
+        "action", "replace",
+        "fields", fields ? fields : json_array());
+    json_t *updates = json_array();
+    json_array_append_new(updates, update);
+
+    return json_pack("{s:s, s:o, s:i}",
+        "entity_id", entity_id,
+        "updates", updates,
+        "_v", 1);
+}
+
+void gmcp_editor_send_schema_update(descriptor_t *d,
+    const char *entity_id, const char *tab_name,
+    json_t *fields)
+{
+    if (!can_send_gmcp(d) || !entity_id || !tab_name) return;
+
+    json_t *msg = gmcp_editor_build_schema_update(entity_id, tab_name, fields);
+    if (msg)
+        sentience_send_package(d, "Sentience.Editor.Schema.Update", msg);
+}
+
 void gmcp_editor_send_error(descriptor_t *d, const char *entity_id,
     const char *field, const char *error_code, const char *message)
 {
