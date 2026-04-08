@@ -1033,9 +1033,209 @@ static void oedit_show_properties_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *
     }
 }
 
+static void oedit_capture_affects(OLC_LAYOUT_CTX *ctx, OBJ_INDEX_DATA *pObj)
+{
+    AFFECT_DATA *paf;
+    CATALYST_DATA *cat;
+    SPELL_DATA *spell;
+    int cnt;
+
+    /* 1. TO_OBJECT affects */
+    cnt = 0;
+    json_t *obj_items = json_array();
+    for (paf = pObj->affected; paf; paf = paf->next) {
+        if (paf->where == TO_OBJECT) {
+            json_t *item = json_pack("{s:i, s:s, s:i, s:i}",
+                "index", cnt,
+                "location", affect_loc_name(paf->location),
+                "modifier", paf->modifier,
+                "random", paf->random);
+            json_array_append_new(obj_items, item);
+            cnt++;
+        }
+    }
+    if (cnt > 0) {
+        json_t *schema = json_array();
+        json_array_append_new(schema, json_pack("{s:s, s:s}", "field", "location", "type", "string"));
+        json_array_append_new(schema, json_pack("{s:s, s:s}", "field", "modifier", "type", "int"));
+        json_array_append_new(schema, json_pack("{s:s, s:s}", "field", "random", "type", "int"));
+
+        json_t *list = json_pack("{s:s, s:s, s:s, s:s, s:o, s:s, s:s, s:o}",
+            "label", "Affects",
+            "command", "affects",
+            "type", "list",
+            "item_type", "affect",
+            "items", obj_items,
+            "add_command", "addaffect",
+            "del_command", "delaffect",
+            "item_schema", schema);
+        json_array_append_new(ctx->captured_fields, list);
+    } else {
+        json_decref(obj_items);
+    }
+
+    /* 2. IRV affects */
+    cnt = 0;
+    json_t *irv_items = json_array();
+    for (paf = pObj->affected; paf; paf = paf->next) {
+        if (paf->where == TO_IMMUNE || paf->where == TO_RESIST || paf->where == TO_VULN) {
+            const char *where_str;
+            if (paf->where == TO_IMMUNE)
+                where_str = "immune";
+            else if (paf->where == TO_RESIST)
+                where_str = "resist";
+            else
+                where_str = "vuln";
+
+            json_t *item = json_pack("{s:i, s:s, s:s, s:i}",
+                "index", cnt,
+                "where", where_str,
+                "flags", imm_bit_name(paf->bitvector),
+                "random", paf->random);
+            json_array_append_new(irv_items, item);
+            cnt++;
+        }
+    }
+    if (cnt > 0) {
+        json_t *options = json_array();
+        json_array_append_new(options, json_string("immune"));
+        json_array_append_new(options, json_string("resist"));
+        json_array_append_new(options, json_string("vuln"));
+
+        json_t *schema = json_array();
+        json_array_append_new(schema, json_pack("{s:s, s:s, s:o}", "field", "where", "type", "enum", "options", options));
+        json_array_append_new(schema, json_pack("{s:s, s:s}", "field", "flags", "type", "flags"));
+        json_array_append_new(schema, json_pack("{s:s, s:s}", "field", "random", "type", "int"));
+
+        json_t *list = json_pack("{s:s, s:s, s:s, s:s, s:o, s:s, s:s, s:o}",
+            "label", "Immunities / Resistances / Vulnerabilities",
+            "command", "irv",
+            "type", "list",
+            "item_type", "irv",
+            "items", irv_items,
+            "add_command", "addirv",
+            "del_command", "delirv",
+            "item_schema", schema);
+        json_array_append_new(ctx->captured_fields, list);
+    } else {
+        json_decref(irv_items);
+    }
+
+    /* 3. Spells */
+    if (pObj->spells) {
+        cnt = 0;
+        json_t *spell_items = json_array();
+        for (spell = pObj->spells; spell; spell = spell->next, cnt++) {
+            SKILL_DATA *spell_skill = skill_find_uid(spell->sn);
+            json_t *item = json_pack("{s:i, s:s, s:i, s:i}",
+                "index", cnt,
+                "spell", spell_skill ? spell_skill->name : "unknown",
+                "level", spell->level,
+                "random", spell->repop);
+            json_array_append_new(spell_items, item);
+        }
+
+        json_t *schema = json_array();
+        json_array_append_new(schema, json_pack("{s:s, s:s}", "field", "spell", "type", "string"));
+        json_array_append_new(schema, json_pack("{s:s, s:s}", "field", "level", "type", "int"));
+        json_array_append_new(schema, json_pack("{s:s, s:s}", "field", "random", "type", "int"));
+
+        json_t *list = json_pack("{s:s, s:s, s:s, s:s, s:o, s:s, s:s, s:o}",
+            "label", "Spells",
+            "command", "spells",
+            "type", "list",
+            "item_type", "spell",
+            "items", spell_items,
+            "add_command", "addspell",
+            "del_command", "delspell",
+            "item_schema", schema);
+        json_array_append_new(ctx->captured_fields, list);
+    }
+
+    /* 4. Catalysts */
+    if (pObj->catalyst) {
+        cnt = 0;
+        json_t *cat_items = json_array();
+        for (cat = pObj->catalyst; cat; cat = cat->next, cnt++) {
+            json_t *item = json_pack("{s:i, s:s, s:i, s:i, s:i, s:s}",
+                "index", cnt,
+                "type", flag_string(catalyst_types, cat->type),
+                "level", (int)cat->level,
+                "modifier", (int)cat->modifier,
+                "random", (int)cat->random,
+                "name", IS_NULLSTR(cat->custom_name) ? "" : cat->custom_name);
+            json_array_append_new(cat_items, item);
+        }
+
+        json_t *schema = json_array();
+        json_array_append_new(schema, json_pack("{s:s, s:s}", "field", "type", "type", "string"));
+        json_array_append_new(schema, json_pack("{s:s, s:s}", "field", "level", "type", "int"));
+        json_array_append_new(schema, json_pack("{s:s, s:s}", "field", "modifier", "type", "int"));
+        json_array_append_new(schema, json_pack("{s:s, s:s}", "field", "random", "type", "int"));
+        json_array_append_new(schema, json_pack("{s:s, s:s}", "field", "name", "type", "string"));
+
+        json_t *list = json_pack("{s:s, s:s, s:s, s:s, s:o, s:s, s:s, s:o}",
+            "label", "Catalysts",
+            "command", "catalysts",
+            "type", "list",
+            "item_type", "catalyst",
+            "items", cat_items,
+            "add_command", "addcatalyst",
+            "del_command", "delcatalyst",
+            "item_schema", schema);
+        json_array_append_new(ctx->captured_fields, list);
+    }
+
+    /* 5. Waypoints */
+    if (list_size(pObj->waypoints) > 0) {
+        cnt = 0;
+        json_t *wp_items = json_array();
+        ITERATOR wit;
+        WAYPOINT_DATA *wp;
+
+        iterator_start(&wit, pObj->waypoints);
+        while ((wp = (WAYPOINT_DATA *)iterator_nextdata(&wit))) {
+            WILDS_DATA *wilds = get_wilds_from_uid(NULL, wp->w);
+            json_t *item = json_pack("{s:i, s:s, s:I, s:i, s:i, s:s}",
+                "index", cnt,
+                "wilderness", wilds ? wilds->name : "",
+                "w", (json_int_t)wp->w,
+                "x", wp->x,
+                "y", wp->y,
+                "name", wp->name ? wp->name : "");
+            json_array_append_new(wp_items, item);
+            cnt++;
+        }
+        iterator_stop(&wit);
+
+        json_t *schema = json_array();
+        json_array_append_new(schema, json_pack("{s:s, s:s}", "field", "w", "type", "int"));
+        json_array_append_new(schema, json_pack("{s:s, s:s}", "field", "x", "type", "int"));
+        json_array_append_new(schema, json_pack("{s:s, s:s}", "field", "y", "type", "int"));
+        json_array_append_new(schema, json_pack("{s:s, s:s}", "field", "name", "type", "string"));
+
+        json_t *list = json_pack("{s:s, s:s, s:s, s:s, s:o, s:s, s:s, s:o}",
+            "label", "Cartographer Waypoints",
+            "command", "waypoints",
+            "type", "list",
+            "item_type", "waypoint",
+            "items", wp_items,
+            "add_command", "addwaypoint",
+            "del_command", "delwaypoint",
+            "item_schema", schema);
+        json_array_append_new(ctx->captured_fields, list);
+    }
+}
+
 static void oedit_show_affects_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit)
 {
     OBJ_INDEX_DATA *pObj = (OBJ_INDEX_DATA *)pEdit;
+
+    if (ctx && ctx->capture_mode && ctx->captured_fields) {
+        oedit_capture_affects(ctx, pObj);
+        return;
+    }
+
     const OLC_EDITOR_THEME *theme = olc_get_theme(&oedit_def);
     char buf[MAX_STRING_LENGTH];
     AFFECT_DATA *paf;
