@@ -56,6 +56,48 @@
             "description": "Test error result has status=error and message present",
             "input": {},
             "expected_output": { "success": true }
+        },
+        {
+            "name": "olcact_oedit_registered",
+            "test_type": "olcact_oedit_registered",
+            "description": "Verify oedit actions are registered with form and stage functions",
+            "input": {},
+            "expected_output": { "success": true }
+        },
+        {
+            "name": "olcact_medit_registered",
+            "test_type": "olcact_medit_registered",
+            "description": "Verify medit actions are registered with form and stage functions",
+            "input": {},
+            "expected_output": { "success": true }
+        },
+        {
+            "name": "olcact_redit_registered",
+            "test_type": "olcact_redit_registered",
+            "description": "Verify redit actions are registered with form and stage functions",
+            "input": {},
+            "expected_output": { "success": true }
+        },
+        {
+            "name": "olcact_aedit_registered",
+            "test_type": "olcact_aedit_registered",
+            "description": "Verify aedit actions are registered with form and stage functions",
+            "input": {},
+            "expected_output": { "success": true }
+        },
+        {
+            "name": "olcact_form_fields",
+            "test_type": "olcact_form_fields",
+            "description": "Verify form_fn returns valid JSON array with required field properties",
+            "input": {},
+            "expected_output": { "success": true }
+        },
+        {
+            "name": "olcact_cross_editor",
+            "test_type": "olcact_cross_editor",
+            "description": "Verify actions are editor-scoped and do not collide across editors",
+            "input": {},
+            "expected_output": { "success": true }
         }
     ]
 }

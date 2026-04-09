@@ -179,6 +179,149 @@ static test_result_t test_olcact_build_result_error(test_case_t *test)
 }
 
 /* =========================================================================
+ * Editor Registration Tests
+ * ========================================================================= */
+
+static test_result_t test_oedit_registered(test_case_t *test)
+{
+    (void)test;
+    extern void oedit_register_actions(void);
+    oedit_register_actions();
+
+    const olc_action_handler_t *h;
+
+    h = olc_find_action(ED_OBJECT, "addaffect");
+    TEST_ASSERT_NOT_NULL(h);
+    TEST_ASSERT_NOT_NULL(h->form_fn);
+    TEST_ASSERT_NOT_NULL(h->stage_fn);
+
+    h = olc_find_action(ED_OBJECT, "addtype");
+    TEST_ASSERT_NOT_NULL(h);
+
+    h = olc_find_action(ED_OBJECT, "removetype");
+    TEST_ASSERT_NOT_NULL(h);
+
+    h = olc_find_action(ED_OBJECT, "addoprog");
+    TEST_ASSERT_NOT_NULL(h);
+
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_medit_registered(test_case_t *test)
+{
+    (void)test;
+    extern void medit_register_actions(void);
+    medit_register_actions();
+
+    const olc_action_handler_t *h;
+
+    h = olc_find_action(ED_MOBILE, "addmprog");
+    TEST_ASSERT_NOT_NULL(h);
+    TEST_ASSERT_NOT_NULL(h->form_fn);
+    TEST_ASSERT_NOT_NULL(h->stage_fn);
+
+    h = olc_find_action(ED_MOBILE, "addquest");
+    TEST_ASSERT_NOT_NULL(h);
+
+    h = olc_find_action(ED_MOBILE, "addreputation");
+    TEST_ASSERT_NOT_NULL(h);
+
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_redit_registered(test_case_t *test)
+{
+    (void)test;
+    extern void redit_register_actions(void);
+    redit_register_actions();
+
+    const olc_action_handler_t *h;
+
+    h = olc_find_action(ED_ROOM, "mreset");
+    TEST_ASSERT_NOT_NULL(h);
+    TEST_ASSERT_NOT_NULL(h->form_fn);
+    TEST_ASSERT_NOT_NULL(h->stage_fn);
+
+    h = olc_find_action(ED_ROOM, "oreset");
+    TEST_ASSERT_NOT_NULL(h);
+
+    h = olc_find_action(ED_ROOM, "addrprog");
+    TEST_ASSERT_NOT_NULL(h);
+
+    h = olc_find_action(ED_ROOM, "addcdesc");
+    TEST_ASSERT_NOT_NULL(h);
+
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_aedit_registered(test_case_t *test)
+{
+    (void)test;
+    extern void aedit_register_actions(void);
+    aedit_register_actions();
+
+    const olc_action_handler_t *h;
+
+    h = olc_find_action(ED_AREA, "addaprog");
+    TEST_ASSERT_NOT_NULL(h);
+    TEST_ASSERT_NOT_NULL(h->form_fn);
+    TEST_ASSERT_NOT_NULL(h->stage_fn);
+
+    h = olc_find_action(ED_AREA, "addtrade");
+    TEST_ASSERT_NOT_NULL(h);
+
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_form_fields(test_case_t *test)
+{
+    (void)test;
+    extern void oedit_register_actions(void);
+    oedit_register_actions();
+
+    const olc_action_handler_t *h = olc_find_action(ED_OBJECT, "addaffect");
+    TEST_ASSERT_NOT_NULL(h);
+
+    json_t *fields = h->form_fn(NULL, NULL);
+    TEST_ASSERT_NOT_NULL(fields);
+    TEST_ASSERT_TRUE(json_is_array(fields));
+    TEST_ASSERT_TRUE(json_array_size(fields) > 0);
+
+    json_t *f0 = json_array_get(fields, 0);
+    TEST_ASSERT_NOT_NULL(json_object_get(f0, "field"));
+    TEST_ASSERT_NOT_NULL(json_object_get(f0, "label"));
+    TEST_ASSERT_NOT_NULL(json_object_get(f0, "type"));
+
+    json_decref(fields);
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_cross_editor(test_case_t *test)
+{
+    (void)test;
+    extern void oedit_register_actions(void);
+    extern void medit_register_actions(void);
+    extern void redit_register_actions(void);
+    extern void aedit_register_actions(void);
+    oedit_register_actions();
+    medit_register_actions();
+    redit_register_actions();
+    aedit_register_actions();
+
+    /* Each editor's actions should be findable */
+    TEST_ASSERT_NOT_NULL(olc_find_action(ED_OBJECT, "addaffect"));
+    TEST_ASSERT_NOT_NULL(olc_find_action(ED_MOBILE, "addmprog"));
+    TEST_ASSERT_NOT_NULL(olc_find_action(ED_ROOM, "mreset"));
+    TEST_ASSERT_NOT_NULL(olc_find_action(ED_AREA, "addaprog"));
+
+    /* Wrong editor type should NOT find the action */
+    TEST_ASSERT_NULL(olc_find_action(ED_MOBILE, "addaffect"));
+    TEST_ASSERT_NULL(olc_find_action(ED_OBJECT, "addmprog"));
+
+    return TEST_SUCCESS;
+}
+
+/* =========================================================================
  * Test Dispatcher
  * ========================================================================= */
 
@@ -204,6 +347,18 @@ test_result_t run_olc_action_test_case(test_case_t *test)
         return test_olcact_build_result_success(test);
     if (strcmp(test->test_type, "olcact_build_result_error") == 0)
         return test_olcact_build_result_error(test);
+    if (strcmp(test->test_type, "olcact_oedit_registered") == 0)
+        return test_oedit_registered(test);
+    if (strcmp(test->test_type, "olcact_medit_registered") == 0)
+        return test_medit_registered(test);
+    if (strcmp(test->test_type, "olcact_redit_registered") == 0)
+        return test_redit_registered(test);
+    if (strcmp(test->test_type, "olcact_aedit_registered") == 0)
+        return test_aedit_registered(test);
+    if (strcmp(test->test_type, "olcact_form_fields") == 0)
+        return test_form_fields(test);
+    if (strcmp(test->test_type, "olcact_cross_editor") == 0)
+        return test_cross_editor(test);
 
     log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
                   "Unknown OLC action test type: %s", test->test_type);
