@@ -31,6 +31,7 @@
 extern bool redit_blueprint_oncreate;
 extern bool change_exit(CHAR_DATA *ch, char *argument, int door);
 extern int wear_bit(int loc);
+extern void redit_register_actions(void);
 
 /* Forward declarations for tab show functions */
 static void redit_show_general_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
@@ -268,6 +269,241 @@ static bool redit_apply_var(void *entity, olc_pending_change_t *change) {
     }
 }
 
+/* -----------------------------------------------------------------------
+ * List-operation apply handlers (mreset, oreset, rprog, cdesc)
+ * ----------------------------------------------------------------------- */
+
+static bool redit_apply_mreset_ops(void *entity, olc_pending_change_t *change)
+{
+    ROOM_INDEX_DATA *pRoom = (ROOM_INDEX_DATA *)entity;
+
+    if (change->field_type == OLC_FIELD_LIST_REMOVE) {
+        int index = (int)json_integer_value(
+            json_object_get(change->new_value, "index"));
+
+        RESET_DATA *prev = NULL;
+        int count = 0;
+        for (RESET_DATA *r = pRoom->reset_first; r; r = r->next) {
+            if (r->command == 'M') {
+                if (count == index) {
+                    if (prev) prev->next = r->next;
+                    else pRoom->reset_first = r->next;
+                    if (r == pRoom->reset_last)
+                        pRoom->reset_last = prev;
+                    free_reset_data(r);
+                    return true;
+                }
+                count++;
+            }
+            prev = r;
+        }
+        return false;
+    }
+
+    if (change->field_type == OLC_FIELD_LIST_ADD) {
+        long auid = (long)json_integer_value(
+            json_object_get(change->new_value, "mobile_auid"));
+        long vnum = (long)json_integer_value(
+            json_object_get(change->new_value, "mobile_vnum"));
+        int limit = (int)json_integer_value(
+            json_object_get(change->new_value, "limit"));
+        int count = (int)json_integer_value(
+            json_object_get(change->new_value, "count"));
+
+        AREA_DATA *area = get_area_from_uid(auid);
+        if (!area) return false;
+
+        if (!get_mob_index(area, vnum)) return false;
+
+        RESET_DATA *pReset     = new_reset_data();
+        pReset->command        = 'M';
+        pReset->arg1.wnum.pArea = area;
+        pReset->arg1.wnum.vnum  = vnum;
+        pReset->arg2           = limit;
+        pReset->arg3.value     = pRoom->vnum;
+        pReset->arg4           = count;
+        add_reset(pRoom, pReset, 0);
+        return true;
+    }
+
+    return false;
+}
+
+static bool redit_apply_oreset_ops(void *entity, olc_pending_change_t *change)
+{
+    ROOM_INDEX_DATA *pRoom = (ROOM_INDEX_DATA *)entity;
+
+    if (change->field_type == OLC_FIELD_LIST_REMOVE) {
+        int index = (int)json_integer_value(
+            json_object_get(change->new_value, "index"));
+
+        RESET_DATA *prev = NULL;
+        int count = 0;
+        for (RESET_DATA *r = pRoom->reset_first; r; r = r->next) {
+            if (r->command == 'O') {
+                if (count == index) {
+                    if (prev) prev->next = r->next;
+                    else pRoom->reset_first = r->next;
+                    if (r == pRoom->reset_last)
+                        pRoom->reset_last = prev;
+                    free_reset_data(r);
+                    return true;
+                }
+                count++;
+            }
+            prev = r;
+        }
+        return false;
+    }
+
+    if (change->field_type == OLC_FIELD_LIST_ADD) {
+        long auid = (long)json_integer_value(
+            json_object_get(change->new_value, "object_auid"));
+        long vnum = (long)json_integer_value(
+            json_object_get(change->new_value, "object_vnum"));
+        int limit = (int)json_integer_value(
+            json_object_get(change->new_value, "limit"));
+        bool hidden = json_is_true(
+            json_object_get(change->new_value, "hidden"));
+
+        AREA_DATA *area = get_area_from_uid(auid);
+        if (!area) return false;
+
+        if (!get_obj_index(area, vnum)) return false;
+
+        RESET_DATA *pReset     = new_reset_data();
+        pReset->command        = 'O';
+        pReset->arg1.wnum.pArea = area;
+        pReset->arg1.wnum.vnum  = vnum;
+        pReset->arg2           = limit;
+        pReset->arg3.value     = pRoom->vnum;
+        pReset->arg4           = hidden ? 1 : 0;
+        add_reset(pRoom, pReset, 0);
+        return true;
+    }
+
+    return false;
+}
+
+static bool redit_apply_rprog_ops(void *entity, olc_pending_change_t *change)
+{
+    ROOM_INDEX_DATA *pRoom = (ROOM_INDEX_DATA *)entity;
+
+    if (change->field_type == OLC_FIELD_LIST_REMOVE) {
+        if (!pRoom->progs || !pRoom->progs->progs) return false;
+
+        int group_index = (int)json_integer_value(
+            json_object_get(change->new_value, "group_index"));
+        json_t *jtrig = json_object_get(change->new_value, "trigger_index");
+        int trigger_idx = jtrig ? (int)json_integer_value(jtrig) : 0;
+
+        PROG_GROUP groups[MAX_PROG_GROUPS];
+        int num_groups = prog_build_groups(pRoom->progs->progs, groups,
+            MAX_PROG_GROUPS, PRG_RPROG);
+
+        if (group_index < 1 || group_index > num_groups) return false;
+        PROG_GROUP *group = &groups[group_index - 1];
+
+        if (trigger_idx > 0) {
+            if (trigger_idx > group->trigger_count) return false;
+            PROG_GROUP_ENTRY *entry = &group->triggers[trigger_idx - 1];
+            return edit_deltrigger_specific(pRoom->progs->progs, group->script,
+                entry->entry->trig_type, entry->entry->trig_phrase);
+        } else {
+            return edit_delscript(pRoom->progs->progs, group->script);
+        }
+    }
+
+    if (change->field_type == OLC_FIELD_LIST_ADD) {
+        long auid = (long)json_integer_value(
+            json_object_get(change->new_value, "script_auid"));
+        long vnum = (long)json_integer_value(
+            json_object_get(change->new_value, "script_vnum"));
+        int tindex = (int)json_integer_value(
+            json_object_get(change->new_value, "trigger_index"));
+        const char *phrase = json_string_value(
+            json_object_get(change->new_value, "phrase"));
+        if (!phrase) return false;
+
+        AREA_DATA *area = get_area_from_uid(auid);
+        if (!area) return false;
+
+        SCRIPT_DATA *code = get_script_index(area, vnum, PRG_RPROG);
+        if (!code) return false;
+
+        if (!pRoom->progs) return false;
+        if (!pRoom->progs->progs) pRoom->progs->progs = new_prog_bank();
+
+        int slot = trigger_table[tindex].slot;
+
+        PROG_LIST *list = new_trigger();
+        list->vnum = vnum;
+        list->script_is_widevnum = true;
+        list->script_load.auid = auid;
+        list->script_load.vnum = vnum;
+        list->trig_type = tindex;
+        list->trig_phrase = str_dup(phrase);
+        if (is_widevnum_format(phrase)) {
+            list->numeric = true;
+            list->trig_is_widevnum = true;
+            parse_widevnum_load(phrase, &list->trig_load);
+            list->trig_number = (int)list->trig_load.vnum;
+        } else {
+            list->trig_number = atoi(list->trig_phrase);
+            list->numeric = is_number(list->trig_phrase);
+        }
+        list->script = code;
+
+        list_appendlink(pRoom->progs->progs[slot], list);
+        return true;
+    }
+
+    return false;
+}
+
+static bool redit_apply_cdesc_ops(void *entity, olc_pending_change_t *change)
+{
+    ROOM_INDEX_DATA *pRoom = (ROOM_INDEX_DATA *)entity;
+
+    if (change->field_type == OLC_FIELD_LIST_REMOVE) {
+        int index = (int)json_integer_value(
+            json_object_get(change->new_value, "index"));
+
+        CONDITIONAL_DESCR_DATA *prev = NULL;
+        int count = 0;
+        for (CONDITIONAL_DESCR_DATA *cd = pRoom->conditional_descr; cd; cd = cd->next) {
+            if (count == index) {
+                if (prev) prev->next = cd->next;
+                else pRoom->conditional_descr = cd->next;
+                free_conditional_descr(cd);
+                return true;
+            }
+            prev = cd;
+            count++;
+        }
+        return false;
+    }
+
+    if (change->field_type == OLC_FIELD_LIST_ADD) {
+        int condition = (int)json_integer_value(
+            json_object_get(change->new_value, "condition"));
+        int phrase = (int)json_integer_value(
+            json_object_get(change->new_value, "phrase"));
+        const char *desc = json_string_value(
+            json_object_get(change->new_value, "description"));
+
+        CONDITIONAL_DESCR_DATA *cd = new_conditional_descr();
+        cd->condition = condition;
+        cd->phrase = phrase;
+        cd->description = str_dup(desc ? desc : "");
+        cd->next = pRoom->conditional_descr;
+        pRoom->conditional_descr = cd;
+        return true;
+    }
+
+    return false;
+}
+
 static const olc_field_handler_t redit_field_handlers[] = {
     { "Name",        OLC_FIELD_STRING,    NULL, redit_apply_name,        NULL },
     { "Tags",        OLC_FIELD_STRING,    NULL, redit_apply_tags,        NULL },
@@ -284,6 +520,10 @@ static const olc_field_handler_t redit_field_handlers[] = {
     { "Region",      OLC_FIELD_STRING,    NULL, redit_apply_region,      NULL },
     { "Parent",      OLC_FIELD_STRING,    NULL, redit_apply_parent,      NULL },
     { "var/*",       OLC_FIELD_STRING,    NULL, redit_apply_var,         NULL },
+    { "mresets/**",  OLC_FIELD_LIST_ADD,  NULL, redit_apply_mreset_ops,  NULL },
+    { "oresets/**",  OLC_FIELD_LIST_ADD,  NULL, redit_apply_oreset_ops,  NULL },
+    { "rprogs/**",   OLC_FIELD_LIST_ADD,  NULL, redit_apply_rprog_ops,   NULL },
+    { "cdescs/**",   OLC_FIELD_LIST_ADD,  NULL, redit_apply_cdesc_ops,   NULL },
     { NULL, 0, NULL, NULL, NULL }
 };
 
@@ -352,6 +592,12 @@ void redit(CHAR_DATA *ch, char *argument)
 
 void do_redit(CHAR_DATA *ch, char *argument)
 {
+    static bool actions_registered = false;
+    if (!actions_registered) {
+        redit_register_actions();
+        actions_registered = true;
+    }
+
     ROOM_INDEX_DATA *pRoom;
     char arg1[MAX_STRING_LENGTH];
 

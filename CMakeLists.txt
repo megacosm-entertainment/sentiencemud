@@ -160,6 +160,7 @@ set(SOURCE_FILES
     editors/random_strings/rsgedit.c
     editors/reserved_vnums/reserved.c
     editors/rooms/redit.c
+    editors/rooms/redit_actions.c
     editors/sectors/sectoredit.c
     editors/scripting/olc_mpcode.c
     editors/ships/shedit.c
