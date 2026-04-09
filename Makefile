@@ -133,6 +133,7 @@ C_FILES = \
     editors/liquids/liqedit.c \
     editors/materials/matedit.c \
     editors/mobiles/medit.c \
+    editors/mobiles/medit_actions.c \
     editors/objects/oedit.c \
     editors/objects/oedit_types.c \
     editors/objects/oedit_actions.c \

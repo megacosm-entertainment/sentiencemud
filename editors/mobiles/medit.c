@@ -398,6 +398,197 @@ static bool medit_apply_var(void *entity, olc_pending_change_t *change) {
 }
 
 /*
+ * List-operation apply handlers — invoked at commit time.
+ */
+
+static bool medit_apply_mprog_ops(void *entity, olc_pending_change_t *change)
+{
+    MOB_INDEX_DATA *pMob = (MOB_INDEX_DATA *)entity;
+
+    if (change->field_type == OLC_FIELD_LIST_REMOVE) {
+        if (!pMob->progs) return false;
+
+        int group_index = (int)json_integer_value(
+            json_object_get(change->new_value, "group_index"));
+        json_t *jtrig = json_object_get(change->new_value, "trigger_index");
+        int trigger_idx = jtrig ? (int)json_integer_value(jtrig) : 0;
+
+        PROG_GROUP groups[MAX_PROG_GROUPS];
+        int num_groups = prog_build_groups(pMob->progs, groups, MAX_PROG_GROUPS, PRG_MPROG);
+
+        if (group_index < 1 || group_index > num_groups) return false;
+        PROG_GROUP *group = &groups[group_index - 1];
+
+        if (trigger_idx > 0) {
+            if (trigger_idx > group->trigger_count) return false;
+            PROG_GROUP_ENTRY *entry = &group->triggers[trigger_idx - 1];
+            return edit_deltrigger_specific(pMob->progs, group->script,
+                entry->entry->trig_type, entry->entry->trig_phrase);
+        } else {
+            return edit_delscript(pMob->progs, group->script);
+        }
+    }
+
+    if (change->field_type == OLC_FIELD_LIST_ADD) {
+        long auid = (long)json_integer_value(
+            json_object_get(change->new_value, "script_auid"));
+        long vnum = (long)json_integer_value(
+            json_object_get(change->new_value, "script_vnum"));
+        int tindex = (int)json_integer_value(
+            json_object_get(change->new_value, "trigger_index"));
+        const char *phrase = json_string_value(
+            json_object_get(change->new_value, "phrase"));
+        if (!phrase) return false;
+
+        AREA_DATA *area = get_area_from_uid(auid);
+        if (!area) return false;
+
+        SCRIPT_DATA *code = get_script_index(area, vnum, PRG_MPROG);
+        if (!code) return false;
+
+        if (!pMob->progs) pMob->progs = new_prog_bank();
+
+        int slot = trigger_table[tindex].slot;
+
+        PROG_LIST *list = new_trigger();
+        list->vnum = vnum;
+        list->script_is_widevnum = true;
+        list->script_load.auid = auid;
+        list->script_load.vnum = vnum;
+        list->trig_type = tindex;
+        list->trig_phrase = str_dup(phrase);
+        if (is_widevnum_format(phrase)) {
+            list->numeric = true;
+            list->trig_is_widevnum = true;
+            parse_widevnum_load(phrase, &list->trig_load);
+            list->trig_number = (int)list->trig_load.vnum;
+        } else {
+            list->trig_number = atoi(list->trig_phrase);
+            list->numeric = is_number(list->trig_phrase);
+        }
+        list->script = code;
+
+        list_appendlink(pMob->progs[slot], list);
+        return true;
+    }
+
+    return false;
+}
+
+static bool medit_apply_quest_ops(void *entity, olc_pending_change_t *change)
+{
+    MOB_INDEX_DATA *pMob = (MOB_INDEX_DATA *)entity;
+
+    if (change->field_type == OLC_FIELD_LIST_REMOVE) {
+        int index = (int)json_integer_value(
+            json_object_get(change->new_value, "index"));
+
+        QUEST_V2_LIST *prev = NULL;
+        int count = 0;
+        for (QUEST_V2_LIST *qv2 = pMob->quests_v2; qv2; qv2 = qv2->next) {
+            if (count == index) {
+                if (prev) prev->next = qv2->next;
+                else pMob->quests_v2 = qv2->next;
+                free_quest_v2_list(qv2);
+                return true;
+            }
+            prev = qv2;
+            count++;
+        }
+        return false;
+    }
+
+    if (change->field_type == OLC_FIELD_LIST_ADD) {
+        long auid = (long)json_integer_value(
+            json_object_get(change->new_value, "auid"));
+        long vnum = (long)json_integer_value(
+            json_object_get(change->new_value, "vnum"));
+
+        AREA_DATA *area = get_area_from_uid(auid);
+        if (!area) return false;
+
+        WNUM wnum;
+        wnum.pArea = area;
+        wnum.vnum = vnum;
+
+        QUEST_V2_LIST *qv2 = new_quest_v2_list();
+        qv2->load.auid = auid;
+        qv2->load.vnum = vnum;
+        qv2->wnum = wnum;
+        qv2->next = pMob->quests_v2;
+        pMob->quests_v2 = qv2;
+        return true;
+    }
+
+    return false;
+}
+
+static bool medit_apply_reputation_ops(void *entity, olc_pending_change_t *change)
+{
+    MOB_INDEX_DATA *pMob = (MOB_INDEX_DATA *)entity;
+
+    if (change->field_type == OLC_FIELD_LIST_REMOVE) {
+        int index = (int)json_integer_value(
+            json_object_get(change->new_value, "index"));
+
+        MOB_REPUTATION_DATA *prev = NULL;
+        int count = 0;
+        for (MOB_REPUTATION_DATA *rep = pMob->mob_reputations; rep; rep = rep->next) {
+            if (count == index) {
+                if (prev) prev->next = rep->next;
+                else pMob->mob_reputations = rep->next;
+                free_mob_reputation_data(rep);
+                return true;
+            }
+            prev = rep;
+            count++;
+        }
+        return false;
+    }
+
+    if (change->field_type == OLC_FIELD_LIST_ADD) {
+        long auid = (long)json_integer_value(
+            json_object_get(change->new_value, "auid"));
+        long vnum = (long)json_integer_value(
+            json_object_get(change->new_value, "vnum"));
+        int min_rank = (int)json_integer_value(
+            json_object_get(change->new_value, "min_rank"));
+        int max_rank = (int)json_integer_value(
+            json_object_get(change->new_value, "max_rank"));
+        long points = (long)json_integer_value(
+            json_object_get(change->new_value, "points"));
+
+        AREA_DATA *area = get_area_from_uid(auid);
+        if (!area) return false;
+
+        REPUTATION_INDEX_DATA *repIndex = get_reputation_index(area, vnum);
+        if (!IS_VALID(repIndex)) return false;
+
+        MOB_REPUTATION_DATA *new_rep = new_mob_reputation_data();
+        new_rep->reputation = repIndex;
+        new_rep->reputation_load.auid = auid;
+        new_rep->reputation_load.vnum = vnum;
+        new_rep->minimum_rank = (int16_t)min_rank;
+        new_rep->maximum_rank = (int16_t)max_rank;
+        new_rep->points = points;
+
+        /* Append to end of list */
+        MOB_REPUTATION_DATA *tail;
+        for (tail = pMob->mob_reputations; tail && tail->next; tail = tail->next)
+            ;
+
+        if (tail)
+            tail->next = new_rep;
+        else
+            pMob->mob_reputations = new_rep;
+
+        return true;
+    }
+
+    return false;
+}
+
+/*
  * Field Handler Table — maps staged field names to apply functions.
  */
 static const olc_field_handler_t medit_field_handlers[] = {
@@ -453,6 +644,9 @@ static const olc_field_handler_t medit_field_handlers[] = {
     { "Mana Dice",        OLC_FIELD_EMBEDDED,   NULL, medit_apply_manadice,     NULL },
     { "Damage Dice",      OLC_FIELD_EMBEDDED,   NULL, medit_apply_damdice,      NULL },
     { "Parent",           OLC_FIELD_STRING,     NULL, medit_apply_parent,       NULL },
+    { "mprogs/**",        OLC_FIELD_LIST_ADD,   NULL, medit_apply_mprog_ops,      NULL },
+    { "quests/**",        OLC_FIELD_LIST_ADD,   NULL, medit_apply_quest_ops,      NULL },
+    { "reputations/**",   OLC_FIELD_LIST_ADD,   NULL, medit_apply_reputation_ops, NULL },
     { NULL, 0, NULL, NULL, NULL }
 };
 
@@ -501,11 +695,19 @@ void medit(CHAR_DATA *ch, char *argument)
     olc_editor_interp(ch, argument, &medit_def);
 }
 
+extern void medit_register_actions(void);
+
 /*
  * Mobile Editor Entry Point
  */
 void do_medit(CHAR_DATA *ch, char *argument)
 {
+    static bool actions_registered = false;
+    if (!actions_registered) {
+        medit_register_actions();
+        actions_registered = true;
+    }
+
     MOB_INDEX_DATA *pMob;
     AREA_DATA *pArea;
     char arg1[MAX_STRING_LENGTH];
