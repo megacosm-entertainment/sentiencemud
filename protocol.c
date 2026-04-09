@@ -3380,6 +3380,8 @@ const struct gmcp_receive_struct GMCPReceiveTable[GMCP_RECEIVE_MAX+1] =
    { GMCP_SENTIENCE_EDITOR_STRING_CANCEL,"Sentience.Editor.StringEdit.Cancel"},
    { GMCP_SENTIENCE_EDITOR_DRAFT_SAVE,   "Sentience.Editor.Draft.Save"       },
    { GMCP_SENTIENCE_EDITOR_DRAFT_LOAD,   "Sentience.Editor.Draft.Load"       },
+   { GMCP_SENTIENCE_EDITOR_ACTION,       "Sentience.Editor.Action"           },
+   { GMCP_SENTIENCE_EDITOR_ACTION_SUBMIT,"Sentience.Editor.Action.Submit"    },
 
    { GMCP_RECEIVE_MAX,					"",									}
 };
@@ -4255,6 +4257,8 @@ cleanup_account:
       case GMCP_SENTIENCE_EDITOR_STRING_CANCEL:
       case GMCP_SENTIENCE_EDITOR_DRAFT_SAVE:
       case GMCP_SENTIENCE_EDITOR_DRAFT_LOAD:
+      case GMCP_SENTIENCE_EDITOR_ACTION:
+      case GMCP_SENTIENCE_EDITOR_ACTION_SUBMIT:
       {
          if (!apDescriptor->character || IS_NPC(apDescriptor->character))
              break;

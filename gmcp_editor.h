@@ -89,6 +89,10 @@ void gmcp_editor_send_schema_update(descriptor_t *d,
     const char *entity_id, const char *tab_name,
     json_t *fields);
 
+/** Refresh a tab's schema after a list action. */
+void gmcp_editor_refresh_tab_for_list(descriptor_t *d,
+    const char *entity_id, const char *list_name);
+
 /** Send Editor.Open to descriptor with full schema capture. */
 void gmcp_editor_send_open(descriptor_t *d, const OLC_EDITOR_DEF *def,
     void *entity, const char *entity_id, olc_changeset_t *cs,

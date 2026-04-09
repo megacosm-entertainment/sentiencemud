@@ -21,6 +21,7 @@
 #include "editors/common/olc_field_handlers.h"
 #include "editors/common/olc_staged.h"
 #include "editors/common/olc_display.h"
+#include "editors/common/olc_actions.h"
 
 /* =========================================================================
  * Entity ID Formatting
@@ -911,6 +912,175 @@ static void handle_editor_draft_load(descriptor_t *d, json_t *payload)
     gmcp_editor_send_state(d, entity_id, loaded, true);
 }
 
+/**
+ * Refresh a single tab's schema for a given list_name.
+ * Finds which tab contains the list, recaptures its fields, and sends
+ * a Schema.Update to the client.
+ */
+void gmcp_editor_refresh_tab_for_list(descriptor_t *d,
+    const char *entity_id, const char *list_name)
+{
+    if (!can_send_gmcp(d) || !entity_id || !list_name)
+        return;
+
+    int editor_type;
+    WNUM_LOAD wnum;
+    if (!gmcp_editor_parse_entity_id(entity_id, &editor_type, &wnum))
+        return;
+
+    const OLC_EDITOR_DEF *def = olc_find_editor_by_type(editor_type);
+    if (!def)
+        return;
+
+    olc_changeset_t *cs = olc_edit_state_find_changeset(
+        d->olc_state, editor_type, wnum);
+
+    json_t *tabs = olc_schema_capture(d->character, def, d->pEdit, cs);
+    if (!tabs)
+        return;
+
+    for (size_t t = 0; t < json_array_size(tabs); t++) {
+        json_t *tab = json_array_get(tabs, t);
+        const char *tname = json_string_value(json_object_get(tab, "name"));
+        json_t *flds = json_object_get(tab, "fields");
+        if (!tname || !flds)
+            continue;
+
+        /* Check if any field in this tab references the list_name */
+        for (size_t f = 0; f < json_array_size(flds); f++) {
+            json_t *field = json_array_get(flds, f);
+            const char *cmd = json_string_value(json_object_get(field, "command"));
+            if (cmd && str_cmp(cmd, list_name) == 0) {
+                gmcp_editor_send_schema_update(d, entity_id, tname,
+                    json_incref(flds));
+                json_decref(tabs);
+                return;
+            }
+        }
+    }
+
+    json_decref(tabs);
+}
+
+/**
+ * Handle Sentience.Editor.Action — client requests an action form.
+ *
+ * Payload: { "entity_id": "obj:5#3010", "action": "addoprog" }
+ */
+static void handle_editor_action(descriptor_t *d, json_t *payload)
+{
+    const char *entity_id = json_string_value(json_object_get(payload, "entity_id"));
+    const char *action_name = json_string_value(json_object_get(payload, "action"));
+
+    if (!entity_id || !action_name) {
+        gmcp_editor_send_error(d, entity_id ? entity_id : "",
+            "action", "invalid_request", "Missing entity_id or action");
+        return;
+    }
+
+    olc_changeset_t *cs = validate_editor_request(d, entity_id, "action");
+    if (!cs)
+        return;
+
+    const olc_action_handler_t *handler = olc_find_action(
+        cs->editor_type, action_name);
+    if (!handler) {
+        json_t *result = olc_action_build_result(entity_id, "", false,
+            "Unknown action");
+        sentience_send_package(d, "Sentience.Editor.Action.Result", result);
+        return;
+    }
+
+    if (!handler->form_fn) {
+        json_t *result = olc_action_build_result(entity_id, "", false,
+            "Action has no form");
+        sentience_send_package(d, "Sentience.Editor.Action.Result", result);
+        return;
+    }
+
+    json_t *fields = handler->form_fn(d->pEdit, d->character);
+    if (!fields) {
+        json_t *result = olc_action_build_result(entity_id, "", false,
+            "Failed to generate form");
+        sentience_send_package(d, "Sentience.Editor.Action.Result", result);
+        return;
+    }
+
+    olc_action_session_t *session = olc_action_session_create(
+        d->olc_state, cs->editor_type, action_name);
+
+    json_t *form = olc_action_build_form(entity_id, handler, session, fields);
+    sentience_send_package(d, "Sentience.Editor.Action.Form", form);
+    json_decref(fields);
+}
+
+/**
+ * Handle Sentience.Editor.Action.Submit — client submits action form data.
+ *
+ * Payload: { "entity_id": "obj:5#3010", "session_id": "act_0", "values": {...} }
+ */
+static void handle_editor_action_submit(descriptor_t *d, json_t *payload)
+{
+    const char *entity_id = json_string_value(json_object_get(payload, "entity_id"));
+    const char *session_id = json_string_value(json_object_get(payload, "session_id"));
+    json_t *values = json_object_get(payload, "values");
+
+    if (!entity_id || !session_id || !values) {
+        gmcp_editor_send_error(d, entity_id ? entity_id : "",
+            "action", "invalid_request", "Missing required fields");
+        return;
+    }
+
+    olc_action_session_t *session = olc_action_session_find(
+        d->olc_state, session_id);
+    if (!session) {
+        json_t *result = olc_action_build_result(entity_id, session_id,
+            false, "Invalid or expired session");
+        sentience_send_package(d, "Sentience.Editor.Action.Result", result);
+        return;
+    }
+
+    olc_changeset_t *cs = validate_editor_request(d, entity_id, "action");
+    if (!cs) {
+        olc_action_session_clear(d->olc_state);
+        return;
+    }
+
+    const olc_action_handler_t *handler = olc_find_action(
+        session->editor_type, session->action_name);
+    if (!handler || !handler->stage_fn) {
+        json_t *result = olc_action_build_result(entity_id, session_id,
+            false, "Action handler not found");
+        sentience_send_package(d, "Sentience.Editor.Action.Result", result);
+        olc_action_session_clear(d->olc_state);
+        return;
+    }
+
+    if (!olc_check_staging_limits(d->character, cs)) {
+        json_t *result = olc_action_build_result(entity_id, session_id,
+            false, "Changeset limit reached");
+        sentience_send_package(d, "Sentience.Editor.Action.Result", result);
+        olc_action_session_clear(d->olc_state);
+        return;
+    }
+
+    char errbuf[MAX_STRING_LENGTH];
+    errbuf[0] = '\0';
+    bool ok = handler->stage_fn(d->pEdit, cs, values, errbuf, sizeof(errbuf));
+
+    json_t *result = olc_action_build_result(entity_id, session_id,
+        ok, ok ? NULL : errbuf);
+    sentience_send_package(d, "Sentience.Editor.Action.Result", result);
+
+    if (ok && handler->list_name) {
+        gmcp_editor_send_field(d, entity_id, handler->list_name,
+            NULL, "list", true);
+        gmcp_editor_refresh_tab_for_list(d, entity_id, handler->list_name);
+    }
+
+    olc_action_session_clear(d->olc_state);
+}
+
 void sentience_handle_editor(descriptor_t *d, int module, const char *json_str)
 {
     if (!d || !d->character || IS_NPC(d->character))
@@ -948,6 +1118,12 @@ void sentience_handle_editor(descriptor_t *d, int module, const char *json_str)
             break;
         case GMCP_SENTIENCE_EDITOR_DRAFT_LOAD:
             handle_editor_draft_load(d, payload);
+            break;
+        case GMCP_SENTIENCE_EDITOR_ACTION:
+            handle_editor_action(d, payload);
+            break;
+        case GMCP_SENTIENCE_EDITOR_ACTION_SUBMIT:
+            handle_editor_action_submit(d, payload);
             break;
     }
 
