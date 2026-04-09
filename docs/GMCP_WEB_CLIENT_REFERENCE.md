@@ -47,6 +47,10 @@
    - [Sentience.Editor.StringEdit.Close](#sentienceeditorstringeditclose)
    - [Sentience.Editor.Draft.Save](#sentienceeditordraftsave)
    - [Sentience.Editor.Draft.Load](#sentienceeditordraftload)
+   - [Sentience.Editor.Action](#sentienceeditoraction)
+   - [Sentience.Editor.Action.Form](#sentienceeditoractionform)
+   - [Sentience.Editor.Action.Submit](#sentienceeditoractionsubmit)
+   - [Sentience.Editor.Action.Result](#sentienceeditoractionresult)
    - [Editor Client Implementation Guide](#editor-client-implementation-guide)
    - [Sentience.Auth.Resume](#sentienceauthresume)
    - [Sentience.Auth.QRCode](#sentienceauthqrcode)
@@ -2454,6 +2458,182 @@ Replaces the current (possibly empty) changeset with the draft's contents.
 
 ---
 
+### Sentience.Editor.Action
+
+**Direction:** Client → Server
+**When:** Client requests an action form for a list operation (e.g., adding or
+removing items from lists such as affects, programs, resets)
+
+```json
+{
+  "entity_id": "obj:5#3010",
+  "action": "addaffect"
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `entity_id` | string | ✓ | The entity being edited (same as `Editor.Open` entity_id) |
+| `action` | string | ✓ | Action name (see [Available Actions by Editor](#available-actions-by-editor)) |
+
+**Response:** `Editor.Action.Form` on success, `Editor.Error` on failure.
+
+#### Available Actions by Editor
+
+| Editor | Actions |
+|--------|---------|
+| Object (oedit) | `addaffect`, `addimmune`, `addspell`, `addskill`, `addcatalyst`, `addoprog`, `addquest`, `addwaypoint`, `addtype`, `removetype` |
+| Mobile (medit) | `addmprog`, `addquest`, `addreputation` |
+| Room (redit) | `mreset`, `oreset`, `addrprog`, `addcdesc` |
+| Area (aedit) | `addaprog`, `addtrade` |
+
+---
+
+### Sentience.Editor.Action.Form
+
+**Direction:** Server → Client
+**When:** In response to `Editor.Action`, provides the form fields for the
+requested action
+
+```json
+{
+  "entity_id": "obj:5#3010",
+  "action": "addaffect",
+  "session_id": "act_0",
+  "fields": [
+    {"field": "where", "label": "Where", "type": "enum", "required": true, "options": ["object"]},
+    {"field": "location", "label": "Location", "type": "enum", "required": true, "options": ["str", "dex", "int", "wis", "con"]},
+    {"field": "modifier", "label": "Modifier", "type": "int", "required": true},
+    {"field": "random", "label": "Random %", "type": "int", "required": false, "default": "0"}
+  ]
+}
+```
+
+| Field | Type | Always | Description |
+|-------|------|--------|-------------|
+| `entity_id` | string | ✓ | Entity being edited |
+| `action` | string | ✓ | Action name that was requested |
+| `session_id` | string | ✓ | Unique session identifier for this action (use in `Action.Submit`) |
+| `fields` | array | ✓ | Array of field descriptors (see below) |
+
+Each entry in `fields` contains:
+
+| Field | Type | Always | Description |
+|-------|------|--------|-------------|
+| `field` | string | ✓ | Field name (used as key in submit values) |
+| `label` | string | ✓ | Human-readable label for the field |
+| `type` | string | ✓ | Field type: `string`, `int`, `enum`, `flags`, `widevnum`, `bool` |
+| `required` | bool | ✓ | Whether the field must be provided |
+| `options` | array | ✗ | Available options (for `enum` and `flags` types) |
+| `default` | string | ✗ | Default value if not provided by the user |
+
+The client should render a form with the provided fields and allow the user to
+fill in values before submitting.
+
+---
+
+### Sentience.Editor.Action.Submit
+
+**Direction:** Client → Server
+**When:** Client submits filled form values for a previously received action form
+
+```json
+{
+  "entity_id": "obj:5#3010",
+  "session_id": "act_0",
+  "values": {
+    "where": "object",
+    "location": "str",
+    "modifier": "5",
+    "random": "0"
+  }
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `entity_id` | string | ✓ | Entity being edited |
+| `session_id` | string | ✓ | Must match the `session_id` from the `Action.Form` response |
+| `values` | object | ✓ | Key-value pairs matching the `field` names from the form |
+
+**Response:** `Editor.Action.Result` on success or failure.
+
+> **Note:** All values are sent as strings regardless of field type. The server
+> performs type coercion and validation based on the field descriptors.
+
+---
+
+### Sentience.Editor.Action.Result
+
+**Direction:** Server → Client
+**When:** After processing an `Action.Submit`
+
+On success:
+```json
+{
+  "entity_id": "obj:5#3010",
+  "action": "addaffect",
+  "success": true
+}
+```
+
+On error:
+```json
+{
+  "entity_id": "obj:5#3010",
+  "action": "addaffect",
+  "success": false,
+  "message": "Invalid modifier value"
+}
+```
+
+| Field | Type | Always | Description |
+|-------|------|--------|-------------|
+| `entity_id` | string | ✓ | Entity being edited |
+| `action` | string | ✓ | Action that was submitted |
+| `success` | bool | ✓ | Whether the action was applied successfully |
+| `message` | string | ✗ | Error description (present when `success` is `false`) |
+
+On success, the server also sends:
+- `Editor.Field` with the updated list (pending state)
+- `Editor.Schema.Update` if the action affects tab structure (e.g., adding a type)
+
+#### Action Protocol Flow
+
+```
+ Client                          Server
+   │                               │
+   │  Editor.Action                │
+   │  {entity_id, action}          │
+   │──────────────────────────────>│
+   │                               │  Validate, find handler,
+   │                               │  call form function
+   │  Editor.Action.Form           │
+   │  {entity_id, action,          │
+   │   session_id, fields}         │
+   │<──────────────────────────────│
+   │                               │
+   │  (User fills in the form)     │
+   │                               │
+   │  Editor.Action.Submit         │
+   │  {entity_id, session_id,      │
+   │   values}                     │
+   │──────────────────────────────>│
+   │                               │  Validate session,
+   │                               │  call stage function
+   │  Editor.Action.Result         │
+   │  {entity_id, action, success} │
+   │<──────────────────────────────│
+   │                               │
+   │  (On success only:)           │
+   │  Editor.Field (updated list)  │
+   │<──────────────────────────────│
+   │  Editor.Schema.Update (opt.)  │
+   │<──────────────────────────────│
+```
+
+---
+
 ### Editor Client Implementation Guide
 
 This section provides guidance for web client developers consuming the Editor
@@ -2471,17 +2651,25 @@ GMCP package.
    - Server sends `Editor.Field` for each changed field
    - Client updates the field display and tracks `is_pending` state
 
-3. **Builder commits** (via `Editor.Commit`):
+3. **Builder performs list actions** (via `Editor.Action`):
+   - Client sends `Editor.Action` with an action name (e.g., `addaffect`)
+   - Server sends `Editor.Action.Form` with form fields and a `session_id`
+   - Client renders a form, builder fills it in
+   - Client sends `Editor.Action.Submit` with `session_id` and values
+   - Server sends `Editor.Action.Result`, plus `Editor.Field` and optionally
+     `Editor.Schema.Update` on success
+
+4. **Builder commits** (via `Editor.Commit`):
    - Server applies all changes atomically and sends `Editor.CommitResult`
    - If structural changes occurred (e.g., type add/remove), server sends
      `Editor.Schema.Update` for affected tabs
    - The editor remains open with a clean changeset — builder can continue editing
 
-4. **Builder exits** (via `done` command):
+5. **Builder exits** (via `done` command):
    - Server sends `Editor.Close` with `reason: "done"`
    - Client should close the editor panel
 
-5. **Disconnect with pending changes:**
+6. **Disconnect with pending changes:**
    - Server auto-saves a draft and sends `Editor.Close` with `reason: "disconnect"`
    - On next editor entry, the draft is auto-restored
 
@@ -2540,6 +2728,34 @@ When the server sends `StringEdit.Open`, open a dedicated text editing panel:
 - **Cancel** sends `StringEdit.Cancel`
 - Close the panel when `StringEdit.Close` is received
 - Multiple panels can be open (use `session_id` to track)
+
+#### Action Form Panel
+
+When a list field has an associated action (e.g., an "Add" button on an affects
+list), the client sends `Editor.Action`. On receiving `Action.Form`, render a
+modal or inline form:
+
+```
+┌──────────────────────────────────────┐
+│ Add Affect (act_0)                   │
+│ ┌──────────────────────────────────┐ │
+│ │ Where:    [object ▾]             │ │
+│ │ Location: [str ▾]               │ │
+│ │ Modifier: [5        ]           │ │
+│ │ Random %: [0        ]           │ │
+│ └──────────────────────────────────┘ │
+│ [Submit]  [Cancel]                   │
+└──────────────────────────────────────┘
+```
+
+- Render each field from the `fields` array using the appropriate widget for
+  its `type` (`enum` → dropdown, `int` → number input, `flags` → multi-select)
+- Pre-fill fields that have a `default` value
+- Mark `required` fields visually
+- **Submit** sends `Editor.Action.Submit` with the `session_id` and collected values
+- **Cancel** closes the form (no message sent to the server)
+- On `Action.Result` with `success: true`, close the form
+- On `Action.Result` with `success: false`, display the `message` as an error
 
 #### Error Handling
 
@@ -2966,6 +3182,10 @@ function parseWnum(wnum) {
 | Editor.StringEdit.Close | S→C | After save/cancel | Close text editor panel |
 | Editor.Draft.Save | C→S | Explicit save | Persist changeset to disk |
 | Editor.Draft.Load | C→S | Explicit load | Restore saved changeset |
+| Editor.Action | C→S | On list action | Request action form |
+| Editor.Action.Form | S→C | After Action request | Form fields for action |
+| Editor.Action.Submit | C→S | On form submit | Submit action form values |
+| Editor.Action.Result | S→C | After Action.Submit | Success/failure result |
 | Auth.Resume | Bidirectional | On connect/disconnect | Session resume tokens |
 | Auth.QRCode | S→C | MFA TOTP setup | QR code as PNG data URL (WS only) |
 
