@@ -244,6 +244,137 @@ static bool aedit_apply_var(void *entity, olc_pending_change_t *change) {
     }
 }
 
+static bool aedit_apply_aprog_ops(void *entity, olc_pending_change_t *change)
+{
+    AREA_DATA *pArea = (AREA_DATA *)entity;
+
+    if (change->field_type == OLC_FIELD_LIST_REMOVE) {
+        if (!pArea->progs || !pArea->progs->progs) return false;
+
+        int group_index = (int)json_integer_value(
+            json_object_get(change->new_value, "group_index"));
+        json_t *jtrig = json_object_get(change->new_value, "trigger_index");
+        int trigger_idx = jtrig ? (int)json_integer_value(jtrig) : 0;
+
+        PROG_GROUP groups[MAX_PROG_GROUPS];
+        int num_groups = prog_build_groups(pArea->progs->progs, groups,
+            MAX_PROG_GROUPS, PRG_APROG);
+
+        if (group_index < 1 || group_index > num_groups) return false;
+        PROG_GROUP *group = &groups[group_index - 1];
+
+        if (trigger_idx > 0) {
+            if (trigger_idx > group->trigger_count) return false;
+            PROG_GROUP_ENTRY *entry = &group->triggers[trigger_idx - 1];
+            return edit_deltrigger_specific(pArea->progs->progs, group->script,
+                entry->entry->trig_type, entry->entry->trig_phrase);
+        } else {
+            return edit_delscript(pArea->progs->progs, group->script);
+        }
+    }
+
+    if (change->field_type == OLC_FIELD_LIST_ADD) {
+        long auid = (long)json_integer_value(
+            json_object_get(change->new_value, "script_auid"));
+        long vnum = (long)json_integer_value(
+            json_object_get(change->new_value, "script_vnum"));
+        int tindex = (int)json_integer_value(
+            json_object_get(change->new_value, "trigger_index"));
+        const char *phrase = json_string_value(
+            json_object_get(change->new_value, "phrase"));
+        if (!phrase) return false;
+
+        AREA_DATA *area = get_area_from_uid(auid);
+        if (!area) return false;
+
+        SCRIPT_DATA *code = get_script_index(area, vnum, PRG_APROG);
+        if (!code) return false;
+
+        if (!pArea->progs) return false;
+        if (!pArea->progs->progs) pArea->progs->progs = new_prog_bank();
+
+        int slot = trigger_table[tindex].slot;
+
+        PROG_LIST *list = new_trigger();
+        list->vnum = vnum;
+        list->script_is_widevnum = true;
+        list->script_load.auid = auid;
+        list->script_load.vnum = vnum;
+        list->trig_type = tindex;
+        list->trig_phrase = str_dup(phrase);
+        if (is_widevnum_format(phrase)) {
+            list->numeric = true;
+            list->trig_is_widevnum = true;
+            parse_widevnum_load(phrase, &list->trig_load);
+            list->trig_number = (int)list->trig_load.vnum;
+        } else {
+            list->trig_number = atoi(list->trig_phrase);
+            list->numeric = is_number(list->trig_phrase);
+        }
+        list->script = code;
+
+        list_appendlink(pArea->progs->progs[slot], list);
+        return true;
+    }
+
+    return false;
+}
+
+static bool aedit_apply_trade_ops(void *entity, olc_pending_change_t *change)
+{
+    AREA_DATA *pArea = (AREA_DATA *)entity;
+
+    if (change->field_type == OLC_FIELD_LIST_REMOVE) {
+        int index = (int)json_integer_value(
+            json_object_get(change->new_value, "index"));
+
+        TRADE_ITEM *prev = NULL;
+        int count = 0;
+        for (TRADE_ITEM *t = pArea->trade_list; t; t = t->next) {
+            if (count == index) {
+                if (prev) prev->next = t->next;
+                else pArea->trade_list = t->next;
+                free_trade_item(t);
+                return true;
+            }
+            count++;
+            prev = t;
+        }
+        return false;
+    }
+
+    if (change->field_type == OLC_FIELD_LIST_ADD) {
+        long obj_auid = (long)json_integer_value(
+            json_object_get(change->new_value, "obj_auid"));
+        long obj_vnum = (long)json_integer_value(
+            json_object_get(change->new_value, "obj_vnum"));
+        int trade_type = (int)json_integer_value(
+            json_object_get(change->new_value, "trade_type"));
+        long rep_time = (long)json_integer_value(
+            json_object_get(change->new_value, "replenish_time"));
+        long rep_amt = (long)json_integer_value(
+            json_object_get(change->new_value, "replenish_amount"));
+        long max_qty = (long)json_integer_value(
+            json_object_get(change->new_value, "max_qty"));
+        long min_price = (long)json_integer_value(
+            json_object_get(change->new_value, "min_price"));
+        long max_price = (long)json_integer_value(
+            json_object_get(change->new_value, "max_price"));
+
+        AREA_DATA *area = get_area_from_uid(obj_auid);
+        if (!area) return false;
+
+        OBJ_INDEX_DATA *pObj = get_obj_index(area, obj_vnum);
+        if (!pObj) return false;
+
+        new_trade_item(pArea, (int16_t)trade_type, rep_time, rep_amt,
+            max_qty, min_price, max_price, obj_vnum);
+        return true;
+    }
+
+    return false;
+}
+
 static const olc_field_handler_t aedit_field_handlers[] = {
     { "Area Flags",        OLC_FIELD_FLAGS,     NULL, aedit_apply_area_flags,  NULL },
     { "X Coordinate",      OLC_FIELD_INT,       NULL, aedit_apply_x,           NULL },
@@ -273,6 +404,8 @@ static const olc_field_handler_t aedit_field_handlers[] = {
     { "Min Level",         OLC_FIELD_INT16,      NULL, aedit_apply_min_level,   NULL },
     { "Max Level",         OLC_FIELD_INT16,      NULL, aedit_apply_max_level,   NULL },
     { "var/*",             OLC_FIELD_STRING,     NULL, aedit_apply_var,         NULL },
+    { "aprogs/**",         OLC_FIELD_LIST_ADD,   NULL, aedit_apply_aprog_ops,   NULL },
+    { "trades/**",         OLC_FIELD_LIST_ADD,   NULL, aedit_apply_trade_ops,   NULL },
     { NULL, 0, NULL, NULL, NULL }
 };
 
@@ -324,8 +457,16 @@ static const OLC_EDITOR_DEF aedit_def = {
  *        aedit <keyword>      - edit area by keyword
  *        aedit create         - create new area
  */
+extern void aedit_register_actions(void);
+
 void do_aedit(CHAR_DATA *ch, char *argument)
 {
+    static bool actions_registered = false;
+    if (!actions_registered) {
+        aedit_register_actions();
+        actions_registered = true;
+    }
+
     AREA_DATA *pArea;
     int value;
     char arg[MAX_STRING_LENGTH];

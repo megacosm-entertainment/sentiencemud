@@ -138,6 +138,7 @@ set(SOURCE_FILES
     drunk.c
     dungeon.c
     editors/areas/aedit.c
+    editors/areas/aedit_actions.c
     editors/blueprints/bpedit.c
     editors/blueprints/bsedit.c
     editors/channels/cedit.c
