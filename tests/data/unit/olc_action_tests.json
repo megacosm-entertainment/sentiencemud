@@ -1,0 +1,61 @@
+{
+    "suite_name": "olc_action_tests",
+    "description": "OLC Action Infrastructure Tests",
+    "test_type_prefix": "olcact_",
+    "type": "test_suite",
+    "test_suite": "olc_action_tests",
+    "version": "1.0",
+    "requires_mud_environment": false,
+    "test_level": "unit",
+    "tests": [
+        {
+            "name": "olcact_session_create",
+            "test_type": "olcact_session_create",
+            "description": "Test action session creation and field initialization",
+            "input": {},
+            "expected_output": { "success": true }
+        },
+        {
+            "name": "olcact_session_find",
+            "test_type": "olcact_session_find",
+            "description": "Test finding active session by ID and miss on wrong ID",
+            "input": {},
+            "expected_output": { "success": true }
+        },
+        {
+            "name": "olcact_session_clear",
+            "test_type": "olcact_session_clear",
+            "description": "Test clearing active session resets state",
+            "input": {},
+            "expected_output": { "success": true }
+        },
+        {
+            "name": "olcact_session_replace",
+            "test_type": "olcact_session_replace",
+            "description": "Test creating second session replaces the first",
+            "input": {},
+            "expected_output": { "success": true }
+        },
+        {
+            "name": "olcact_build_form",
+            "test_type": "olcact_build_form",
+            "description": "Test building action form JSON with all fields",
+            "input": {},
+            "expected_output": { "success": true }
+        },
+        {
+            "name": "olcact_build_result_success",
+            "test_type": "olcact_build_result_success",
+            "description": "Test success result has status=success and no message",
+            "input": {},
+            "expected_output": { "success": true }
+        },
+        {
+            "name": "olcact_build_result_error",
+            "test_type": "olcact_build_result_error",
+            "description": "Test error result has status=error and message present",
+            "input": {},
+            "expected_output": { "success": true }
+        }
+    ]
+}

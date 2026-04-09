@@ -111,6 +111,7 @@ static const test_handler_entry_t handler_table[] = {
     { "wildsys_",                        run_wilderness_system_test_case,  MATCH_SUBSTR },
     { "updcyc_",                         run_update_cycle_test_case,        MATCH_SUBSTR },
     { "olccs_",                          run_olc_changeset_test_case,       MATCH_SUBSTR },
+    { "olcact_",                         run_olc_action_tests,              MATCH_SUBSTR },
     { "olchist_",                        run_olc_commit_history_test_case,  MATCH_SUBSTR },
     { "gmcped_",                         run_gmcp_editor_test_case,         MATCH_SUBSTR },
     { "olcsc_",                          run_olc_schema_capture_test_case,  MATCH_SUBSTR },

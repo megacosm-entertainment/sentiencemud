@@ -161,6 +161,7 @@ C_FILES = \
     editors/common/olc_commit_history.c \
     editors/common/olc_field_handlers.c \
     editors/common/olc_staged.c \
+    editors/common/olc_actions.c \
     effects.c \
     event_types.c \
     events.c \
@@ -317,6 +318,7 @@ ifdef BUILD_TESTS
                tests/unit/gmcp_sentience_tests.c \
                tests/unit/sentience_link_tests.c \
                tests/unit/olc_changeset_tests.c \
+               tests/unit/olc_action_tests.c \
                tests/unit/olc_commit_history_tests.c \
                tests/unit/olc_schema_capture_tests.c \
                tests/integration/gmcp_editor_tests.c \

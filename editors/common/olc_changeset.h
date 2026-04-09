@@ -88,12 +88,26 @@ typedef struct olc_string_edit_session {
 } olc_string_edit_session_t;
 
 /**
+ * Action session — no dynamic allocation, freed with parent struct.
+ */
+typedef struct olc_action_session {
+    char    session_id[32];
+    char    action_name[64];
+    int     editor_type;
+    time_t  created_at;
+} olc_action_session_t;
+
+/**
  * Per-builder edit state tracking active changesets and string edit sessions.
  */
 typedef struct olc_edit_state {
     LLIST           *active_changesets;
     LLIST           *string_edit_sessions;
     int              next_string_session_id;
+    /* Action session tracking (Phase 5) */
+    olc_action_session_t action_session;
+    int              next_action_session_id;
+    bool             has_action_session;
 } olc_edit_state_t;
 
 /* Lifecycle API */

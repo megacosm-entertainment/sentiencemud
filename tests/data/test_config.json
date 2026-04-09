@@ -29,7 +29,8 @@
             "update_cycle",
             "gmcp_sentience_unit_tests",
             "sentience_link_unit_tests",
-            "olc_schema_capture_tests"
+            "olc_schema_capture_tests",
+            "olc_action_tests"
         ],
         "quick_test_suites": [
             "area_loading",
@@ -81,7 +82,8 @@
             "olc_changeset_unit_tests",
             "olc_commit_history_tests",
             "gmcp_editor_tests",
-            "olc_schema_capture_tests"
+            "olc_schema_capture_tests",
+            "olc_action_tests"
         ],
         "unit_only_suites": [
             "core_string_unit_tests",
@@ -107,7 +109,8 @@
             "strdict_function_tests",
             "gmcp_sentience_unit_tests",
             "sentience_link_unit_tests",
-            "olc_schema_capture_tests"
+            "olc_schema_capture_tests",
+            "olc_action_tests"
         ],
         "integration_only_suites": [
             "area_loading",
@@ -244,7 +247,8 @@
                     "olc_changeset_unit_tests",
                     "olc_commit_history_tests",
                     "gmcp_editor_tests",
-                    "olc_schema_capture_tests"
+                    "olc_schema_capture_tests",
+                    "olc_action_tests"
                 ],
                 "stop_on_first_failure": false,
                 "require_coverage": true
