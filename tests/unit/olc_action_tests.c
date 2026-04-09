@@ -182,7 +182,7 @@ static test_result_t test_olcact_build_result_error(test_case_t *test)
  * Test Dispatcher
  * ========================================================================= */
 
-test_result_t run_olc_action_tests(test_case_t *test)
+test_result_t run_olc_action_test_case(test_case_t *test)
 {
     if (!test || !test->test_type) {
         log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,

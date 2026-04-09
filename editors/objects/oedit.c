@@ -48,6 +48,7 @@
 
 extern void oedit_show_type_data(OBJ_INDEX_DATA *pObj, BUFFER *buffer);
 extern json_t *oedit_type_schema(const OBJ_INDEX_DATA *pObj);
+extern void oedit_register_actions(void);
 bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *argument);
 
 /* Forward declarations for tab show functions */
@@ -849,6 +850,12 @@ void oedit(CHAR_DATA *ch, char *argument)
  */
 void do_oedit(CHAR_DATA *ch, char *argument)
 {
+    static bool actions_registered = false;
+    if (!actions_registered) {
+        oedit_register_actions();
+        actions_registered = true;
+    }
+
     OBJ_INDEX_DATA *pObj;
     AREA_DATA *pArea;
     char arg1[MAX_STRING_LENGTH];

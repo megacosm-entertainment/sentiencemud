@@ -135,6 +135,7 @@ C_FILES = \
     editors/mobiles/medit.c \
     editors/objects/oedit.c \
     editors/objects/oedit_types.c \
+    editors/objects/oedit_actions.c \
     editors/projects/pedit.c \
     editors/quests/qedit.c \
     editors/reputation/repedit.c \

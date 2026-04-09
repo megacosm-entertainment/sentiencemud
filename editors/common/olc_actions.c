@@ -63,8 +63,6 @@ const olc_action_handler_t *olc_find_action(int editor_type, const char *action_
  * Action Session Management
  * ========================================================================= */
 
-static int next_action_session_id = 0;
-
 /**
  * Create a new action session, replacing any existing one.
  * Returns pointer to the embedded session struct.
@@ -81,13 +79,12 @@ olc_action_session_t *olc_action_session_create(olc_edit_state_t *state,
     olc_action_session_t *session = &state->action_session;
 
     snprintf(session->session_id, sizeof(session->session_id),
-             "act_%d", next_action_session_id++);
+             "act_%d", state->next_action_session_id++);
     strlcpy(session->action_name, action_name, sizeof(session->action_name));
     session->editor_type = editor_type;
     session->created_at  = time(NULL);
 
-    state->has_action_session    = true;
-    state->next_action_session_id = next_action_session_id;
+    state->has_action_session = true;
 
     return session;
 }

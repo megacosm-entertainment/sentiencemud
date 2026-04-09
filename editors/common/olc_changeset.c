@@ -364,6 +364,11 @@ olc_edit_state_t *olc_edit_state_create(void)
     state->string_edit_sessions = list_create(false);
     state->next_string_session_id = 0;
 
+    /* Action session (Phase 5) */
+    memset(&state->action_session, 0, sizeof(state->action_session));
+    state->next_action_session_id = 0;
+    state->has_action_session     = false;
+
     return state;
 }
 
