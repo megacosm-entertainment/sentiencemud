@@ -39,7 +39,7 @@
 #include "merc.h"
 #include "telnet.h"
 
-char    compress_start  [] = { IAC, SB, TELOPT_COMPRESS2, IAC, SE, '\0' };
+unsigned char    compress_start  [] = { IAC, SB, TELOPT_COMPRESS2, IAC, SE, '\0' };
 
 bool	write_to_descriptor	args( ( DESCRIPTOR_DATA *d, char *txt, int length ) );
 
@@ -50,11 +50,13 @@ bool	write_to_descriptor	args( ( DESCRIPTOR_DATA *d, char *txt, int length ) );
 
 void *zlib_alloc(void *opaque, unsigned int items, unsigned int size)
 {
+    (void)opaque;
     return calloc(items, size);
 }
 
 void zlib_free(void *opaque, void *address)
 {
+    (void)opaque;
     free(address);
 }
 
@@ -96,7 +98,7 @@ bool compressStart(DESCRIPTOR_DATA *desc)
     return false;
     }
 
-    write_to_descriptor(desc, compress_start, strlen(compress_start));
+    write_to_descriptor(desc, (char *)compress_start, strlen((char *)compress_start));
 
     /* now we're compressing */
     desc->out_compress = s;
@@ -227,6 +229,7 @@ bool writeCompressed(DESCRIPTOR_DATA *desc, char *txt, int length)
 /* User-level compression toggle */
 void do_compress( CHAR_DATA *ch, char *argument )
 {
+    (void)argument;
     if (!ch->desc) {
         send_to_char("What descriptor?!\n", ch);
         return;

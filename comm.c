@@ -145,17 +145,17 @@ static void emit_comm_wiz_event(const char *plain_message,
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include "telnet.h"
-const	char	echo_off_str	[] = { IAC, WILL, TELOPT_ECHO, '\0' };
-const	char	echo_on_str	[] = { IAC, WONT, TELOPT_ECHO, '\0' };
-const	char 	go_ahead_str	[] = { IAC, GA, '\0' };
-const   char    compress_will   [] = { IAC, WILL, TELOPT_COMPRESS2, '\0' };
-const   char    compress_do     [] = { IAC, DO, TELOPT_COMPRESS2, '\0' };
-const   char    compress_dont   [] = { IAC, DONT, TELOPT_COMPRESS2, '\0' };
+const	unsigned char	echo_off_str	[] = { IAC, WILL, TELOPT_ECHO, '\0' };
+const	unsigned char	echo_on_str	[] = { IAC, WONT, TELOPT_ECHO, '\0' };
+const	unsigned char 	go_ahead_str	[] = { IAC, GA, '\0' };
+const   unsigned char   compress_will   [] = { IAC, WILL, TELOPT_COMPRESS2, '\0' };
+const   unsigned char   compress_do     [] = { IAC, DO, TELOPT_COMPRESS2, '\0' };
+const   unsigned char   compress_dont   [] = { IAC, DONT, TELOPT_COMPRESS2, '\0' };
 
 /* MSP strings */
-const   char    msp_will        [] = { IAC, WILL, TELOPT_MSP, '\0' };
-const   char    msp_do          [] = { IAC, DO, TELOPT_MSP, '\0' };
-const   char    msp_dont        [] = { IAC, DONT, TELOPT_MSP, '\0' };
+const   unsigned char   msp_will        [] = { IAC, WILL, TELOPT_MSP, '\0' };
+const   unsigned char   msp_do          [] = { IAC, DO, TELOPT_MSP, '\0' };
+const   unsigned char   msp_dont        [] = { IAC, DONT, TELOPT_MSP, '\0' };
 
 
 /*
@@ -2392,6 +2392,7 @@ log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "A non-blocked signal was caught.");
  */
 void init_descriptor(int control, int control_telnet, int control_tls, int control_websocket)
 {
+    (void)control_telnet;
     char buf[MAX_STRING_LENGTH];
     DESCRIPTOR_DATA *dnew = NULL;
     struct sockaddr_in sock;
@@ -2510,7 +2511,7 @@ void init_descriptor(int control, int control_telnet, int control_tls, int contr
             ProtocolNegotiate(dnew);
         }
 
-        write_to_buffer(dnew, compress_will, 0);
+        write_to_buffer(dnew, (const char *)compress_will, 0);
 
         if (help_greeting[0] == '.')
             write_to_buffer(dnew, help_greeting + 1, 0);
@@ -2992,14 +2993,14 @@ bool process_output(DESCRIPTOR_DATA *d, bool fPrompt)
         {
             write_to_buffer(d, "{x[Hit Return to continue]\n\r", 0);
             if (!d->pProtocol->bSGA && has_telnet_iac)
-                write_to_buffer(d, GoAheadStr, 0);
+                write_to_buffer(d, (const char *)GoAheadStr, 0);
 
         }
         else if (fPrompt && d->pString && d->connected == CON_PLAYING)
         {
             write_to_buffer(d, "> ", 2);
             if (!d->pProtocol->bSGA && has_telnet_iac)
-                write_to_buffer(d, GoAheadStr, 0);
+                write_to_buffer(d, (const char *)GoAheadStr, 0);
         }
         else if (fPrompt && d->connected == CON_PLAYING)
         {
@@ -3061,10 +3062,10 @@ bool process_output(DESCRIPTOR_DATA *d, bool fPrompt)
                 bust_a_prompt(d->character);
 
             if (!d->pProtocol->bSGA && has_telnet_iac)
-                write_to_buffer(d, GoAheadStr, 0);
+                write_to_buffer(d, (const char *)GoAheadStr, 0);
 
             if (IS_SET(ch->comm, COMM_TELNET_GA) && has_telnet_iac)
-                write_to_buffer(d, go_ahead_str, 0);
+                write_to_buffer(d, (const char *)go_ahead_str, 0);
         }
 else if (fPrompt && !d->showstr_point && !d->pString)
 {
@@ -3155,7 +3156,7 @@ else if (fPrompt && !d->showstr_point && !d->pString)
     if (has_telnet_iac && d->connected != CON_PLAYING && 
         d->connected != CON_READ_MOTD &&
         d->connected != CON_READ_IMOTD) {
-        write_to_buffer(d, go_ahead_str, 0);
+        write_to_buffer(d, (const char *)go_ahead_str, 0);
     }
 }
 

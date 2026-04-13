@@ -2280,8 +2280,8 @@ static void PerformHandshake( descriptor_t *apDescriptor, char aCmd, char aProto
             if ( !pProtocol->bMXP )
             {
                /* Enable MXP. */
-               const char EnableMXP[] = { (char)IAC, (char)SB, TELOPT_MXP, (char)IAC, (char)SE, '\0' };
-               Write(apDescriptor, EnableMXP);
+               const unsigned char EnableMXP[] = { IAC, SB, TELOPT_MXP, IAC, SE, '\0' };
+               Write(apDescriptor, (const char *)EnableMXP);
 
                /* Create a secure channel, and note that MXP is active. */
                Write(apDescriptor, "\033[7z");
@@ -2420,6 +2420,7 @@ static void PerformHandshake( descriptor_t *apDescriptor, char aCmd, char aProto
 
 static void PerformSubnegotiation( descriptor_t *apDescriptor, char aCmd, char *apData, int aSize )
 {
+   (void)aSize;
    protocol_t *pProtocol = apDescriptor->pProtocol;
 
    switch ( aCmd )
@@ -3080,7 +3081,7 @@ static void SendMSSP( descriptor_t *apDescriptor )
    static MSSP_t MSSPTable[] =
    {
       /* Required */
-      { "NAME",               MUD_NAME },   /* Change this in protocol.h */
+      { "NAME",               MUD_NAME , NULL},   /* Change this in protocol.h */
       { "PLAYERS",            FUNCTION_CALL( GetMSSP_Players ) },
       { "UPTIME" ,            FUNCTION_CALL( GetMSSP_Uptime ) }, 
 
@@ -3183,7 +3184,7 @@ static void SendMSSP( descriptor_t *apDescriptor )
       { "SSL",                "0" },
       { "ZMP",                "0" },
 
-      { NULL, NULL } /* This must always be last. */
+      { NULL, NULL , NULL} /* This must always be last. */
    };
 
    /* Begin the subnegotiation sequence */
@@ -3358,9 +3359,9 @@ static char *AllocString( const char *apString )
 }
 
 /*************** START GMCP ***************/
-const char GoAheadStr[] = { IAC, GA, '\0' };
-const char iac_sb_gmcp[] = { IAC, SB, TELOPT_GMCP, '\0' };
-const char iac_se[] = { IAC, SE, '\0' };
+const unsigned char GoAheadStr[] = { IAC, GA, '\0' };
+const unsigned char iac_sb_gmcp[] = { IAC, SB, TELOPT_GMCP, '\0' };
+const unsigned char iac_se[] = { IAC, SE, '\0' };
 
 const struct gmcp_receive_struct GMCPReceiveTable[GMCP_RECEIVE_MAX+1] =
 {
