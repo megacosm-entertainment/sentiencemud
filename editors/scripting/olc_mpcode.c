@@ -328,7 +328,7 @@ static int scriptedit_show_uses_from_bank(OLC_LAYOUT_CTX *ctx, SCRIPT_DATA *scri
 /**
  * script_get_area - Get the area associated with a script
  *
- * Used by the framework for OLC_CHANGE_AREA_FLAG change tracking.
+ * Used by the framework for change tracking and area-dirty flagging.
  *
  * @param pEdit  SCRIPT_DATA being edited
  * @return       The script's parent area, or NULL
@@ -338,6 +338,27 @@ static AREA_DATA *script_get_area(void *pEdit)
     SCRIPT_DATA *pCode = (SCRIPT_DATA *)pEdit;
     return pCode ? pCode->area : NULL;
 }
+
+/***************************************************************************
+ * Script Field Handlers (for GMCP staged editing)                        *
+ ***************************************************************************/
+
+OLC_FIELD_APPLY_STRING(script_apply_name,     SCRIPT_DATA, name)
+OLC_FIELD_APPLY_INT   (script_apply_security, SCRIPT_DATA, security)
+OLC_FIELD_APPLY_INT   (script_apply_depth,    SCRIPT_DATA, depth)
+OLC_FIELD_APPLY_FLAGS (script_apply_flags,    SCRIPT_DATA, flags)
+OLC_FIELD_APPLY_STRING(script_apply_code,     SCRIPT_DATA, edit_src)
+OLC_FIELD_APPLY_STRING(script_apply_comments, SCRIPT_DATA, comments)
+
+static const olc_field_handler_t script_field_handlers[] = {
+    { "name",     OLC_FIELD_STRING,    NULL, script_apply_name,     NULL },
+    { "security", OLC_FIELD_INT,       NULL, script_apply_security, NULL },
+    { "depth",    OLC_FIELD_INT,       NULL, script_apply_depth,    NULL },
+    { "flags",    OLC_FIELD_FLAGS,     NULL, script_apply_flags,    NULL },
+    { "code",     OLC_FIELD_MULTILINE, NULL, script_apply_code,     NULL },
+    { "comments", OLC_FIELD_MULTILINE, NULL, script_apply_comments, NULL },
+    { NULL, 0, NULL, NULL, NULL }
+};
 
 /**
  * script_perm_blueprint - Permission check for blueprint scripts
@@ -801,7 +822,8 @@ static const OLC_EDITOR_DEF mpedit_def = {
     .perm           = {
         .flags          = OLC_PERM_AREA_SECURITY,
     },
-    .change_mode    = OLC_CHANGE_AREA_FLAG,
+    .change_mode    = OLC_CHANGE_STAGED,
+    .field_handlers = script_field_handlers,
     .get_area_fn    = script_get_area,
     .audit_changes  = true,
 };
@@ -816,7 +838,8 @@ static const OLC_EDITOR_DEF opedit_def = {
     .perm           = {
         .flags          = OLC_PERM_AREA_SECURITY,
     },
-    .change_mode    = OLC_CHANGE_AREA_FLAG,
+    .change_mode    = OLC_CHANGE_STAGED,
+    .field_handlers = script_field_handlers,
     .get_area_fn    = script_get_area,
     .audit_changes  = true,
 };
@@ -831,7 +854,8 @@ static const OLC_EDITOR_DEF rpedit_def = {
     .perm           = {
         .flags          = OLC_PERM_AREA_SECURITY,
     },
-    .change_mode    = OLC_CHANGE_AREA_FLAG,
+    .change_mode    = OLC_CHANGE_STAGED,
+    .field_handlers = script_field_handlers,
     .get_area_fn    = script_get_area,
     .audit_changes  = true,
 };
@@ -846,7 +870,8 @@ static const OLC_EDITOR_DEF tpedit_def = {
     .perm           = {
         .flags          = OLC_PERM_AREA_SECURITY,
     },
-    .change_mode    = OLC_CHANGE_AREA_FLAG,
+    .change_mode    = OLC_CHANGE_STAGED,
+    .field_handlers = script_field_handlers,
     .get_area_fn    = script_get_area,
     .audit_changes  = true,
 };
@@ -861,7 +886,8 @@ static const OLC_EDITOR_DEF apedit_def = {
     .perm           = {
         .flags          = OLC_PERM_AREA_SECURITY,
     },
-    .change_mode    = OLC_CHANGE_AREA_FLAG,
+    .change_mode    = OLC_CHANGE_STAGED,
+    .field_handlers = script_field_handlers,
     .get_area_fn    = script_get_area,
     .audit_changes  = true,
 };
@@ -878,7 +904,8 @@ static const OLC_EDITOR_DEF ipedit_def = {
         .flags          = OLC_PERM_CUSTOM,
         .check_fn       = script_perm_blueprint,
     },
-    .change_mode    = OLC_CHANGE_AREA_FLAG,
+    .change_mode    = OLC_CHANGE_STAGED,
+    .field_handlers = script_field_handlers,
     .get_area_fn    = script_get_area,
     .audit_changes  = true,
 };
@@ -895,7 +922,8 @@ static const OLC_EDITOR_DEF dpedit_def = {
         .flags          = OLC_PERM_CUSTOM,
         .check_fn       = script_perm_dungeon,
     },
-    .change_mode    = OLC_CHANGE_AREA_FLAG,
+    .change_mode    = OLC_CHANGE_STAGED,
+    .field_handlers = script_field_handlers,
     .get_area_fn    = script_get_area,
     .audit_changes  = true,
 };
@@ -911,7 +939,8 @@ static const OLC_EDITOR_DEF qpedit_def = {
         .flags          = OLC_PERM_STAFF_RANK,
         .min_staff_rank = STAFF_IMPLEMENTOR,
     },
-    .change_mode    = OLC_CHANGE_AREA_FLAG,
+    .change_mode    = OLC_CHANGE_STAGED,
+    .field_handlers = script_field_handlers,
     .get_area_fn    = script_get_area,
     .audit_changes  = true,
 };
@@ -926,7 +955,8 @@ static const OLC_EDITOR_DEF epedit_def = {
     .perm           = {
         .flags          = OLC_PERM_AREA_SECURITY,
     },
-    .change_mode    = OLC_CHANGE_AREA_FLAG,
+    .change_mode    = OLC_CHANGE_STAGED,
+    .field_handlers = script_field_handlers,
     .get_area_fn    = script_get_area,
     .audit_changes  = true,
 };

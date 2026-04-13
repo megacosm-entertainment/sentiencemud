@@ -909,6 +909,80 @@ void olc_display_scripts(OLC_LAYOUT_CTX *ctx, const OLC_EDITOR_THEME *theme,
     }
 }
 
+void olc_display_extra_descs(OLC_LAYOUT_CTX *ctx, const OLC_EDITOR_THEME *theme,
+                             EXTRA_DESCR_DATA *extra_descr,
+                             const char *add_cmd, const char *del_cmd)
+{
+    if (!ctx || !ctx->buffer) return;
+    if (!theme) theme = &olc_theme_default;
+
+    if (ctx->capture_mode && ctx->captured_fields) {
+        json_t *items = json_array();
+        int idx = 0;
+        for (EXTRA_DESCR_DATA *ed = extra_descr; ed; ed = ed->next, idx++) {
+            json_t *item = json_pack("{s:i, s:s, s:s}",
+                "index", idx,
+                "keyword", ed->keyword ? ed->keyword : "",
+                "description", ed->description ? ed->description : "");
+            json_array_append_new(items, item);
+        }
+
+        json_t *schema = json_array();
+        json_array_append_new(schema, json_pack("{s:s, s:s}", "field", "keyword", "type", "string"));
+        json_array_append_new(schema, json_pack("{s:s, s:s}", "field", "description", "type", "multiline"));
+
+        json_t *list = json_pack("{s:s, s:s, s:s, s:s, s:o, s:s, s:s, s:o}",
+            "label", "Extra Descriptions",
+            "command", add_cmd ? add_cmd : "exdescs",
+            "type", "list",
+            "item_type", "extradesc",
+            "items", items,
+            "add_command", add_cmd ? add_cmd : "",
+            "del_command", del_cmd ? del_cmd : "",
+            "item_schema", schema);
+        json_array_append_new(ctx->captured_fields, list);
+        return;
+    }
+
+    /* Display mode */
+    char buf[MAX_STRING_LENGTH];
+    int idx = 0;
+
+    if (!extra_descr) {
+        snprintf(buf, sizeof(buf), "  %s(none){x\n\r", theme->unset);
+        add_buf(ctx->buffer, buf);
+        return;
+    }
+
+    for (EXTRA_DESCR_DATA *ed = extra_descr; ed; ed = ed->next, idx++) {
+        if (del_cmd && display_use_mxp(ctx->ch)) {
+            char del_cmd_buf[MIL];
+            snprintf(del_cmd_buf, sizeof(del_cmd_buf), "%s %s", del_cmd,
+                ed->keyword ? ed->keyword : "");
+            const char *mxp = MXPCreateSend(ctx->ch->desc, del_cmd_buf, "{R[X]{x");
+            char del_link[MIL];
+            strncpy(del_link, mxp, sizeof(del_link) - 1);
+            del_link[sizeof(del_link) - 1] = '\0';
+            snprintf(buf, sizeof(buf), "  %s {r[{x%s%d%s]{x %sKeyword:{x %s%s{x\n\r",
+                del_link, theme->label, idx + 1, theme->border,
+                theme->label, theme->value,
+                ed->keyword ? ed->keyword : "(none)");
+        } else {
+            snprintf(buf, sizeof(buf), "  {r[{x%s%d%s]{x %sKeyword:{x %s%s{x\n\r",
+                theme->label, idx + 1, theme->border,
+                theme->label, theme->value,
+                ed->keyword ? ed->keyword : "(none)");
+        }
+        add_buf(ctx->buffer, buf);
+        if (ed->description && ed->description[0]) {
+            add_buf(ctx->buffer, ed->description);
+            size_t dlen = strlen(ed->description);
+            if (dlen > 0 && ed->description[dlen - 1] != '\n')
+                add_buf(ctx->buffer, "\n\r");
+        }
+    }
+}
+
 /* =========================================================================
  * Variable Display
  * ========================================================================= */

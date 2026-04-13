@@ -1680,9 +1680,10 @@ Where `lk_0` matches a link `id` in the preceding `Sentience.Link.List` frame.
 ### Sentience.Editor — Overview
 
 The Editor package supports **staged editing** for all Tier 1 OLC editors
-(redit, medit, oedit, aedit). Changes accumulate in memory and are applied
-atomically via `Commit`. This enables web client UIs that show pending changes,
-provide undo, and batch complex edits.
+(redit, medit, oedit, aedit) and all nine script editors (mpedit, opedit,
+rpedit, tpedit, apedit, ipedit, dpedit, qpedit, epedit). Changes accumulate
+in memory and are applied atomically via `Commit`. This enables web client UIs
+that show pending changes, provide undo, and batch complex edits.
 
 #### Entity ID Format
 
@@ -1691,10 +1692,23 @@ and `vnum` is the entity's virtual number within that area.
 
 | Editor | Format | Example |
 |--------|--------|---------|
-| Room   | `room:auid#vnum` | `"room:5#3001"` |
-| Mobile | `mob:auid#vnum`  | `"mob:5#3005"` |
-| Object | `obj:auid#vnum`  | `"obj:5#3010"` |
-| Area   | `area:auid`      | `"area:5"` |
+| Room   | `room:auid#vnum`   | `"room:5#3001"` |
+| Mobile | `mob:auid#vnum`    | `"mob:5#3005"` |
+| Object | `obj:auid#vnum`    | `"obj:5#3010"` |
+| Area   | `area:auid`        | `"area:5"` |
+| Mob Prog (mpedit) | `script:auid#vnum` | `"script:5#3100"` |
+| Obj Prog (opedit) | `script:auid#vnum` | `"script:5#3101"` |
+| Room Prog (rpedit) | `script:auid#vnum` | `"script:5#3102"` |
+| Time Prog (tpedit) | `script:auid#vnum` | `"script:5#3103"` |
+| Area Prog (apedit) | `script:auid#vnum` | `"script:5#3104"` |
+| Item Prog (ipedit) | `script:auid#vnum` | `"script:5#3105"` |
+| Door Prog (dpedit) | `script:auid#vnum` | `"script:5#3106"` |
+| Quest Prog (qpedit) | `script:auid#vnum` | `"script:5#3107"` |
+| Event Prog (epedit) | `script:auid#vnum` | `"script:5#3108"` |
+
+All nine script editor types share the same `script:auid#vnum` entity ID
+format. The `editor_type` in `Editor.Open` distinguishes them (e.g.,
+`"mpedit"`, `"opedit"`, `"rpedit"`, etc.).
 
 #### Field Types
 
@@ -1722,10 +1736,10 @@ The `type` field in change objects and field updates uses these values:
 ### Sentience.Editor.Open
 
 **Direction:** Server → Client
-**When:** Sent when a builder enters an OLC editor (redit, medit, oedit, aedit).
-Provides the full field schema organized by tabs, plus the current changeset state.
-This is the initial message for each editor session — the client uses it to
-dynamically render the editor form.
+**When:** Sent when a builder enters an OLC editor (redit, medit, oedit, aedit,
+or any of the nine script editors). Provides the full field schema organized by
+tabs, plus the current changeset state. This is the initial message for each
+editor session — the client uses it to dynamically render the editor form.
 
 ```json
 {
@@ -1792,7 +1806,7 @@ dynamically render the editor form.
 |-------|------|--------|-------------|
 | `entity_id` | string | ✓ | Entity being edited (see Entity ID Format) |
 | `editor` | string | ✓ | Editor name (e.g., `"REdit"`, `"MEdit"`) |
-| `editor_type` | string | ✓ | Lowercase type: `"room"`, `"mobile"`, `"object"`, `"area"` |
+| `editor_type` | string | ✓ | Lowercase type: `"room"`, `"mobile"`, `"object"`, `"area"`, or script types: `"mpedit"`, `"opedit"`, `"rpedit"`, `"tpedit"`, `"apedit"`, `"ipedit"`, `"dpedit"`, `"qpedit"`, `"epedit"` |
 | `tabs` | array | ✓ | Tab objects with field schemas (may be empty) |
 | `state` | object | ✓ | Current changeset state (same format as `Editor.State`) |
 | `_v` | int | ✓ | Message version (always `1`) |
@@ -1919,7 +1933,7 @@ and the MUD commands for add/remove operations.
 | `label` | string | Display label for the list section |
 | `command` | string | Base command for the list (used in command paths) |
 | `type` | string | Always `"list"` |
-| `item_type` | string | Identifies the kind of item (e.g., `"affect"`, `"script"`, `"variable"`) |
+| `item_type` | string | Identifies the kind of item (e.g., `"affect"`, `"script"`, `"variable"`, `"extradesc"`) |
 | `items` | array | Current items in the list, each with an `index` field |
 | `add_command` | string | MUD command to add an item (e.g., `"addaffect"`) |
 | `del_command` | string | MUD command to remove an item (e.g., `"delaffect"`) |
@@ -1929,6 +1943,41 @@ List items are managed via MUD commands (add/remove), not `Editor.Set`.
 The client should render add/remove buttons and use `item_schema` to show
 item structure. After add/remove, the server sends a `Schema.Update` to
 refresh the affected tab's schema.
+
+#### Known `item_type` Values
+
+| `item_type` | Editor(s) | Item Fields |
+|-------------|-----------|-------------|
+| `"affect"` | Object | `index`, `where`, `location`, `modifier`, `random` |
+| `"immune"` | Object | `index`, `type` |
+| `"spell"` | Object | `index`, `name`, `level` |
+| `"skill"` | Object | `index`, `name`, `level` |
+| `"catalyst"` | Object | `index`, `name`, `level` |
+| `"script"` | Mobile, Object, Room, Area | `index`, `trigger`, `vnum` |
+| `"variable"` | Mobile, Object, Room, Area | `index`, `name`, `type`, `value` |
+| `"extradesc"` | Room | `index`, `keyword`, `description` |
+| `"reset"` | Room | `index`, `type`, `vnum`, `args` |
+| `"cdesc"` | Room | `index`, (context description fields) |
+
+**Extra Description item example** (Room editor, Extra tab):
+```json
+{
+  "label": "Extra Descriptions",
+  "command": "ed add",
+  "type": "list",
+  "item_type": "extradesc",
+  "items": [
+    {"index": 0, "keyword": "fountain pool", "description": "A crystal-clear pool..."},
+    {"index": 1, "keyword": "inscription", "description": "Ancient runes cover..."}
+  ],
+  "add_command": "ed add",
+  "del_command": "ed delete",
+  "item_schema": [
+    {"field": "keyword", "type": "string"},
+    {"field": "description", "type": "multiline"}
+  ]
+}
+```
 
 #### Type Data Fields (`section` markers + `typedata/` paths)
 
@@ -2486,6 +2535,7 @@ removing items from lists such as affects, programs, resets)
 | Mobile (medit) | `addmprog`, `addquest`, `addreputation` |
 | Room (redit) | `mreset`, `oreset`, `addrprog`, `addcdesc` |
 | Area (aedit) | `addaprog`, `addtrade` |
+| Script editors (mpedit, opedit, rpedit, tpedit, apedit, ipedit, dpedit, qpedit, epedit) | *(none — all fields are set via `Editor.Set`)* |
 
 ---
 

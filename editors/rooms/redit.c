@@ -913,19 +913,7 @@ static void redit_show_extra_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit
 
     /* Extra descriptions */
     olc_display_section(ctx, theme, "Extra Descriptions");
-
-    if (pRoom->extra_descr) {
-        EXTRA_DESCR_DATA *ed;
-        add_buf(ctx->buffer, "  Keywords: {r[{x");
-        for (ed = pRoom->extra_descr; ed; ed = ed->next) {
-            add_buf(ctx->buffer, ed->keyword);
-            if (ed->next)
-                add_buf(ctx->buffer, " ");
-        }
-        add_buf(ctx->buffer, "{r]{x\n\r");
-    } else {
-        add_buf(ctx->buffer, "  {D(none){x\n\r");
-    }
+    olc_display_extra_descs(ctx, theme, pRoom->extra_descr, "ed add", "ed delete");
 
     /* Conditional descriptions */
     if (pRoom->conditional_descr) {

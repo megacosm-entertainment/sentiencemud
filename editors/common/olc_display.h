@@ -405,6 +405,21 @@ void olc_display_scripts(OLC_LAYOUT_CTX *ctx, const OLC_EDITOR_THEME *theme,
                          LLIST **progs, int type, const char *title,
                          const char *add_cmd, const char *del_cmd);
 
+/**
+ * Render an extra description list.
+ * In GMCP capture mode, emits a 'list' type field with keyword/description items.
+ * In display mode, renders each extra desc with its keyword and content.
+ *
+ * @param ctx           Layout context
+ * @param theme         Color theme
+ * @param extra_descr   Head of extra description chain
+ * @param add_cmd       Terminal command to add a new extra desc
+ * @param del_cmd       Terminal command prefix to delete (by keyword)
+ */
+void olc_display_extra_descs(OLC_LAYOUT_CTX *ctx, const OLC_EDITOR_THEME *theme,
+                             EXTRA_DESCR_DATA *extra_descr,
+                             const char *add_cmd, const char *del_cmd);
+
 /* =========================================================================
  * Variable Display
  * ========================================================================= */

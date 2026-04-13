@@ -457,6 +457,20 @@ WNUM_LOAD olc_get_entity_wnum(const OLC_EDITOR_DEF *def, void *pEdit)
             wnum.vnum = 0;
             break;
         }
+        case ED_MPCODE:
+        case ED_OPCODE:
+        case ED_RPCODE:
+        case ED_TPCODE:
+        case ED_APCODE:
+        case ED_IPCODE:
+        case ED_DPCODE:
+        case ED_QPCODE:
+        case ED_EPCODE: {
+            SCRIPT_DATA *s = (SCRIPT_DATA *)pEdit;
+            wnum.auid = s->area ? s->area->uid : 0;
+            wnum.vnum = s->vnum;
+            break;
+        }
         default:
             break;
     }
@@ -475,6 +489,18 @@ static const char *olc_get_entity_label(const OLC_EDITOR_DEF *def, void *pEdit)
         case ED_MOBILE: return ((MOB_INDEX_DATA *)pEdit)->short_descr;
         case ED_OBJECT: return ((OBJ_INDEX_DATA *)pEdit)->short_descr;
         case ED_AREA:   return ((AREA_DATA *)pEdit)->name;
+        case ED_MPCODE:
+        case ED_OPCODE:
+        case ED_RPCODE:
+        case ED_TPCODE:
+        case ED_APCODE:
+        case ED_IPCODE:
+        case ED_DPCODE:
+        case ED_QPCODE:
+        case ED_EPCODE: {
+            const char *n = ((SCRIPT_DATA *)pEdit)->name;
+            return n ? n : "unnamed";
+        }
         default:        return "unknown";
     }
 }
