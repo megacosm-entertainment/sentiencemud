@@ -20,9 +20,6 @@ int	imotd;
 int 	rules;
 int 	wizlist;
 
-// For loading and saving area files
-static bool fMatch;
-
 #define HELP_JSON_FORMAT "help_data"
 #define HELP_JSON_VERSION 1
 

@@ -584,9 +584,12 @@ char *format_paragraph_len(char *oldstring,int lens[][2], int lenc,bool mem)
                 else
                 {
                     size_t l = len-2;
-                    if (l >= sizeof(xbuf))
-                        l = sizeof(xbuf) - 1;
-                    strncat(xbuf,rdesc,l);
+                    size_t cur = strlen(xbuf);
+                    size_t avail = sizeof(xbuf) - cur - 1;
+                    if (l > avail)
+                        l = avail;
+                    memcpy(xbuf + cur, rdesc, l);
+                    xbuf[cur + l] = '\0';
                     strcat(xbuf,"-\n\r");
                     rdesc += len - 2;
                 }

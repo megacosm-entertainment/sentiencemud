@@ -28,7 +28,7 @@ extern char *sha256_crypt(const char *pwd);
 
 // Forward declarations for bit operations functions
 extern bool is_stat(const struct flag_type *flag_table);
-extern long flag_value(const struct flag_type *flag_table, char *argument);
+extern long flag_value(const struct flag_type *flag_table, const char *argument);
 extern char *flag_string(const struct flag_type *flag_table, long bits);
 extern char *flag_string_commas(const struct flag_type *flag_table, long bits);
 extern char *affect_loc_name(int location);

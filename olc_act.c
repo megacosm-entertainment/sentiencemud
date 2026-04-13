@@ -272,7 +272,6 @@ void show_skill_cmds(CHAR_DATA *ch, int tar)
 {
     char buf  [ MAX_STRING_LENGTH ];
     char buf1 [ MAX_STRING_LENGTH*2 ];
-    int  sn;
     int  col;
 
     buf1[0] = '\0';

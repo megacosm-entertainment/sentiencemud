@@ -212,7 +212,7 @@ static void display_list_group(CHAR_DATA *ch, olc_changeset_t *cs,
     const char *prefix)
 {
     int add_count = 0, rm_count = 0;
-    char add_prefix[MIL], rm_prefix[MIL];
+    char add_prefix[MIL + 8], rm_prefix[MIL + 8];
     snprintf(add_prefix, sizeof(add_prefix), "%s/add:", prefix);
     snprintf(rm_prefix, sizeof(rm_prefix), "%s/rm:", prefix);
     size_t add_len = strlen(add_prefix);

@@ -353,7 +353,7 @@ SPELL_FUNC(spell_identify)
         break;
 
     case ITEM_CONTAINER:
-        sprintf(buf,"{MItems: {x%d{M/{x%d{M  Weight: {x%ld/%d{M  flags: {x%s{M\n\r",
+        sprintf(buf,"{MItems: {x%d{M/{x%d{M  Weight: {x%d/%d{M  flags: {x%s{M\n\r",
             get_number_in_container(obj), CONTAINER(obj)->max_items,
             (get_obj_weight_container(obj) * WEIGHT_MULT(obj))/100,
             CONTAINER(obj)->max_weight, cont_bit_name(CONTAINER(obj)->flags));

@@ -388,7 +388,8 @@ json_t *game_settings_to_json(void)
         "security",  // SETTING_CAT_SECURITY = 8
         "mssp",      // SETTING_CAT_MSSP = 9
         "redis",     // SETTING_CAT_REDIS = 10
-        "debug"      // SETTING_CAT_DEBUG = 11
+        "debug",     // SETTING_CAT_DEBUG = 11
+        "olc"        // SETTING_CAT_OLC = 12
     };
     int i;
 
@@ -626,7 +627,8 @@ bool json_to_game_settings(json_t *root)
         "security",  // SETTING_CAT_SECURITY = 8
         "mssp",      // SETTING_CAT_MSSP = 9
         "redis",     // SETTING_CAT_REDIS = 10
-        "debug"      // SETTING_CAT_DEBUG = 11
+        "debug",     // SETTING_CAT_DEBUG = 11
+        "olc"        // SETTING_CAT_OLC = 12
     };
     int i;
 

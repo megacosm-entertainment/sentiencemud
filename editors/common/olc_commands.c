@@ -791,7 +791,7 @@ olc_pending_change_t *olc_stage_list_add(olc_changeset_t *cs,
     snprintf(prefix, sizeof(prefix), "%s/add", list_name);
     int seq = olc_changeset_next_seq(cs, prefix);
 
-    char path[MIL];
+    char path[MIL + 16];
     snprintf(path, sizeof(path), "%s:%d", prefix, seq);
 
     return olc_changeset_add_change(cs, path, OLC_FIELD_LIST_ADD, NULL, value);
@@ -809,7 +809,7 @@ olc_pending_change_t *olc_stage_list_remove(olc_changeset_t *cs,
     snprintf(prefix, sizeof(prefix), "%s/rm", list_name);
     int seq = olc_changeset_next_seq(cs, prefix);
 
-    char path[MIL];
+    char path[MIL + 16];
     snprintf(path, sizeof(path), "%s:%d", prefix, seq);
 
     json_t *val = json_pack("{s:i}", "index", index);

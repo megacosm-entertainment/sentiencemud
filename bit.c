@@ -134,18 +134,23 @@ bool is_stat( register const struct flag_type *flag_table )
  * @param argument    Space-separated flag name(s) to parse
  * @return            Bit value(s) or NO_FLAG if no matches found
  */
-long flag_value( const struct flag_type *flag_table, char *argument)
+long flag_value( const struct flag_type *flag_table, const char *argument)
 {
     char word[MAX_INPUT_LENGTH];
+    char arg_copy[MAX_INPUT_LENGTH];
+    char *arg_ptr;
     long bit;
     long marked = 0;
     bool found = false;
 
     if ( flag_table == NULL ) return NO_FLAG;
 
+    strlcpy(arg_copy, argument, sizeof(arg_copy));
+    arg_ptr = arg_copy;
+
     if ( is_stat( flag_table ) )
     {
-    one_argument( argument, word );
+    one_argument( arg_ptr, word );
 
     /* Use stat_lookup with NO_FLAG sentinel so that value 0 is valid.
      * flag_lookup returns 0 for not-found, which is ambiguous when
@@ -159,7 +164,7 @@ long flag_value( const struct flag_type *flag_table, char *argument)
      */
     for (; ;)
     {
-        argument = one_argument( argument, word );
+        arg_ptr = one_argument( arg_ptr, word );
 
         if ( word[0] == '\0' )
         break;

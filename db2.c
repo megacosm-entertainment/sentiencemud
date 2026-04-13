@@ -1192,8 +1192,6 @@ void load_npc_ships()
 
 void do_dump( CHAR_DATA *ch, char *argument )
 {
-    int i;
-    int n;
     FILE *fp;
 
     if ( !str_cmp(argument, "skills"))
@@ -1204,7 +1202,6 @@ void do_dump( CHAR_DATA *ch, char *argument )
         return;
     }
 
-    i = 0;
     {
         SKILL_GROUP *sg;
         for (sg = skill_group_first(); sg; sg = sg->next) {

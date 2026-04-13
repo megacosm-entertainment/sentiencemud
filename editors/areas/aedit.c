@@ -1801,7 +1801,7 @@ AEDIT(aedit_recall)
     }
 
     /* Determine what we're staging */
-    char stage_val[MIL];
+    char stage_val[MAX_STRING_LENGTH];
 
     if (!str_cmp(arg1, "0") && !arg2[0]) {
         strlcpy(stage_val, "0", sizeof(stage_val));

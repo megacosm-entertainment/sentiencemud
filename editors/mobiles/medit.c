@@ -58,7 +58,7 @@ static AREA_DATA *medit_get_area(void *pEdit)
     return pMob ? pMob->area : NULL;
 }
 
-/* Currently unused — will be called from commit-time hooks in Phase 2. */
+#if 0 /* Currently unused — will be called from commit-time hooks in Phase 2. */
 static void medit_rebuild_auto_tags(MOB_INDEX_DATA *pMob)
 {
     if (!pMob)
@@ -67,6 +67,7 @@ static void medit_rebuild_auto_tags(MOB_INDEX_DATA *pMob)
     free_string(pMob->auto_tags);
     pMob->auto_tags = short_to_name(pMob->player_name);
 }
+#endif
 
 /*
  * Mobile Editor Command Table

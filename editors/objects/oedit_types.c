@@ -31,7 +31,7 @@ extern int  get_armour_strength(char *argument);
 /*
  * Type Dispatch Infrastructure
  *
- * Per-type apply/serialize function pairs called from the typedata/**
+ * Per-type apply/serialize function pairs called from the typedata
  * wildcard handler in oedit.c.
  */
 

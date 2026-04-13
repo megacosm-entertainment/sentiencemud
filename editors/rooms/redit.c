@@ -1735,7 +1735,7 @@ REDIT(redit_recall)
         return false;
     }
 
-    char stage_val[MIL];
+    char stage_val[MAX_STRING_LENGTH];
 
     /* Try widevnum first (single arg, no second arg) */
     WNUM wnum;

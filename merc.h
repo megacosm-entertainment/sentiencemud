@@ -9749,7 +9749,7 @@ void stop_grouped	args( ( CHAR_DATA *ch ) );
 /* bit.c */
 char *flag_string( const struct flag_type *flag_table, long bits );
 char *flag_string_commas( const struct flag_type *flag_table, long bits );
-long flag_value( const struct flag_type *flag_table, char *argument);
+long flag_value( const struct flag_type *flag_table, const char *argument);
 char *	affect_loc_name	args( ( int location ) );
 char *	affect_bit_name	args( ( long vector ) );
 char *	affect2_bit_name	args( ( long vector ) );

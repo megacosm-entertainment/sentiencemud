@@ -1046,16 +1046,11 @@ static bool load_char_obj_internal(DESCRIPTOR_DATA *d, const char *name, bool lo
     char strsave[MAX_INPUT_LENGTH];
     char buf[MSL];
     CHAR_DATA *ch;
-    OBJ_DATA *obj;
     FILE *fp;
     bool found = false;
     int stat;
-    TOKEN_DATA *token;
     pVARIABLE last_var = variable_tail;
-    char *section = NULL;
     IMMORTAL_DATA *immortal;
-    OBJ_DATA *objNestList[MAX_NEST];
-    int iNest;
     struct timeval start_time, end_time;
     long total_ms;
 
@@ -1098,10 +1093,6 @@ static bool load_char_obj_internal(DESCRIPTOR_DATA *d, const char *name, bool lo
     ch->locker_rent = 0;
     ch->deathsight_vision = 0;
 
-
-    // Initialize the object nesting table
-    for (iNest = 0; iNest < MAX_NEST; iNest++)
-        objNestList[iNest] = NULL;
 
     found = false;
     if (fpReserve != NULL) {
@@ -5206,8 +5197,6 @@ ACCOUNT_DATA *find_account_by_id(unsigned long id0, unsigned long id1)
     struct dirent *entry;
     char dir_path[MAX_INPUT_LENGTH];
     char acct_path[MAX_STRING_LENGTH];
-    FILE *fp;
-    char letter, *word;
     ACCOUNT_DATA *account = NULL;
     bool found = false;
     char c;
