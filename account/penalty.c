@@ -1713,6 +1713,7 @@ void do_penalty(CHAR_DATA *ch, char *argument)
         time_t expires_at = 0;
         char *target_name = NULL;
         char *extra_data = NULL;
+        char target_buf[MAX_INPUT_LENGTH];
         char buf[MAX_STRING_LENGTH * 2];
         PENALTY_DATA *p;
 
@@ -1753,8 +1754,10 @@ void do_penalty(CHAR_DATA *ch, char *argument)
 
         /* If character-scoped, we need a target name */
         if (scope == PENALTY_SCOPE_CHARACTER) {
-            /* arg4 should be the character name */
-            target_name = arg4;
+            /* Copy character name before arg4 is reused */
+            strncpy(target_buf, arg4, sizeof(target_buf) - 1);
+            target_buf[sizeof(target_buf) - 1] = '\0';
+            target_name = target_buf;
             argument = one_argument(argument, arg4);
             if (arg4[0] == '\0') {
                 send_to_char("Provide a reason for the penalty.\n\r", ch);
