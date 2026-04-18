@@ -357,30 +357,32 @@ void do_sdemote(CHAR_DATA *ch, char *argument)
         return;
     }
 
-    if (get_staff_rank(player) == STAFF_GIMP)
-    {
-        send_to_char("That is the lowest staff rank.  If you want to demote them lower, sdelete them.\n\r", ch);
-        return;
-    }
-
     int old_rank = get_staff_rank(player);
     int new_rank = old_rank - 1;
     if (argument[0] != '\0')
     {
         if ((new_rank = stat_lookup(argument, staff_ranks, NO_FLAG)) == NO_FLAG ||
-            new_rank < STAFF_GIMP || new_rank >= old_rank)
+            new_rank < STAFF_PLAYER || new_rank >= old_rank)
         {
             send_to_char("Invalid staff rank.\n\r", ch);
             send_to_char("Please select one of the following:\n\r", ch);
             for(int i = 0; staff_ranks[i].name; i++)
             {
-                if (staff_ranks[i].settable && staff_ranks[i].bit > STAFF_PLAYER && staff_ranks[i].bit < old_rank)
+                if (staff_ranks[i].settable && staff_ranks[i].bit >= STAFF_PLAYER && staff_ranks[i].bit < old_rank)
                 {
                     send_to_char(formatf(" %s\n\r", staff_ranks[i].name), ch);
                 }
             }
             return;
         }
+    }
+    
+    /* Full removal when demoting to player rank */
+    if (new_rank <= STAFF_PLAYER) {
+        send_to_char(formatf("You have been removed from staff.\n\r"), player);
+        send_to_char(formatf("{+%s removed from staff.\n\r", player->name), ch);
+        remove_staff_status(player->name);
+        return;
     }
     
     player->pcdata->staff_rank = new_rank;
