@@ -11370,6 +11370,7 @@ void do_pwmigrate(CHAR_DATA *ch, char *argument);
 void do_cryptorotate(CHAR_DATA *ch, char *argument);
 bool derive_key_from_passphrase(const char *passphrase, int version, const char *salt_base, unsigned char *key_out);
 void remove_immortal(IMMORTAL_DATA *immortal);
+void remove_staff_status(const char *name);
 void show_immortal(IMMORTAL_DATA *immortal, CHAR_DATA *ch);
 void print_immortal_info(IMMORTAL_DATA *immortal, CHAR_DATA *ch);
 

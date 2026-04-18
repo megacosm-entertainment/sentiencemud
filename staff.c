@@ -150,6 +150,123 @@ void add_immortal(IMMORTAL_DATA *immortal)
 }
 
 
+/* Remove an immortal from the global list and free it. */
+void remove_immortal(IMMORTAL_DATA *immortal)
+{
+    IMMORTAL_DATA *tmp, *last = NULL;
+
+    if (immortal == NULL)
+        return;
+
+    for (tmp = immortal_list; tmp != NULL; tmp = tmp->next) {
+        if (tmp == immortal)
+            break;
+        last = tmp;
+    }
+
+    if (tmp == NULL)
+        return;
+
+    if (last != NULL)
+        last->next = immortal->next;
+    else
+        immortal_list = immortal->next;
+
+    free_immortal(immortal);
+    save_immstaff();
+}
+
+
+/*
+ * remove_staff_status - Completely remove staff status from a character.
+ *
+ * 1. Remove IMMORTAL_DATA from immortal_list
+ * 2. Reset staff_rank on the character (online or offline)
+ * 3. Update the ACCOUNT_CHARACTER entry
+ * 4. Clear ACCT_CAN_CREATE_STAFF if no staff remain on the account
+ */
+void remove_staff_status(const char *name)
+{
+    IMMORTAL_DATA *immortal;
+    CHAR_DATA *victim;
+    ACCOUNT_DATA *acct;
+    ACCOUNT_CHARACTER *acct_char;
+    ITERATOR it;
+    bool has_remaining_staff = false;
+    bool acct_needs_free = false;
+
+    if (IS_NULLSTR(name))
+        return;
+
+    /* Step 1: Remove immortal record */
+    immortal = find_immortal((char *)name);
+    if (immortal != NULL) {
+        /* Clear backlink before freeing */
+        if (immortal->pc != NULL)
+            immortal->pc->immortal = NULL;
+        remove_immortal(immortal);
+    }
+
+    /* Step 2: Reset staff_rank on the character */
+    victim = get_char_world(NULL, (char *)name);
+    if (victim != NULL && !IS_NPC(victim)) {
+        /* Online character */
+        victim->pcdata->staff_rank = STAFF_PLAYER;
+        victim->pcdata->immortal = NULL;
+        save_char_obj(victim);
+    } else if (player_exists((char *)name)) {
+        /* Offline character — load, fix, save */
+        DESCRIPTOR_DATA temp_d;
+        memset(&temp_d, 0, sizeof(temp_d));
+
+        if (load_char_obj_basic(&temp_d, name)) {
+            if (temp_d.character && temp_d.character->pcdata) {
+                temp_d.character->pcdata->staff_rank = STAFF_PLAYER;
+                temp_d.character->pcdata->immortal = NULL;
+                save_char_obj(temp_d.character);
+            }
+            if (temp_d.character) {
+                free_char(temp_d.character);
+                temp_d.character = NULL;
+            }
+        } else {
+            log_string(formatf("remove_staff_status: failed to load character '%s'", name));
+        }
+    } else {
+        log_string(formatf("remove_staff_status: character '%s' does not exist", name));
+    }
+
+    /* Step 3: Update account character entry */
+    acct = find_account((char *)name);
+    if (acct == NULL) {
+        log_string(formatf("remove_staff_status: no account found for '%s'", name));
+        return;
+    }
+
+    acct_needs_free = true;
+
+    iterator_start(&it, acct->characters);
+    while ((acct_char = (ACCOUNT_CHARACTER *)iterator_nextdata(&it))) {
+        if (!str_cmp(acct_char->name, name)) {
+            acct_char->staff = false;
+            acct_char->staff_rank = STAFF_PLAYER;
+        } else if (acct_char->staff && acct_char->staff_rank >= STAFF_IMMORTAL) {
+            has_remaining_staff = true;
+        }
+    }
+    iterator_stop(&it);
+
+    /* Step 4: Clear account staff flag if no staff remain */
+    if (!has_remaining_staff)
+        REMOVE_BIT(acct->acct_flags, ACCT_CAN_CREATE_STAFF);
+
+    save_account(acct);
+
+    if (acct_needs_free)
+        free_account(acct);
+}
+
+
 /* Toggles a duty for an immortal.
    Staff duty [immortal] [duty] */
 void do_sduty(CHAR_DATA *ch, char *argument)
