@@ -59,6 +59,7 @@ test_result_t run_olc_action_test_case(test_case_t *test);
 test_result_t run_olc_commit_history_test_case(test_case_t *test);
 test_result_t run_gmcp_editor_test_case(test_case_t *test);
 test_result_t run_olc_schema_capture_test_case(test_case_t *test);
+test_result_t run_staff_removal_test_case(test_case_t *test);
 
 #endif /* BUILD_TESTS */
 

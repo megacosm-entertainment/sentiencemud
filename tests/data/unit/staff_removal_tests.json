@@ -1,0 +1,80 @@
+{
+  "type": "test_suite",
+  "test_suite": "staff_removal_tests",
+  "description": "Tests for staff removal via remove_immortal() and remove_staff_status()",
+  "version": "1.0",
+  "requires_mud_environment": true,
+  "test_level": "unit",
+  "tests": [
+    {
+      "name": "remove_immortal_clears_list",
+      "description": "After remove_immortal(), find_immortal() returns NULL",
+      "test_type": "stfrm_remove_immortal_clears_list",
+      "input": { "scenario": "remove_from_list" },
+      "expected_output": { "pass": true }
+    },
+    {
+      "name": "remove_staff_status_resets_rank",
+      "description": "remove_staff_status() clears immortal record for a non-existent pfile",
+      "test_type": "stfrm_remove_status_resets_rank",
+      "input": { "scenario": "reset_rank" },
+      "expected_output": { "pass": true }
+    },
+    {
+      "name": "remove_staff_status_clears_immortal_pointer",
+      "description": "remove_staff_status() nulls the pc->immortal backlink",
+      "test_type": "stfrm_clears_immortal_ptr",
+      "input": { "scenario": "clear_pointer" },
+      "expected_output": { "pass": true }
+    },
+    {
+      "name": "remove_immortal_null_safe",
+      "description": "remove_immortal(NULL) does not crash",
+      "test_type": "stfrm_null_safe",
+      "input": { "scenario": "null_safe" },
+      "expected_output": { "pass": true }
+    },
+    {
+      "name": "remove_immortal_not_in_list",
+      "description": "remove_immortal() on an immortal not in the list does not crash",
+      "test_type": "stfrm_not_in_list",
+      "input": { "scenario": "not_in_list" },
+      "expected_output": { "pass": true }
+    },
+    {
+      "name": "remove_staff_status_empty_name",
+      "description": "remove_staff_status with empty/NULL name does not crash",
+      "test_type": "stfrm_empty_name",
+      "input": { "scenario": "empty_name" },
+      "expected_output": { "pass": true }
+    },
+    {
+      "name": "account_entry_updated_on_removal",
+      "description": "remove_staff_status() sets ACCOUNT_CHARACTER staff=false and staff_rank=0",
+      "test_type": "stfrm_account_entry_updated",
+      "input": { "scenario": "account_entry_updated" },
+      "expected_output": { "pass": true }
+    },
+    {
+      "name": "account_flag_cleared_last_staff",
+      "description": "ACCT_CAN_CREATE_STAFF cleared when last staff character removed",
+      "test_type": "stfrm_account_flag_cleared",
+      "input": { "scenario": "account_flag_cleared" },
+      "expected_output": { "pass": true }
+    },
+    {
+      "name": "sdemote_to_player_triggers_removal",
+      "description": "do_sdemote to 'player' rank triggers full staff removal via remove_staff_status",
+      "test_type": "stfrm_sdemote_to_player",
+      "input": { "scenario": "sdemote_to_player" },
+      "expected_output": { "pass": true }
+    },
+    {
+      "name": "sdemote_below_gimp_allowed",
+      "description": "do_sdemote below STAFF_GIMP (to player) is now allowed — old floor removed",
+      "test_type": "stfrm_sdemote_below_gimp",
+      "input": { "scenario": "sdemote_below_gimp" },
+      "expected_output": { "pass": true }
+    }
+  ]
+}

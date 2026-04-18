@@ -325,6 +325,7 @@ ifdef BUILD_TESTS
                tests/unit/olc_action_tests.c \
                tests/unit/olc_commit_history_tests.c \
                tests/unit/olc_schema_capture_tests.c \
+               tests/unit/staff_removal_tests.c \
                tests/integration/gmcp_editor_tests.c \
                tests/unit/pure_function_tests.c \
                tests/integration/wnum_tests.c \
