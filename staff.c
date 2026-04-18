@@ -457,38 +457,24 @@ void do_spromote(CHAR_DATA *ch, char *argument)
 void do_sdelete(CHAR_DATA *ch, char *argument)
 {
     char arg[MSL];
-    IMMORTAL_DATA *immortal, *tmp, *last;
+    IMMORTAL_DATA *immortal;
 
     argument = one_argument(argument, arg);
 
     if (arg[0] == '\0') {
-    send_to_char("Syntax:  staff delete [immortal]"
-             "\n\r{RWARNING:{x all information associated with this immortal will be wiped!\n\r", ch);
-    return;
+        send_to_char("Syntax:  staff delete [immortal]"
+                 "\n\r{RWARNING:{x all information associated with this immortal will be wiped!\n\r", ch);
+        return;
     }
 
     if ((immortal = find_immortal(arg)) == NULL) {
-    send_to_char("No such immortal.\n\r", ch);
-    return;
+        send_to_char("No such immortal.\n\r", ch);
+        return;
     }
 
-    act("$T's immortal priveleges have been terminated.", ch, NULL, NULL, NULL, NULL, NULL, immortal->name, TO_CHAR, NULL, NULL);
-    /* Remove it from the global list */
-    last = NULL;
-    for (tmp = immortal_list; tmp != NULL; tmp = tmp->next) {
-    if (tmp == immortal)
-        break;
+    act("$T's immortal privileges have been terminated.", ch, NULL, NULL, NULL, NULL, NULL, immortal->name, TO_CHAR, NULL, NULL);
 
-    last = tmp;
-    }
-
-    if (last != NULL)
-    last->next = immortal->next;
-    else
-    immortal_list = immortal->next;
-
-    free_immortal(immortal);
-    save_immstaff();
+    remove_staff_status(immortal->name);
 }
 
 
