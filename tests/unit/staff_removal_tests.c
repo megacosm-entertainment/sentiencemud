@@ -278,6 +278,38 @@ test_result_t run_staff_removal_test_case(test_case_t *test)
         return TEST_SUCCESS;
     }
 
+    /* Test: remove_staff_status correctly handles offline character.
+       Verifies the immortal record is not re-created by load_char_obj_basic. */
+    if (strcmp(scenario, "offline_char_removal") == 0) {
+        IMMORTAL_DATA *saved_list = immortal_list;
+
+        /* Create an immortal record */
+        IMMORTAL_DATA *imm = new_immortal();
+        free_string(imm->name);
+        imm->name = str_dup("TestOfflineChar");
+        imm->duties = 0;
+        imm->created = current_time;
+        add_immortal(imm);
+
+        /* Create a pfile with STAFF_IMMORTAL */
+        CHAR_DATA *ch = new_char();
+        ch->name = str_dup("TestOfflineChar");
+        ch->pcdata = new_pcdata();
+        ch->pcdata->staff_rank = STAFF_IMMORTAL;
+        save_char_obj(ch);
+        free_char(ch);
+
+        /* Remove staff status (offline path — character is not online) */
+        remove_staff_status("TestOfflineChar");
+
+        /* Verify: immortal record must NOT be in the list */
+        TEST_ASSERT_NULL(find_immortal("TestOfflineChar"));
+
+        delete_character_by_name("TestOfflineChar");
+        immortal_list = saved_list;
+        return TEST_SUCCESS;
+    }
+
     log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS, "Unknown staff removal test scenario: %s", scenario);
     return TEST_ERROR;
 }

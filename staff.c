@@ -193,21 +193,17 @@ void remove_staff_status(const char *name)
     ACCOUNT_CHARACTER *acct_char;
     ITERATOR it;
     bool has_remaining_staff = false;
-    bool acct_needs_free = false;
 
     if (IS_NULLSTR(name))
         return;
 
-    /* Step 1: Remove immortal record */
     immortal = find_immortal((char *)name);
-    if (immortal != NULL) {
-        /* Clear backlink before freeing */
-        if (immortal->pc != NULL)
-            immortal->pc->immortal = NULL;
-        remove_immortal(immortal);
-    }
 
-    /* Step 2: Reset staff_rank on the character */
+    /* Step 1: Reset staff_rank on the character.
+     * This must happen BEFORE removing the immortal record, because
+     * load_char_obj_basic triggers a safety fallback in save.c that
+     * re-creates the immortal if staff_rank > STAFF_PLAYER and the
+     * record is missing from the list. */
     victim = get_char_world(NULL, (char *)name);
     if (victim != NULL && !IS_NPC(victim)) {
         /* Online character */
@@ -236,14 +232,19 @@ void remove_staff_status(const char *name)
         log_string(formatf("remove_staff_status: character '%s' does not exist", name));
     }
 
+    /* Step 2: Remove immortal record (after pfile has STAFF_PLAYER) */
+    if (immortal != NULL) {
+        if (immortal->pc != NULL)
+            immortal->pc->immortal = NULL;
+        remove_immortal(immortal);
+    }
+
     /* Step 3: Update account character entry */
     acct = find_account((char *)name);
     if (acct == NULL) {
         log_string(formatf("remove_staff_status: no account found for '%s'", name));
         return;
     }
-
-    acct_needs_free = true;
 
     iterator_start(&it, acct->characters);
     while ((acct_char = (ACCOUNT_CHARACTER *)iterator_nextdata(&it))) {
@@ -261,9 +262,7 @@ void remove_staff_status(const char *name)
         REMOVE_BIT(acct->acct_flags, ACCT_CAN_CREATE_STAFF);
 
     save_account(acct);
-
-    if (acct_needs_free)
-        free_account(acct);
+    free_account(acct);
 }
 
 
@@ -379,7 +378,7 @@ void do_sdemote(CHAR_DATA *ch, char *argument)
     
     /* Full removal when demoting to player rank */
     if (new_rank <= STAFF_PLAYER) {
-        send_to_char(formatf("You have been removed from staff.\n\r"), player);
+        send_to_char("You have been removed from staff.\n\r", player);
         send_to_char(formatf("{+%s removed from staff.\n\r", player->name), ch);
         remove_staff_status(player->name);
         return;

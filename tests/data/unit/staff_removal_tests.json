@@ -75,6 +75,13 @@
       "test_type": "stfrm_sdemote_below_gimp",
       "input": { "scenario": "sdemote_below_gimp" },
       "expected_output": { "pass": true }
+    },
+    {
+      "name": "offline_char_removal",
+      "description": "remove_staff_status correctly removes staff from offline character without re-creation",
+      "test_type": "stfrm_offline_char_removal",
+      "input": { "scenario": "offline_char_removal" },
+      "expected_output": { "pass": true }
     }
   ]
 }
